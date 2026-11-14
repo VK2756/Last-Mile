@@ -1,0 +1,71 @@
+{
+  "seconds": 2.0894170000000005,
+  "seeds": [
+    1,
+    50
+  ],
+  "runs": 50,
+  "base": {
+    "town": "amherst",
+    "helperCount": 0,
+    "wind": {
+      "speedMph": 20,
+      "dirDeg": 90
+    },
+    "ignition": {
+      "lat": 42.3732,
+      "lng": -72.5199
+    },
+    "speedMultiplier": 8
+  },
+  "results": {
+    "alerts_only": {
+      "evacuatedRate": {
+        "mean": 0.6959903424590295,
+        "ci95": [
+          0.6874877904235317,
+          0.7047162466720417
+        ]
+      },
+      "vulnerableEvacuatedRate": {
+        "mean": 0.44194609121128364,
+        "ci95": [
+          0.4264511079646823,
+          0.4580440678605071
+        ]
+      },
+      "trappedMean": 83.38
+    },
+    "last_mile": {
+      "evacuatedRate": {
+        "mean": 0.6959903424590295,
+        "ci95": [
+          0.6874877904235317,
+          0.7047162466720417
+        ]
+      },
+      "vulnerableEvacuatedRate": {
+        "mean": 0.44194609121128364,
+        "ci95": [
+          0.4264511079646823,
+          0.4580440678605071
+        ]
+      },
+      "trappedMean": 83.38
+    }
+  },
+  "vulnerableLift": {
+    "mean": 0,
+    "ci95": [
+      0,
+      0
+    ]
+  },
+  "assumptions": [
+    "SIMULATION: every resident, helper and fire is synthetic; these numbers describe the model, not a forecast.",
+    "50 paired runs: for each seed, both policies face the same fire, population and helpers; only the policy differs.",
+    "Rates are per run (homes evacuated / homes); 95% intervals are percentile bootstrap intervals over runs (2000 resamples).",
+    "Vulnerable lift is the mean per-seed difference (Last Mile minus alerts only) in the vulnerable evacuated rate, bootstrapped over seeds so each pair stays together.",
+    "\"Vulnerable\" means no vehicle, or any of: no vehicle, wheelchair, oxygen, dementia, medical device, vision impaired."
+  ]
+}
