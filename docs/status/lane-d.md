@@ -1,36 +1,24 @@
 # Lane D status (ROUTING / DISPATCH / MONTE CARLO, Rishabh)
-_Updated 2026-11-14 ~2:40pm._
+_Updated 2026-11-14 ~3:30pm._
 
-## Done (merged)
-#20 routing, #23 dispatch (closes #9), #28 Monte Carlo + routing speed-up, #35 clearer unservable reasons.
-**This PR: item 13, the real Amherst roads.** `loadTown('amherst')` now reads `engine/data/town-amherst.json` from disk: OSM, 5 km box, 710 nodes, 1,507 directed edges, 185 one-way ways, largest strongly connected component only. It is baked once by `scripts/bake-roads.ts` with no runtime network; `synthetic_grid`/`paradise_like`, or a missing file, fall back to `makeGridGraph`. The router only snaps to the largest strongly connected component, so trips never start on an island. No `STUB:` markers are left in Lane D files.
+## Merged
+#20 routing, #23 dispatch, #28 Monte Carlo, #35 dispatch reasons, #43 real Amherst roads (stub markers removed; closed #45), #47 Windows worker fix (#33 open until Lane C retests).
 
-## For Lane A (Vidhaan): mount Monte Carlo (issue #29)
-```ts
-import { registerMonteCarlo } from './montecarlo';
-// inside buildServer(), after the other routes and before `return app`:
-registerMonteCarlo(app, { warmPreset: process.env.NODE_ENV !== 'test' });
-```
-This adds `POST /montecarlo` (`{ base?, runs?=200, seeds? }`; `{}` = preset) and `GET /montecarlo/preset`. It runs one uncached batch at a time (429 otherwise), caches results, and aborts a running batch on close. Checked over real HTTP against `buildServer()` with `scripts/montecarlo-smoke.ts`.
-**Heads-up:** with real roads, `amherst` scenarios now use OSM streets. Fewer homes are at risk (about 270 instead of 364 for seed 1) and routes follow real streets. 78/78 engine tests pass, and the real sim shows 0 rejected assignments.
+## Open PRs (all blocked only by main being red: #68, a Lane A test regex)
+- #66 Monte Carlo ~2x cheaper. Exact: same results as main. Per seed pair 544 -> ~220-256 ms single thread; N=200 on 2 workers 50.4 s -> 23-30 s wall on this laptop.
+- #75 fuzz invariants: 300 random public configs on real roads, 0 failures (routes avoid burning ground, capacity and wheelchair rules hold, ETAs >= 0, terminates, deterministic). 3 seeds run in CI.
+- #76 baseline fairness review (this file's update rides with it).
 
-## Monte Carlo on REAL Amherst roads (real runHeadless, `scripts/montecarlo-cli.ts`, nothing tuned)
-Vulnerable evacuated rate, mean [95% CI], and the paired lift:
-| config | seeds | alerts_only | last_mile | lift (pts) |
-|---|---|---|---|---|
-| preset: wind 20 mph @90, 24 helpers | 1-200 | 45.1% [44.2, 45.9] | 72.5% [71.6, 73.3] | +27.4 [26.6, 28.2] |
-| preset | 1001-1200 | 44.8% [43.9, 45.8] | 71.7% [70.8, 72.6] | +26.8 [25.9, 27.7] |
-| wind 10 mph @270, 12 helpers | 1-200 | 55.7% [54.9, 56.4] | 85.1% [84.4, 85.9] | +29.5 [28.8, 30.2] |
-| wind 35 mph @45, 6 helpers | 1-200 | 36.7% [35.9, 37.4] | 51.3% [50.5, 52.1] | +14.7 [14.1, 15.2] |
-| wind 35 mph @45, 48 helpers | 1-200 | 36.7% [35.9, 37.4] | 62.0% [61.2, 62.8] | +25.4 [24.6, 26.0] |
-| sanity: 0 helpers | 1-50 | equal | equal | +0.0 [0.0, 0.0] |
-All homes evacuated (preset): 69.7% vs 76.2%. Last Mile wins in every config. The lift is smaller on real roads than on the synthetic grid (grid preset was +32.1), smallest in fast fires with few helpers, and a fast fire caps it even with 48 helpers.
+## For Lane E (Prince): please link `docs/submission/BASELINE_REVIEW.md`
+It answers "is alerts-only a strawman?": 20 harsher configs from the public knobs only, 100 paired seeds each. Last Mile wins in all of them, but **by only ~6 pts with a single helper**, and fast fires cap it at ~52% vulnerable evacuated. It suggests one honest pitch sentence. The missing baseline behaviours are filed for Lane A: #69 neighbours give rides, #71 self-evacuation and family-pickup rates, #72 smarter family pickup, #73 fleet capacity and mix.
 
-## Timing, N=200 (400 real runs), real roads, Intel Core Ultra 5 225H
-All 14 cores: 13.4 s. 2 workers: 50.4 s. **For Lane C:** a 2-vCPU Vultr VM is borderline for 60 s, so use 4 vCPU if possible. The preset is cached and warmed at boot either way.
+## For Lane A (Vidhaan)
+- Mount Monte Carlo (issue #29): `import { registerMonteCarlo } from './montecarlo';` then `registerMonteCarlo(app, { warmPreset: process.env.NODE_ENV !== 'test' });` inside `buildServer()` before `return app`.
+- #68: `sim.test.ts:101` regex `/SENSITIVITY: helpers .* far from the fire/` can't match "(far from the fire)". Drop the space before `far`.
 
-## Dispatch quality (`scripts/unservable-report.ts`, 20 seeds, grid)
-46% of homes needing help are flagged at least once, mostly because every capable helper is busy (28 of 34 per run), not because they are too far. Most of them are evacuated later. I tried letting busy helpers add best-effort pickups after their trip: no gain (32.2 -> 32.0 pts) and more trapped homes that were never flagged, so I didn't keep it.
+## Monte Carlo on real Amherst roads (preset, 200 paired seeds)
+Vulnerable evacuated 45.1% -> 72.5%, lift +27.4 pts [26.6, 28.2]; all homes 69.7% -> 76.2%. Full stress table in BASELINE_REVIEW.md.
 
 ## Next
-Re-time on the Vultr box once Lane C deploys; watch `gh issue list --label lane:d`. **Blockers:** none.
+Scenario stories on real roads (lane:a preset issue), then the map alignment check with Lane B.
+**Blockers:** main red (#68).
