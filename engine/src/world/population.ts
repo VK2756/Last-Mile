@@ -76,7 +76,7 @@ function pickSafeZones(graph: RoadGraph, fire: FireModel): SafeZone[] {
   return chosen.map((c, i) => ({ id: `z${i + 1}`, name: `Safe zone ${String.fromCharCode(65 + i)}`, position: { lat: c.n.lat, lng: c.n.lng } }));
 }
 
-function drawHousehold(i: number, rng: Rng, graph: RoadGraph, helpDelay: [number, number]): { hh: Household; beh: Behavior } {
+function drawHousehold(i: number, rng: Rng, graph: RoadGraph, helpDelay: [number, number], familyProb: number, prepScale: number): { hh: Household; beh: Behavior } {
   const node = rng.pick(graph.nodes);
   const pos = fromXY(rng.range(-35, 35), rng.range(-35, 35), { lat: node.lat, lng: node.lng });
   const needs: Need[] = [];
@@ -93,8 +93,8 @@ function drawHousehold(i: number, rng: Rng, graph: RoadGraph, helpDelay: [number
   const alertMean = 150 + (landlineOnly ? 300 : 0) + (needs.includes('limited_english') ? 120 : 0) + (needs.includes('no_cell_signal') ? 240 : 0);
   const beh: Behavior = {
     alertDelayS: Math.min(3600, rng.exp(alertMean)),
-    prepS: Math.min(1800, 120 + rng.exp(240) + (needs.includes('young_children') ? 60 : 0) + (needs.includes('pets') ? 60 : 0)),
-    familyPickup: rng.chance(P.familyPickup),
+    prepS: Math.min(1800, 120 + rng.exp(240) + (needs.includes('young_children') ? 60 : 0) + (needs.includes('pets') ? 60 : 0)) * prepScale,
+    familyPickup: rng.chance(familyProb),
     pickupDelayS: 900 + rng.range(0, 1500),
     helpRequestDelayS: rng.range(helpDelay[0], helpDelay[1]),
   };
@@ -105,7 +105,7 @@ export function generatePopulation(config: ScenarioConfig, graph: RoadGraph, fir
   const helpDelay = variant.helpDelayS ?? DEFAULT_HELP_DELAY_S;
   const rng = createRng(config.seed, SALT.population);
   const households: Household[] = []; const behavior: Record<string, Behavior> = {};
-  for (let i = 0; i < HOUSEHOLD_COUNT; i++) { const { hh, beh } = drawHousehold(i, rng, graph, helpDelay); households.push(hh); behavior[hh.id] = beh; }
+  for (let i = 0; i < HOUSEHOLD_COUNT; i++) { const { hh, beh } = drawHousehold(i, rng, graph, helpDelay, config.baseline?.familyPickupProb ?? P.familyPickup, config.baseline?.prepDelayScale ?? 1); households.push(hh); behavior[hh.id] = beh; }
   const hr = createRng(config.seed, SALT.helpers);
   const helpers: Helper[] = [];
   const kinds = helperKinds(config.helperCount, config.helperMix);
@@ -125,7 +125,7 @@ export function generatePopulation(config: ScenarioConfig, graph: RoadGraph, fir
     'ALL residents and helpers are SYNTHETIC (seeded random), not real people. This is a simulation.',
     `${HOUSEHOLD_COUNT} households placed within 35 m of road nodes. Household needs are drawn independently: no vehicle ${pct(P.noVehicle)}, wheelchair ${pct(P.wheelchair)}, oxygen ${pct(P.oxygen)}, other medical device ${pct(P.medicalDevice)}, dementia ${pct(P.dementia)}, vision impaired ${pct(P.vision)}, limited English ${pct(P.limitedEnglish)}, landline only ${pct(P.landlineOnly)}.`,
     'A household is "vulnerable" if it has no vehicle or any of: wheelchair, oxygen, dementia, medical device, vision impaired (single shared definition in the contracts).',
-    `The official alert goes out ${ALERT_ISSUE_S} s after ignition. Each household acts on it after a random delay (mean 150 s; +300 s landline-only, +120 s limited English, +240 s no cell signal).`,
+    `The official alert goes out ${config.baseline?.alertIssueS ?? ALERT_ISSUE_S} s after ignition${config.baseline?.alertIssueS !== undefined ? ' (SENSITIVITY: non-default)' : ''}. Each household acts on it after a random delay (mean 150 s; +300 s landline-only, +120 s limited English, +240 s no cell signal).`,
     variant.helperPlacement === 'far_from_fire'
       ? 'SENSITIVITY: helpers (neighbors, volunteers, accessible vans, shuttle buses) start only on the 30% of road nodes the fire reaches last (far from the fire); vans and buses are wheelchair-capable. Capacity counts people.'
       : 'Helpers (neighbors, volunteers, accessible vans, shuttle buses) start at random road nodes; vans and buses are wheelchair-capable. Capacity counts people.',

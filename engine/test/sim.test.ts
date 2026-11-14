@@ -106,3 +106,23 @@ describe('sensitivity variants', () => {
     expect(runHeadlessWith(mk(4, 'alerts_only'), { variant: v })).toEqual(runHeadlessWith(mk(4, 'alerts_only')));
   });
 });
+
+describe('baseline rate knobs (#71)', () => {
+  const run = (baseline: ScenarioConfig['baseline'], policy: ScenarioConfig['policy'] = 'alerts_only') => runHeadlessWith({ ...mk(8, policy), baseline });
+  it('absent or empty knobs do not change anything', () => { expect(run({})).toEqual(run(undefined)); expect(run({ familyPickupProb: 0.25, prepDelayScale: 1, alertIssueS: 300 })).toEqual(run(undefined)); });
+  it('more family pickups evacuate more vulnerable households; slower preparation traps more', () => {
+    const base = run(undefined);
+    expect(run({ familyPickupProb: 0.75 }).vulnerableEvacuated).toBeGreaterThan(base.vulnerableEvacuated);
+    expect(run({ familyPickupProb: 0 }).vulnerableEvacuated).toBeLessThan(base.vulnerableEvacuated);
+    expect(run({ prepDelayScale: 3 }).trapped).toBeGreaterThanOrEqual(base.trapped);
+    expect(run({ alertIssueS: 3000 }).trapped).toBeGreaterThan(base.trapped);
+  });
+  it('deterministic, applied to both policies, and every non-default is in SimInit.assumptions', () => {
+    const k = { familyPickupProb: 0.5, prepDelayScale: 1.5, alertIssueS: 600 };
+    expect(run(k, 'last_mile')).toEqual(run(k, 'last_mile'));
+    const a = createSim({ ...mk(8, 'alerts_only'), baseline: k }, 'k1').init.assumptions.join('\n');
+    expect(a).toMatch(/SENSITIVITY: Alerts-only baseline.*prepDelayScale 1.5/); expect(a).toMatch(/SENSITIVITY: Households without a vehicle.*50%/); expect(a).toMatch(/SENSITIVITY: The alert is issued 600 s/);
+    expect(a).toMatch(/SENSITIVITY: non-default/);
+    expect(createSim(mk(8, 'alerts_only'), 'k0').init.assumptions.join('\n')).not.toContain('SENSITIVITY');
+  });
+});

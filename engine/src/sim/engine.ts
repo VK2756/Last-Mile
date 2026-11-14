@@ -10,7 +10,7 @@ import { sharedWorld } from './cache';
 import { distMeters } from './geo';
 import { makeDispatcher, makeRouter, routerAssumptions } from './deps';
 import { ALERT_ISSUE_S, type Variant, type Behavior, type SafeZone } from '../world/population';
-import { ALERTS_ONLY_ASSUMPTIONS, selfEvacDepartTime } from '../policy/alertsOnly';
+import { alertsOnlyAssumptions, selfEvacDepartTime } from '../policy/alertsOnly';
 import { helpRequestTime, LAST_MILE_ASSUMPTIONS } from '../policy/lastMile';
 
 /** only households the fire reaches within this horizon are "at risk" and counted in Metrics */
@@ -83,7 +83,7 @@ export function createSim(config: ScenarioConfig, scenarioId: string, opts: SimO
   const nearestZone = (p: LatLng): SafeZone => pop.safeZones.reduce((best, z) => (distMeters(p, z.position) < distMeters(p, best.position) ? z : best));
   const households: Household[] = pop.households.map((h) => ({ ...h, needs: [...h.needs] }));
   const hs: HS[] = households.map((h) => {
-    const b = pop.behavior[h.id]!; const ign = fire.ignitionTime(h.position); const warnedAt = ALERT_ISSUE_S + b.alertDelayS;
+    const b = pop.behavior[h.id]!; const ign = fire.ignitionTime(h.position); const warnedAt = (config.baseline?.alertIssueS ?? ALERT_ISSUE_S) + b.alertDelayS;
     return {
       h, b, status: 'unaware', ign, atRisk: ign <= HORIZON_S, vulnerable: isVulnerable(h), zone: nearestZone(h.position), warnedAt,
       departAt: selfEvacDepartTime(h, b, warnedAt), requestAt: lastMile ? helpRequestTime(h, b, warnedAt) : Infinity,
@@ -102,7 +102,7 @@ export function createSim(config: ScenarioConfig, scenarioId: string, opts: SimO
   const init: SimInit = {
     scenarioId, config, bounds: pop.bounds, households, helpers: pop.helpers, safeZones: pop.safeZones,
     assumptions: [
-      ...pop.assumptions, ...FIRE_ASSUMPTIONS, ...routerAssumptions(), ...ALERTS_ONLY_ASSUMPTIONS, ...(lastMile ? LAST_MILE_ASSUMPTIONS : []),
+      ...pop.assumptions, ...FIRE_ASSUMPTIONS, ...routerAssumptions(), ...alertsOnlyAssumptions(config.baseline), ...(lastMile ? LAST_MILE_ASSUMPTIONS : []),
       `Metrics count only the ${atRiskCount} households the fire reaches within ${HORIZON_S / 3600} h. "Trapped" means the fire reached the household (or its vehicle) before it was safe; this is a simulation outcome, not a prediction of casualties.`,
       'Evacuating residents drive at road speed x1.3 congestion to the nearest safe zone and are trapped if the fire reaches any point of the route while they are on it.',
     ],

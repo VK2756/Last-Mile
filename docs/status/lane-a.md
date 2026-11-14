@@ -45,6 +45,9 @@ ScenarioConfig gains OPTIONAL `helperMix`, `helperCapacityScale`, `baseline{fami
 ## Knob #73 (helper fleet) merged
 Stress (40 paired seeds, preset base, vulnerable evacuated): default fleet lift +30.9 [28.8, 32.9]; all-neighbour fleet (capacity 3, no wheelchair vehicles) +23.1 [21.3, 24.8]; all-neighbour with capacities x0.67 +17.8 [16.5, 19.1]. `engine/test/golden.test.ts` pins default results so no knob can move them silently.
 
+## Knob #71 (baseline rates) merged
+30 paired seeds, vulnerable evacuated, lift [95% CI]: familyPickupProb 0.25 (default) +30.9; 0.5 -> alerts 49.6%, LM 75.0%, lift +25.4 [22.9, 27.8]; 0.75 -> alerts 56.0%, LM 75.0%, lift +19.0 [17.0, 21.1]. prepDelayScale 0.5 -> +31.8 [29.3, 34.4]; 1.5 -> +31.8 [29.3, 34.4] (prep speed barely matters for the lift because the people Last Mile helps have no car).
+
 ## Next
 Vercel deploy, sensitivity table, full-stack click-through, Vultr readiness.
 
