@@ -29,7 +29,7 @@ export function AppShell({ children, right, fullBleed = false }: AppShellProps) 
         <Link href="/" className="rounded focus-visible:outline-2 focus-visible:outline-accent" aria-label="Last Mile home">
           <Logo />
         </Link>
-        <nav aria-label="Main" className="flex items-center gap-1">
+        <nav aria-label="Main" className="flex items-center gap-1" data-dev-only>
           {NAV.map((n) => {
             const active = path === n.href || path?.startsWith(`${n.href}/`);
             return (
