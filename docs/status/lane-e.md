@@ -1,12 +1,21 @@
 # Lane E status (STORY PAGES + SUBMISSION) — Prince / Claude Code
-_Updated: Sat 14 Nov._
+_Updated: Sat 14 Nov, ~14:50 EST._
 
-## Done
-- Item 0: 5-lane ownership table (CLAUDE.md, AGENTS.md), brief `docs/lanes/LANE_E_STORY.md`, attribution off in `.claude/settings.json`.
+## Done (merged)
+- #44 docs: 5-lane ownership (CLAUDE.md, AGENTS.md), `docs/lanes/LANE_E_STORY.md`, attribution off in `.claude/settings.json`, `lane:e` label.
+- #48 `/results`: POST /montecarlo (200 paired seeds), CI bar chart, numbers table, paired lift with honest reading, assumptions (`#assumptions`), loading/progress, error + retry. If the engine is unset/unreachable: SAMPLE DATA ribbon, numbers computed from the in-browser mock over 60 paired seeds (never hard-coded). Testids: `results-chart`, `results-lift`, `results-sample-ribbon`, `confidence-intervals`.
+- #49 landing `/`: hero, Predict/Dispatch/Call, counterfactual, stack strip, honesty + 911, team footer. Facts cite NIST/CDC from SOURCES.md. Testid `landing-cta`.
+- #52 `/call`: STT (Web Speech, live captions), TTS with mute, typed fallback, live needs card, POST to engine `/scenarios/:id/households/:hid/needs` on done, labelled local mock responder if /api/triage fails, persistent 911 notice. Testids `call-911`, `call-learned`, `call-mock-ribbon`.
+- Closed #46 (stubs/CIs) with evidence.
 
-## Next
-/results (Monte Carlo + CIs), landing, /call UI, /how-it-works, /dashboard, submission docs.
+## Evidence
+- `bash scripts/postmerge.sh` on main after #52: verify passed. CI green on all four PRs.
+- Browser (next dev): /results sample path renders chart+CIs, 0 console errors; / at desktop and 375px, no horizontal scroll; /call via real /api/triage and with /api/triage forced to 404, 0 console errors.
 
 ## Other lanes must know
-- Lane E now owns `web/app/page.tsx`, `web/app/results/**`, `web/app/dashboard/**`, `web/app/how-it-works/**`, `web/app/call/**` (UI), `web/components/story/**`, `docs/submission/**` except `evidence/`.
-- Lane C: e2e `results show confidence intervals` and `call screen` tests will be updated to Lane E testids via issue.
+- A: /results shows real numbers only once `registerMonteCarlo(app)` is mounted (#29) and Vercel has NEXT_PUBLIC_ENGINE_URL.
+- C: #53 e2e `getByText('SIMULATION')` is now ambiguous; use `getByTestId('sim-badge').first()`.
+- B: #54 AppShell header clips the SIMULATION badge at 375px.
+
+## Next
+/how-it-works, /dashboard, submission docs (DEVPOST, SPONSORS, PRIZE_CHECKLIST, DEV_POST, VIDEO, PITCH_QA), SOURCES check, polish.
