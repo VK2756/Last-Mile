@@ -50,7 +50,7 @@ export function ScenarioPicker({
         ))}
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-3" data-dev-only>
         <Slider
           label={<><Wind aria-hidden className="size-3.5" />Wind</>}
           value={draft.wind.speedMph} min={0} max={40} step={1} unit="mph"

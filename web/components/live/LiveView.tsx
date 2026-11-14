@@ -1,11 +1,12 @@
 'use client';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { BookOpen, Pause, Play, RotateCcw } from 'lucide-react';
+import { BookOpen, Keyboard, Pause, Play, RotateCcw } from 'lucide-react';
 import type { LatLng, Policy } from '@lastmile/contracts';
-import { AppShell, Banner, Button, Panel, Segmented, SimBadge } from '@/components/ui';
+import { AppShell, Banner, Button, Kbd, Panel, Segmented, SimBadge } from '@/components/ui';
 import { engineUrl } from '@/lib/engine';
 import { formatSimClock } from '@/lib/format';
+import { keyAction } from '@/lib/keys';
 import { FALLBACK_PRESETS, fetchPresets, presetBase, randomBase, sameBase, type Preset } from '@/lib/presets';
 import { withPolicy, type BaseConfig } from '@/lib/scenario';
 import { useScenarioStream } from '@/lib/stream';
@@ -15,6 +16,7 @@ import { Legend } from './Legend';
 import { MapPane, type MapView } from './MapPane';
 import { OperatorPanel } from './OperatorPanel';
 import { ScenarioPicker } from './ScenarioPicker';
+import { ShortcutsOverlay } from './ShortcutsOverlay';
 import { StreamStatusPill } from './StreamStatusPill';
 import { useSyncedFrames } from './useSyncedFrames';
 
@@ -42,6 +44,9 @@ export function LiveView() {
   const [selected, setSelected] = useState<{ id: string; policy: Policy } | null>(null);
   const [view, setView] = useState<MapView | null>(null);
   const [assumptionsOpen, setAssumptionsOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  /** pitch mode opens on the first frame, paused: the presenter presses Space to start */
+  const [holdAtStart, setHoldAtStart] = useState(pitch);
 
   const leftConfig = useMemo(() => withPolicy(base, 'alerts_only'), [base]);
   const rightConfig = useMemo(() => withPolicy(base, 'last_mile'), [base]);
@@ -71,7 +76,7 @@ export function LiveView() {
   /** Run = apply the draft (if edited) and restart both sides from t=0. */
   const run = useCallback((next?: BaseConfig) => {
     const cfg = next ?? draft;
-    setSelected(null); setView(null); setPicking(false);
+    setSelected(null); setView(null); setPicking(false); setHoldAtStart(false);
     setDraft(cfg);
     setBase({ ...cfg, speedMultiplier: right.speed });
     setRunKey((k) => k + 1);
@@ -86,6 +91,37 @@ export function LiveView() {
   }, []);
   const pendingIgnition = dirty || picking ? draft.ignition : null;
   const control = useCallback((a: 'pause' | 'resume' | 'speed', v?: number) => { left.control(a, v); right.control(a, v); }, [left, right]);
+  // pitch mode: freeze both runs on their first frame until Space
+  const holdSent = useRef<string | null>(null);
+  useEffect(() => {
+    if (!holdAtStart || !left.init || !right.init) return;
+    const key = `${left.init.scenarioId}|${right.init.scenarioId}`;
+    if (holdSent.current === key) return;
+    holdSent.current = key;
+    control('pause');
+  }, [holdAtStart, left.init, right.init, control]);
+
+  // keyboard: Space start/pause, R reset, 1/2/3 presets, ? help, Esc close
+  const keyHandler = useRef<(e: KeyboardEvent) => void>(() => {});
+  keyHandler.current = (e: KeyboardEvent) => {
+    const a = keyAction(e);
+    if (!a) return;
+    if (a.type === 'escape') { setSelected(null); setPicking(false); setHelpOpen(false); return; }
+    if (assumptionsOpen) return;
+    e.preventDefault();
+    if (a.type === 'help') setHelpOpen((x) => !x);
+    else if (a.type === 'reset') { setHoldAtStart(false); restart(); }
+    else if (a.type === 'preset') { const p = presets[a.index]; if (p) { setHoldAtStart(false); choosePreset(p); } }
+    else if (holdAtStart) { setHoldAtStart(false); control('resume'); }
+    else if (status === 'ended' || status === 'error' || status === 'idle') restart();
+    else if (live) control(paused ? 'resume' : 'pause');
+  };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => keyHandler.current(e);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const switchToMock = () => {
     const q = new URLSearchParams(params.toString());
     q.set('mock', '1');
@@ -130,6 +166,11 @@ export function LiveView() {
                 Showing the in-browser mock (NEXT_PUBLIC_ENGINE_URL is unset).
               </Banner>
             )}
+            {holdAtStart && left.init && right.init && (
+              <div className="mx-auto mt-24 flex items-center gap-2 rounded-full border border-accent/40 bg-surface/95 px-4 py-2 text-sm font-semibold shadow-xl" data-testid="press-space">
+                Press <Kbd>Space</Kbd> to start the fire
+              </div>
+            )}
             {status === 'reconnecting' && <Banner tone="warn" title="Reconnecting to the engine…" className="pointer-events-auto bg-surface/95" />}
           </div>
         </div>
@@ -141,7 +182,7 @@ export function LiveView() {
               <Button variant="primary" size="lg" data-testid="run-button" onClick={restart} className="min-w-28">
                 <RotateCcw aria-hidden className="size-4" /> {dirty || status === 'idle' ? 'Run' : 'Restart'}
               </Button>
-              <Button size="lg" onClick={() => control(paused ? 'resume' : 'pause')} disabled={!live} aria-label={paused ? 'Resume' : 'Pause'}>
+              <Button size="lg" onClick={() => { setHoldAtStart(false); control(paused ? 'resume' : 'pause'); }} disabled={!live} aria-label={paused ? 'Resume' : 'Pause'}>
                 {paused ? <Play aria-hidden className="size-4" /> : <Pause aria-hidden className="size-4" />}
               </Button>
               <Segmented
@@ -152,6 +193,9 @@ export function LiveView() {
               />
             </div>
             <div className="mt-3 flex items-center justify-end">
+              <Button size="sm" variant="ghost" onClick={() => setHelpOpen(true)} aria-label="Keyboard shortcuts" data-dev-only>
+                <Keyboard aria-hidden className="size-3.5" />
+              </Button>
               <Button size="sm" variant="ghost" onClick={() => setAssumptionsOpen(true)} data-testid="assumptions-button">
                 <BookOpen aria-hidden className="size-3.5" /> Assumptions
               </Button>
@@ -162,11 +206,15 @@ export function LiveView() {
             draft={draft} onChange={editDraft} presets={presets} presetSource={presetSource} activePresetId={activePresetId}
             onPreset={choosePreset} onRandomize={randomize} picking={picking} onTogglePick={() => setPicking((x) => !x)} dirty={dirty}
           />
+          <div className="hidden flex-wrap items-center gap-x-3 gap-y-1.5 px-1 text-xs text-fg-dim [html[data-pitch='1']_&]:flex" aria-hidden>
+            <span><Kbd>Space</Kbd> start / pause</span><span><Kbd>R</Kbd> reset</span><span><Kbd>1</Kbd><Kbd>2</Kbd><Kbd>3</Kbd> presets</span>
+          </div>
           <Panel eyebrow="Map key" title="Legend" data-dev-only>
             <Legend />
           </Panel>
         </aside>
       </div>
+      <ShortcutsOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
       <AssumptionsDrawer open={assumptionsOpen} onClose={() => setAssumptionsOpen(false)} assumptions={right.init?.assumptions ?? left.init?.assumptions ?? []} mock={mock} />
     </AppShell>
   );
