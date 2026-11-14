@@ -40,6 +40,8 @@ export interface MonteCarloOptions {
   bootstrap?: BootstrapOptions;
   /** abort a batch (workers are terminated, the promise rejects) */
   signal?: AbortSignal;
+  /** worker entry module (tests only; default worker-boot.mjs next to this file) */
+  workerEntry?: URL;
 }
 
 const POLICIES: Policy[] = ['alerts_only', 'last_mile'];
@@ -51,7 +53,7 @@ async function runAll(configs: ScenarioConfig[], opts: MonteCarloOptions): Promi
   const workers = opts.runner ? 0 : opts.workers ?? defaultWorkers();
   if (workers > 0) {
     try {
-      return await runPool(configs, workers, opts.signal);
+      return await runPool(configs, workers, opts.signal, opts.workerEntry);
     } catch (err) {
       if (!(err instanceof PoolStartError)) throw err;
       console.warn(`[montecarlo] worker pool unavailable (${err.message}); running in-process`);
@@ -68,16 +70,14 @@ async function runAll(configs: ScenarioConfig[], opts: MonteCarloOptions): Promi
 
 class PoolStartError extends Error {}
 
-function workerExecArgv(): string[] {
-  const inherited = process.execArgv.filter((a) => !a.startsWith('--inspect'));
-  // the engine runs TypeScript through tsx; make sure workers can load .ts too
-  return inherited.some((a) => a.includes('tsx')) ? inherited : [...inherited, '--import', 'tsx'];
-}
+// Workers start from a plain-JS entry that registers tsx itself, so they need no loader flags. Only
+// memory flags are passed through (inherited loader flags do not reliably reach workers; issue #33).
+const workerExecArgv = (): string[] => process.execArgv.filter((a) => a.startsWith('--max-old-space-size') || a.startsWith('--stack-size'));
 
-async function runPool(configs: ScenarioConfig[], size: number, signal?: AbortSignal): Promise<Metrics[]> {
+async function runPool(configs: ScenarioConfig[], size: number, signal?: AbortSignal, entry?: URL): Promise<Metrics[]> {
   signal?.throwIfAborted();
   const results: (Metrics | undefined)[] = new Array(configs.length);
-  const url = new URL('./worker.ts', import.meta.url);
+  const url = entry ?? new URL('./worker-boot.mjs', import.meta.url);
   const pool: Worker[] = [];
   let next = 0;
   try {
@@ -94,14 +94,16 @@ async function runPool(configs: ScenarioConfig[], size: number, signal?: AbortSi
       };
       const onAbort = () => reject(signal?.reason ?? new Error('aborted'));
       signal?.addEventListener('abort', onAbort, { once: true });
-      w.on('online', () => { started = true; feed(); });
+      // `started` flips only when the worker has actually LOADED (it posts {ready}), so a module-load
+      // failure is a PoolStartError and the batch falls back to in-process instead of failing
       w.on('message', (m: WorkerReply) => {
+        if ('ready' in m) { started = true; feed(); return; }
         if ('error' in m) { reject(new Error(`runHeadless failed for run ${m.id}: ${m.error}`)); return; }
         results[m.id] = Metrics.parse(m.metrics);
         feed();
       });
       w.on('error', (e) => reject(started ? e : new PoolStartError(e.message)));
-      w.on('exit', (code) => { if (busy || code !== 0) reject(new PoolStartError(`worker exited with code ${code}`)); });
+      w.on('exit', (code) => { if (!started || busy || code !== 0) reject(new PoolStartError(`worker exited with code ${code}`)); });
     })));
   } finally {
     await Promise.all(pool.map((w) => w.terminate()));

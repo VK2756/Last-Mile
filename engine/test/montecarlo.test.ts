@@ -158,3 +158,11 @@ describe('registerMonteCarlo guards', () => {
     expect(calls).toBeLessThan(8); // stopped before running every config
   });
 });
+
+describe('worker start-up failures', () => {
+  it('falls back to in-process when the worker module cannot load (issue #33)', async () => {
+    const inProc = await runMonteCarlo(PRESET_BASE, [1, 2], { workers: 0 });
+    const fallback = await runMonteCarlo(PRESET_BASE, [1, 2], { workers: 2, workerEntry: new URL('./fixtures/broken-worker.mjs', import.meta.url) });
+    expect(fallback).toEqual(inProc);
+  }, 60_000);
+});
