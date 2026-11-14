@@ -27,6 +27,18 @@ const cases: Case[] = [
   mk('ignition point', 'ignition 1.2 km E', { ignition: shift(0, 1200) }),
   mk('ignition point', 'ignition 1.2 km W', { ignition: shift(0, -1200) }),
   mk('town', 'synthetic grid town', { town: 'synthetic_grid' }),
+  // baseline knobs (#69, #71, #72, #73): round values fixed before running, each one makes the
+  // alerts-only baseline stronger or the Last Mile fleet weaker. Applied identically to both policies.
+  ...[0.3, 0.6, 1].map((p) => mk('neighbours give rides (#69)', `neighborRideProb ${p}`, { baseline: { neighborRideProb: p } })),
+  ...[0.5, 0.75].map((p) => mk('self-evac / family pickup (#71)', `familyPickupProb ${p} (default 0.25)`, { baseline: { familyPickupProb: p } })),
+  mk('self-evac / family pickup (#71)', 'prepDelayScale 0.5 (cars leave twice as fast)', { baseline: { prepDelayScale: 0.5 } }),
+  mk('self-evac / family pickup (#71)', 'alertIssueS 0 (alert at ignition, default 300 s)', { baseline: { alertIssueS: 0 } }),
+  mk('smarter family pickup (#72)', 'urgentFamilyPickup', { baseline: { urgentFamilyPickup: true } }),
+  mk('strong baseline (all)', 'rides 0.6, family 0.5, urgent, prep 0.5, alert 0', { baseline: { neighborRideProb: 0.6, familyPickupProb: 0.5, urgentFamilyPickup: true, prepDelayScale: 0.5, alertIssueS: 0 } }),
+  mk('strong baseline (all)', 'same, 6 helpers', { helperCount: 6, baseline: { neighborRideProb: 0.6, familyPickupProb: 0.5, urgentFamilyPickup: true, prepDelayScale: 0.5, alertIssueS: 0 } }),
+  mk('fleet (#73)', 'helperCapacityScale 0.5', { helperCapacityScale: 0.5 }),
+  mk('fleet (#73)', 'neighbours only (no wheelchair-capable vehicles)', { helperMix: { neighbor: 1 } }),
+  mk('fleet (#73)', 'volunteers only', { helperMix: { volunteer: 1 } }),
 ];
 
 const pct = (x: number) => `${(x * 100).toFixed(1)}%`;

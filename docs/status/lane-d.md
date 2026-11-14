@@ -1,16 +1,16 @@
 # Lane D status (ROUTING / DISPATCH / MONTE CARLO, Rishabh)
-_Updated 2026-11-14 ~4:15pm._
+_Updated 2026-11-14 ~5:50pm._
 
 ## Merged
-#20 routing, #23 dispatch, #28 Monte Carlo, #35 dispatch reasons, #43 real Amherst roads (closed #45), #47 Windows worker fix (closed #33), #66 Monte Carlo ~2x cheaper (exact), #75 fuzz invariants, #76 + #89 baseline fairness review, #85 scenario stories + map alignment, #90 perf-test bound (closed #77), #92 model assumptions in the Monte Carlo response (closed #78). No open lane:d issues.
+#20 routing, #23 dispatch, #28 Monte Carlo, #35 dispatch reasons, #43 real Amherst roads (closed #45), #47 Windows worker fix (closed #33), #66 Monte Carlo ~2x cheaper (exact), #75 fuzz invariants, #76 + #89 baseline fairness review, #85 scenario stories + map alignment, #90 perf-test bound (closed #77), #92 model assumptions in the Monte Carlo response (closed #78), #96 status, baseline review rerun with the #69/#71-#73 knobs. No open lane:d issues.
 
 ## Monte Carlo (mounted in server.ts by Lane A)
 - `POST /montecarlo` / `GET /montecarlo/preset` return `MonteCarloComparison`. `assumptions` now includes the simulator's model assumptions for the base config (#78), so /results needs no throwaway scenario.
 - Real Amherst roads, preset, 200 paired seeds, main after #66: vulnerable evacuated 45% -> ~74%, lift about +29 pts (CI about +/-1). Results are exact: #66 changed speed only.
 - Speed: N=200 on 2 workers 27.4 s wall on this laptop (was 50.4 s); single-thread ~220-256 ms per seed pair (was 544 ms). For Lane C: 2 vCPU is now enough for the 60 s budget.
 
-## For Lane E (Prince): please link `docs/submission/BASELINE_REVIEW.md`
-20 harsher configs from the public knobs only, 100 paired seeds each, on current main. Last Mile wins in all of them, but **by only ~6 pts with a single helper**, and a 50 mph fire caps vulnerable evacuation at ~53%. It includes one honest pitch sentence (45% -> 74%, +29, CI 28-31). Missing baseline behaviours are filed for Lane A: #69 neighbours give rides, #71 self-evacuation and family-pickup rates, #72 smarter family pickup, #73 fleet capacity and mix.
+## For Lane E (Prince): baseline review rerun with the new knobs, please update the pitch numbers
+`docs/submission/BASELINE_REVIEW.md` now has 33 configs, 100 paired seeds each, including Lane A's new baseline and fleet knobs (#69, #71, #72, #73). **The +29 lift assumes neighbours never give rides.** With 30% of neighbours giving rides the lift is +12; with every baseline knob turned up together it is +4.1 [3.5, 4.8]. Last Mile still wins in all 33. The review's pitch sentence is now a range (+29 with no neighbour rides, +12 with rides at 30%, about +4 with a strong baseline). Pages and docs that quote "45% -> 74%" on its own should add that caveat.
 
 ## Fuzz invariants (`scripts/fuzz-invariants.ts 300`)
 300 random public configs on real roads, 0 failures, on main and on #66's code: routes avoid burning ground; capacity and wheelchair rules hold; ETAs >= 0; late trips flagged; every run terminates; same config gives identical metrics and frames. 3 seeds run in CI.
@@ -26,4 +26,4 @@ Each seed is the median-lift seed of 10, not the best. 24 helpers, 20 mph wind.
 Homes are a median 13 m from a road (max ~48 m); helpers and safe zones are on road nodes; fire rings are `[lng, lat]` and enclose the ignition. Overlaid on the same OpenFreeMap/OSM basemap the web uses, the baked roads sit exactly on the streets.
 
 ## Next
-Re-time Monte Carlo on the Vultr box once Lane C reports its size; rerun BASELINE_REVIEW when the #69/#71/#72/#73 knobs land. **Blockers:** none.
+Re-time Monte Carlo on the Vultr box once Lane C reports its size; break down the remaining lift by household type (wheelchair vs no car nearby). Lane A: #69, #71, #72, #73 are implemented and can be closed. **Blockers:** none.
