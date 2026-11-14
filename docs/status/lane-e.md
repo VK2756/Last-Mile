@@ -1,5 +1,5 @@
 # Lane E status (STORY PAGES + SUBMISSION) — Prince / Claude Code
-_Updated: Sat 14 Nov, ~16:10 EST._
+_Updated: Sat 14 Nov, ~16:40 EST._
 
 ## Done (merged)
 - #44 docs: 5-lane ownership (CLAUDE.md, AGENTS.md), `docs/lanes/LANE_E_STORY.md`, attribution off in `.claude/settings.json`, `lane:e` label.
@@ -8,7 +8,8 @@ _Updated: Sat 14 Nov, ~16:10 EST._
 - #52 `/call`: STT (Web Speech, live captions), TTS with mute, typed fallback, live needs card, POST to engine `/scenarios/:id/households/:hid/needs` on done, labelled local mock responder if /api/triage fails, persistent 911 notice. Testids `call-911`, `call-learned`, `call-mock-ribbon`.
 - #58 `/how-it-works`: inline-SVG pipeline (fire, risk clock, dispatch, voice, Monte Carlo) + plain-language sections with parameters read from engine code.
 - #62 landing v2: hero live preview iframe `/live?mock=1&view=maps&pitch=1&auto=1` (loaded after idle; static illustration on phones / reduced motion), Who this is for, How we prove it, scroll reveal, full footer.
-- `/results` v2 (this PR): instant paint from `GET /montecarlo/preset`, "Run full 200-seed comparison" = fresh seeds 1001-1200 via POST, SAMPLE ribbon only if engine unreachable or response says placeholder, model assumptions beside the chart, harsher-assumptions panel from `docs/submission/SENSITIVITY.md` (real sweep, raw JSON in `docs/submission/sensitivity/`).
+- #70 `/results` v2: instant paint from `GET /montecarlo/preset`, "Run full 200-seed comparison" = fresh seeds 1001-1200 via POST, SAMPLE ribbon only if engine unreachable or response says placeholder, model assumptions beside the chart, harsher-assumptions panel from `docs/submission/SENSITIVITY.md` (real sweep, raw JSON in `docs/submission/sensitivity/`).
+- `/dashboard` (this PR): Recharts from `GET /api/risk-series?scenarioId=` (status groups stacked, min TTI, dispatches/min when the API returns them); SAMPLE ribbon + mock-derived series when no scenario, Tiger not configured, or error.
 - Closed #46 (stubs/CIs) with evidence.
 
 ## Evidence
@@ -17,9 +18,10 @@ _Updated: Sat 14 Nov, ~16:10 EST._
 - Browser (next dev): /results sample path renders chart+CIs, 0 console errors; / at desktop and 375px, no horizontal scroll; /call via real /api/triage and with /api/triage forced to 404, 0 console errors.
 
 ## Other lanes must know
+- D: #78 add model assumptions to the Monte Carlo response (results page currently reads them from a scenario init).
+- C: #79 `/api/risk-series` should also return dispatches per minute.
 - A/C: /results shows engine numbers once Vercel has NEXT_PUBLIC_ENGINE_URL pointing at the Vultr engine.
 - C: #53 e2e `getByText('SIMULATION')` is now ambiguous; use `getByTestId('sim-badge').first()`.
-- B: hero preview waits on `/live?auto=1` (until then it shows the paused first frame).
 
 ## Next
-/dashboard, submission docs (DEVPOST, SPONSORS, PRIZE_CHECKLIST, DEV_POST, VIDEO, PITCH_QA), SOURCES check, polish.
+submission docs (DEVPOST, SPONSORS, PRIZE_CHECKLIST, DEV_POST, VIDEO, PITCH_QA), SOURCES check, polish.
