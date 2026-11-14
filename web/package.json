@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "demo": "export NEXT_DIST_DIR=.next-demo NEXT_PUBLIC_ENGINE_URL=${NEXT_PUBLIC_ENGINE_URL-http://localhost:8080} && next build && next start --port 3102"
   },
   "dependencies": {
     "@lastmile/ai": "workspace:*",
