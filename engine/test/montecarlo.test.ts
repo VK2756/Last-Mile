@@ -135,3 +135,26 @@ describe('registerMonteCarlo routes', () => {
     await app.close();
   });
 });
+
+describe('registerMonteCarlo guards', () => {
+  it('runs one uncached batch at a time (429 for a second one) and stops it when the server closes', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    let calls = 0;
+    const slow: HeadlessRunner = async () => { calls++; await gate; return metrics(50); };
+    const app = Fastify();
+    registerMonteCarlo(app, { runner: slow, warmPreset: false });
+    await app.ready();
+    const first = app.inject({ method: 'POST', url: '/montecarlo', payload: { base: PRESET_BASE, runs: 4 } });
+    await new Promise((r) => setTimeout(r, 20));
+    const second = await app.inject({ method: 'POST', url: '/montecarlo', payload: { base: PRESET_BASE, runs: 5 } });
+    expect(second.statusCode).toBe(429);
+    const closed = app.close();
+    await new Promise((r) => setTimeout(r, 20)); // let close start (preClose aborts the batch)
+    release();
+    const r1 = await first;
+    expect(r1.statusCode).toBe(500); // aborted by close, not cached
+    await closed;
+    expect(calls).toBeLessThan(8); // stopped before running every config
+  });
+});

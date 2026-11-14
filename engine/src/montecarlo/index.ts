@@ -7,7 +7,7 @@
 // Nothing here edits or tunes outcome numbers: they are whatever runHeadless returns.
 import os from 'node:os';
 import { Worker } from 'node:worker_threads';
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { Metrics, MonteCarloComparison, ScenarioConfig, VULNERABLE_NEEDS } from '@lastmile/contracts';
 import type { HeadlessRunner, Policy } from '@lastmile/contracts';
@@ -38,6 +38,8 @@ export interface MonteCarloOptions {
   /** custom runner (tests); forces in-process execution since functions cannot cross threads */
   runner?: HeadlessRunner;
   bootstrap?: BootstrapOptions;
+  /** abort a batch (workers are terminated, the promise rejects) */
+  signal?: AbortSignal;
 }
 
 const POLICIES: Policy[] = ['alerts_only', 'last_mile'];
@@ -49,7 +51,7 @@ async function runAll(configs: ScenarioConfig[], opts: MonteCarloOptions): Promi
   const workers = opts.runner ? 0 : opts.workers ?? defaultWorkers();
   if (workers > 0) {
     try {
-      return await runPool(configs, workers);
+      return await runPool(configs, workers, opts.signal);
     } catch (err) {
       if (!(err instanceof PoolStartError)) throw err;
       console.warn(`[montecarlo] worker pool unavailable (${err.message}); running in-process`);
@@ -57,7 +59,10 @@ async function runAll(configs: ScenarioConfig[], opts: MonteCarloOptions): Promi
   }
   const runner = opts.runner ?? runHeadless;
   const out: Metrics[] = [];
-  for (const c of configs) out.push(Metrics.parse(await runner(c)));
+  for (const c of configs) {
+    opts.signal?.throwIfAborted();
+    out.push(Metrics.parse(await runner(c)));
+  }
   return out;
 }
 
@@ -69,7 +74,8 @@ function workerExecArgv(): string[] {
   return inherited.some((a) => a.includes('tsx')) ? inherited : [...inherited, '--import', 'tsx'];
 }
 
-async function runPool(configs: ScenarioConfig[], size: number): Promise<Metrics[]> {
+async function runPool(configs: ScenarioConfig[], size: number, signal?: AbortSignal): Promise<Metrics[]> {
+  signal?.throwIfAborted();
   const results: (Metrics | undefined)[] = new Array(configs.length);
   const url = new URL('./worker.ts', import.meta.url);
   const pool: Worker[] = [];
@@ -86,6 +92,8 @@ async function runPool(configs: ScenarioConfig[], size: number): Promise<Metrics
         busy = true;
         w.postMessage({ id, config: configs[id]! } satisfies WorkerTask);
       };
+      const onAbort = () => reject(signal?.reason ?? new Error('aborted'));
+      signal?.addEventListener('abort', onAbort, { once: true });
       w.on('online', () => { started = true; feed(); });
       w.on('message', (m: WorkerReply) => {
         if ('error' in m) { reject(new Error(`runHeadless failed for run ${m.id}: ${m.error}`)); return; }
@@ -171,25 +179,35 @@ export interface RegisterOptions extends MonteCarloOptions {
 export function registerMonteCarlo(app: FastifyInstance, opts: RegisterOptions = {}): { warm: () => Promise<MonteCarloComparison> } {
   const cache = new Map<string, Promise<MonteCarloComparison>>();
   const cacheSize = opts.cacheSize ?? 8;
+  // one uncached batch at a time: a batch already uses every core, and this route is public
+  let running = 0;
+  const closing = new AbortController();
+  // preClose runs before Fastify waits for in-flight requests, so a running batch is stopped promptly
+  app.addHook('preClose', async () => { closing.abort(new Error('server closing')); });
   const get = (base: BaseConfig, seeds: number[]) => {
     const key = JSON.stringify({ base, seeds });
     const hit = cache.get(key);
-    if (hit) return { result: hit, cached: true };
-    const result = runMonteCarlo(base, seeds, opts);
+    if (hit) return { result: hit, cached: true, busy: false };
+    if (running > 0) return { result: undefined, cached: false, busy: true };
+    running++;
+    const result = runMonteCarlo(base, seeds, { ...opts, signal: closing.signal });
     cache.set(key, result);
-    result.catch(() => cache.delete(key)); // never cache a failure
+    result.then(() => { running--; }, () => { running--; cache.delete(key); }); // never cache a failure
     while (cache.size > cacheSize) cache.delete(cache.keys().next().value!);
-    return { result, cached: false };
+    return { result, cached: false, busy: false };
   };
   const presetSeeds = Array.from({ length: PRESET_RUNS }, (_, i) => i + 1);
-  const warm = () => get(PRESET_BASE, presetSeeds).result;
+  const warm = () => get(PRESET_BASE, presetSeeds).result ?? Promise.reject(new Error('another Monte Carlo batch is running'));
+  const busyReply = (reply: FastifyReply) =>
+    reply.code(429).header('Retry-After', '30').send({ error: 'another Monte Carlo batch is running; retry shortly or use GET /montecarlo/preset' });
 
   app.post('/montecarlo', async (req, reply) => {
     const parsed = MonteCarloRequest.safeParse(req.body ?? {});
     if (!parsed.success) return reply.code(400).send({ error: 'invalid Monte Carlo request', issues: parsed.error.issues });
     const { base = PRESET_BASE, runs, seeds = Array.from({ length: runs }, (_, i) => i + 1) } = parsed.data;
     const started = Date.now();
-    const { result, cached } = get(base, seeds);
+    const { result, cached, busy } = get(base, seeds);
+    if (busy || !result) return busyReply(reply);
     const body = await result;
     reply.header('x-montecarlo-cache', cached ? 'hit' : 'miss');
     reply.header('x-montecarlo-ms', String(Date.now() - started));
@@ -197,11 +215,12 @@ export function registerMonteCarlo(app: FastifyInstance, opts: RegisterOptions =
   });
 
   app.get('/montecarlo/preset', async (_req, reply) => {
-    const { result, cached } = get(PRESET_BASE, presetSeeds);
+    const { result, cached, busy } = get(PRESET_BASE, presetSeeds);
+    if (busy || !result) return busyReply(reply);
     reply.header('x-montecarlo-cache', cached ? 'hit' : 'miss');
     return result;
   });
 
-  if (opts.warmPreset ?? true) warm().catch((e: unknown) => app.log.error({ err: e }, 'montecarlo preset failed'));
+  if (opts.warmPreset ?? true) warm().catch((e: unknown) => { if (!closing.signal.aborted) app.log.error({ err: e }, 'montecarlo preset failed'); });
   return { warm };
 }
