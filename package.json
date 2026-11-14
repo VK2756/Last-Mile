@@ -1,0 +1,11 @@
+{
+  "name": "last-mile",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "verify": "bash scripts/verify.sh",
+    "postmerge": "bash scripts/postmerge.sh",
+    "watch": "bash scripts/watch.sh"
+  }
+}
