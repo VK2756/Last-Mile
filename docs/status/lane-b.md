@@ -12,6 +12,11 @@ _Updated: Sat 14 Nov, M2 + pitch mode + stretch merged._
 - Basemap: CARTO raster tiles now need an API key (they render an "API KEY REQUIRED" watermark), so /live uses OpenFreeMap vector tiles (free, no key) styled dark here: roads, water, parks, buildings, no labels. Offline grid stays underneath; `?tiles=0` still forces offline.
 - Polish (#59 + this): Inter/JetBrains Mono, rem type scale with root 16/17/20/28px at laptop/1080p/1440p/4K, glass panels, count-up numbers, skeletons, run verdict + winner highlight from real final metrics, maps refit on resize, icons follow UI scale, fire halo + pulsing front + decorative embers, helpers glide between frames (instant under reduced motion). Header fits 375px (#57, closes #54).
 - `?auto=1` (judging stations): starts preset 1 (never held, even with `pitch=1`), shows the verdict, then 5 s later runs the next preset, wrapping 3 -> 1; on an engine error it retries after 10 s. Verified in mock (1->2->3->1) and against the real engine incl. killing and restarting it mid-run.
+- Perf (measured in real headed Chrome, rAF frame times over 8-10 s, real engine, 600 households per map, busy phase ~T+16 min): before -> after
+  - 3840x2160: 45.5 -> 76 fps (p50 9.2 ms, p99 26 ms, 0 long tasks)
+  - 1920x1080 @2x: 116.5 fps with a 167 ms hitch -> 120 fps (p99 9.3 ms, 0 frames > 20 ms)
+  - 1280x720 @2x: 120 fps (p99 9.3 ms); 1920x1080 @1x: 120 fps (p99 9.2 ms)
+  - Cause: route/glow paint animation repainting both WebGL maps ~16x/s plus backdrop blur over them. Fix: animate at ~8 Hz only when routes/fire are on screen, helper easing capped at ~30 Hz, no backdrop blur on overlays above the maps (`.glass-map`).
 
 ## Done (M1, merged #19)
 - **UI kit published: `web/components/ui/**`** (import from `@/components/ui`): AppShell (top bar + nav), Button, Badge, Banner, Panel, StatTile, SimBadge (`data-testid="sim-badge"`), CountdownChip, StatusIcon/ShapeGlyph, Drawer, Segmented, Spinner, EmptyState, Kbd, Logo. Tokens in `web/app/globals.css` (Tailwind v4 `@theme`: bg-surface, text-fg-muted, border-line, text-accent…). Lane C: wrap /call in `<AppShell right={<SimBadge />}>`.

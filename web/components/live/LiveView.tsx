@@ -216,12 +216,12 @@ export function LiveView() {
               </Banner>
             )}
             {auto && autoDue && (
-              <div className="glass mx-auto flex items-center gap-2 rounded-full px-4 py-1.5 font-mono text-xs font-semibold text-fg-muted" role="status" data-testid="auto-next">
+              <div className="glass-map mx-auto flex items-center gap-2 rounded-full px-4 py-1.5 font-mono text-xs font-semibold text-fg-muted" role="status" data-testid="auto-next">
                 <span className="text-info">AUTO</span> {autoDue.label} in {Math.max(0, Math.ceil((autoDue.at - autoNow) / 1000))} s
               </div>
             )}
             {holdAtStart && left.init && right.init && (
-              <div className="glass mx-auto flex items-center gap-2 rounded-full border-accent/40 px-4 py-2 text-sm font-semibold shadow-xl" data-testid="press-space">
+              <div className="glass-map mx-auto flex items-center gap-2 rounded-full border-accent/40 px-4 py-2 text-sm font-semibold shadow-xl" data-testid="press-space">
                 Press <Kbd>Space</Kbd> to start the fire
               </div>
             )}

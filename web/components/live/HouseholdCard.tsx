@@ -17,7 +17,7 @@ const LANG: Record<string, string> = { en: 'English', es: 'Spanish', pt: 'Portug
 export function HouseholdCard({ household, state, assignment, helper, onClose }: { household: Household; state: HouseholdState | undefined; assignment: Assignment | undefined; helper: Helper | undefined; onClose: () => void }) {
   const status = state?.status ?? 'unaware';
   return (
-    <div className="glass rounded-xl p-4" data-testid="household-card">
+    <div className="glass-map rounded-xl p-4" data-testid="household-card">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
           <div className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-fg-dim">Household {household.id}</div>
