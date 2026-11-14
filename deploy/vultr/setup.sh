@@ -37,7 +37,7 @@ Type=simple
 User=$ENGINE_USER
 Group=$ENGINE_USER
 WorkingDirectory=$REPO_DIR
-EnvironmentFile=-/etc/lastmile/engine.env
+EnvironmentFile=-$REPO_DIR/engine/.env
 Environment=PORT=8080
 ExecStart=/usr/bin/env pnpm --filter @lastmile/engine start
 Restart=always
