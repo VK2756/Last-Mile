@@ -1,31 +1,62 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AddressInfo } from 'node:net';
-import { StreamEvent } from '@lastmile/contracts';
+import { StreamEvent, type ScenarioConfig } from '@lastmile/contracts';
+import { sampleFrame, sampleInit } from '@lastmile/contracts/fixtures';
 import { buildServer } from '../src/server';
-import { createSyntheticRunner } from '../src/sim/synthetic';
+import type { ScenarioRunner } from '../src/sim/registry';
 
-let app: Awaited<ReturnType<typeof buildServer>>; let base = '';
-beforeAll(async () => { process.env.NODE_ENV = 'test'; app = await buildServer({ factory: (id, c) => createSyntheticRunner(id, c, 120) }); await app.listen({ port: 0, host: '127.0.0.1' }); base = `http://127.0.0.1:${(app.server.address() as AddressInfo).port}`; });
-afterAll(async () => { await app.close(); });
+// A tiny fake runner so the "end" path can be tested in about a second.
+const fake = (id: string, config: ScenarioConfig): ScenarioRunner => {
+  let t = 0;
+  return { init: { ...sampleInit, scenarioId: id, config }, get done() { return t >= 120; }, step(dt) { t = Math.min(120, t + dt); return { ...sampleFrame, scenarioId: id, policy: config.policy, t }; }, finalMetrics: () => sampleFrame.metrics };
+};
 
 const cfg = { seed: 1, wind: { speedMph: 20, dirDeg: 90 }, ignition: { lat: 42.3732, lng: -72.5199 }, policy: 'last_mile', speedMultiplier: 60 };
+const post = (base: string, path: string, body: unknown) => fetch(`${base}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 
-describe('server', () => {
-  it('health', async () => { const r = await fetch(`${base}/health`); expect((await r.json()).ok).toBe(true); });
-  it('rejects bad config', async () => { const r = await fetch(`${base}/scenarios`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }); expect(r.status).toBe(400); });
+describe('server (fake runner)', () => {
+  let app: Awaited<ReturnType<typeof buildServer>>; let base = '';
+  beforeAll(async () => { process.env.NODE_ENV = 'test'; app = await buildServer({ factory: fake }); await app.listen({ port: 0, host: '127.0.0.1' }); base = `http://127.0.0.1:${(app.server.address() as AddressInfo).port}`; });
+  afterAll(async () => { await app.close(); });
+
+  it('health', async () => { expect((await (await fetch(`${base}/health`)).json()).ok).toBe(true); });
+  it('rejects bad config', async () => { expect((await post(base, '/scenarios', {})).status).toBe(400); });
   it('streams init, frames, end; every event parses', async () => {
-    const { scenarioId } = await (await fetch(`${base}/scenarios`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(cfg) })).json();
-    const r = await fetch(`${base}/scenarios/${scenarioId}/stream`);
-    const text = await r.text();
+    const { scenarioId } = await (await post(base, '/scenarios', cfg)).json();
+    const text = await (await fetch(`${base}/scenarios/${scenarioId}/stream`)).text();
     const evs = text.split('\n\n').filter((b) => b.startsWith('data: ')).map((b) => StreamEvent.parse(JSON.parse(b.slice(6))));
-    expect(evs[0]!.type).toBe('init');
-    expect(evs.at(-1)!.type).toBe('end');
+    expect(evs[0]!.type).toBe('init'); expect(evs.at(-1)!.type).toBe('end');
     expect(evs.filter((e) => e.type === 'frame').length).toBeGreaterThan(3);
   }, 20_000);
   it('404 + control', async () => {
     expect((await fetch(`${base}/scenarios/nope/stream`)).status).toBe(404);
-    const { scenarioId } = await (await fetch(`${base}/scenarios`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(cfg) })).json();
-    const r = await fetch(`${base}/scenarios/${scenarioId}/control`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'pause' }) });
-    expect((await r.json()).paused).toBe(true);
+    const { scenarioId } = await (await post(base, '/scenarios', cfg)).json();
+    expect((await (await post(base, `/scenarios/${scenarioId}/control`, { action: 'pause' })).json()).paused).toBe(true);
+    expect((await post(base, `/scenarios/${scenarioId}/control`, { action: 'speed' })).status).toBe(400);
   });
+});
+
+describe('server (real engine)', () => {
+  it('streams a parseable init and real frames', async () => {
+    process.env.NODE_ENV = 'test';
+    const app = await buildServer(); await app.listen({ port: 0, host: '127.0.0.1' });
+    const base = `http://127.0.0.1:${(app.server.address() as AddressInfo).port}`;
+    try {
+      const { scenarioId } = await (await post(base, '/scenarios', cfg)).json();
+      const ac = new AbortController();
+      const r = await fetch(`${base}/scenarios/${scenarioId}/stream`, { signal: ac.signal });
+      const reader = r.body!.getReader(); const dec = new TextDecoder(); let buf = ''; const evs: StreamEvent[] = [];
+      while (evs.length < 4) {
+        const { value, done } = await reader.read(); if (done) break;
+        buf += dec.decode(value); const parts = buf.split('\n\n'); buf = parts.pop()!;
+        for (const b of parts) if (b.startsWith('data: ')) evs.push(StreamEvent.parse(JSON.parse(b.slice(6))));
+      }
+      ac.abort();
+      expect(evs[0]!.type).toBe('init');
+      const init = evs[0] as Extract<StreamEvent, { type: 'init' }>;
+      expect(init.init.households.length).toBe(600); expect(init.init.assumptions.length).toBeGreaterThan(5);
+      const frames = evs.filter((e) => e.type === 'frame') as Extract<StreamEvent, { type: 'frame' }>[];
+      expect(frames.length).toBeGreaterThanOrEqual(2); expect(frames[1]!.frame.t).toBeGreaterThan(frames[0]!.frame.t);
+    } finally { await app.close(); }
+  }, 20_000);
 });
