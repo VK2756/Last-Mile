@@ -49,6 +49,17 @@ export interface Population {
 }
 
 const HELPER_PATTERN = ['neighbor', 'volunteer', 'neighbor', 'accessible_van', 'neighbor', 'volunteer', 'neighbor', 'shuttle_bus', 'neighbor', 'accessible_van'] as const;
+export type HelperKind = keyof typeof HELPER_SPEC;
+const KIND_ORDER: HelperKind[] = ['neighbor', 'volunteer', 'accessible_van', 'shuttle_bus'];
+/** Kinds for `n` helpers: the built-in repeating pattern, or helperMix weights split by largest remainder (no RNG used). */
+export function helperKinds(n: number, mix?: ScenarioConfig['helperMix']): HelperKind[] {
+  if (!mix) return Array.from({ length: n }, (_, i) => HELPER_PATTERN[i % HELPER_PATTERN.length]!);
+  const w = KIND_ORDER.map((k) => mix[k] ?? 0); const total = w.reduce((a, b) => a + b, 0);
+  const exact = w.map((x) => (x / total) * n); const counts = exact.map(Math.floor);
+  let left = n - counts.reduce((a, b) => a + b, 0);
+  exact.map((e, i) => ({ i, r: e - Math.floor(e) })).sort((a, b) => b.r - a.r || a.i - b.i).slice(0, left).forEach(({ i }) => { counts[i]!++; });
+  return KIND_ORDER.flatMap((k, i) => Array<HelperKind>(counts[i]!).fill(k));
+}
 const HELPER_SPEC = {
   neighbor: { capacity: 3, wheelchairCapable: false }, volunteer: { capacity: 4, wheelchairCapable: false },
   accessible_van: { capacity: 6, wheelchairCapable: true }, shuttle_bus: { capacity: 12, wheelchairCapable: true },
@@ -97,11 +108,13 @@ export function generatePopulation(config: ScenarioConfig, graph: RoadGraph, fir
   for (let i = 0; i < HOUSEHOLD_COUNT; i++) { const { hh, beh } = drawHousehold(i, rng, graph, helpDelay); households.push(hh); behavior[hh.id] = beh; }
   const hr = createRng(config.seed, SALT.helpers);
   const helpers: Helper[] = [];
+  const kinds = helperKinds(config.helperCount, config.helperMix);
   const byLate = [...graph.nodes].sort((a, b) => fire.ignitionTime(b) - fire.ignitionTime(a) || a.id - b.id);
   const helperNodes = variant.helperPlacement === 'far_from_fire' ? byLate.slice(0, Math.max(1, Math.round(byLate.length * 0.3))) : graph.nodes;
   for (let i = 0; i < config.helperCount; i++) {
-    const kind = HELPER_PATTERN[i % HELPER_PATTERN.length]!; const node = hr.pick(helperNodes);
-    helpers.push(Helper.parse({ id: `p${i + 1}`, kind, position: { lat: node.lat, lng: node.lng }, ...HELPER_SPEC[kind] }));
+    const kind = kinds[i]!; const node = hr.pick(helperNodes);
+    const spec = HELPER_SPEC[kind]; const capacity = Math.max(1, Math.round(spec.capacity * (config.helperCapacityScale ?? 1)));
+    helpers.push(Helper.parse({ id: `p${i + 1}`, kind, position: { lat: node.lat, lng: node.lng }, capacity, wheelchairCapable: spec.wheelchairCapable }));
   }
   const safeZones = pickSafeZones(graph, fire);
   const lats = graph.nodes.map((n) => n.lat), lngs = graph.nodes.map((n) => n.lng);
@@ -116,6 +129,8 @@ export function generatePopulation(config: ScenarioConfig, graph: RoadGraph, fir
     variant.helperPlacement === 'far_from_fire'
       ? 'SENSITIVITY: helpers (neighbors, volunteers, accessible vans, shuttle buses) start only on the 30% of road nodes the fire reaches last (far from the fire); vans and buses are wheelchair-capable. Capacity counts people.'
       : 'Helpers (neighbors, volunteers, accessible vans, shuttle buses) start at random road nodes; vans and buses are wheelchair-capable. Capacity counts people.',
+    ...(config.helperMix ? [`SENSITIVITY: helper fleet mix is set explicitly (weights ${KIND_ORDER.map((k) => `${k} ${config.helperMix?.[k] ?? 0}`).join(', ')}) instead of the built-in mix.`] : []),
+    ...(config.helperCapacityScale !== undefined && config.helperCapacityScale !== 1 ? [`SENSITIVITY: helper seat capacities are scaled by ${config.helperCapacityScale} (default capacities: neighbor 3, volunteer 4, accessible van 6, shuttle bus 12; minimum 1).`] : []),
     `Last Mile only learns of a household that cannot drive ${minutes(helpDelay[0])} to ${minutes(helpDelay[1])} min after that household is warned${variant.helpDelayS ? ' (SENSITIVITY: non-default)' : ''}.`,
     `Safe zones are the 3 road nodes the fire reaches last (at least 1.4 km apart). Only the ${HOUSEHOLD_COUNT} synthetic households within the modeled road area exist; the road network is a synthetic grid unless a baked town is loaded.`,
   ];

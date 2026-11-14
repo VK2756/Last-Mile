@@ -12,7 +12,7 @@ const cache = new Map<string, Entry>();
 const graphs = new Map<string, RoadGraph>();
 
 export function sharedWorld(config: ScenarioConfig, variant: Variant = {}): Entry {
-  const key = JSON.stringify([config.seed, config.town, config.helperCount, config.wind, config.ignition, variant]);
+  const key = JSON.stringify([config.seed, config.town, config.helperCount, config.wind, config.ignition, config.helperMix, config.helperCapacityScale, config.baseline, variant]);
   const hit = cache.get(key);
   if (hit) { cache.delete(key); cache.set(key, hit); return hit; }
   let graph = graphs.get(config.town); if (!graph) { graph = loadGraph(config); graphs.set(config.town, graph); }
