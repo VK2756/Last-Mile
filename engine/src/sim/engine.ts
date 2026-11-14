@@ -18,7 +18,9 @@ export const HARD_CAP_S = 4 * 3600;
 export const ROAD_CONGESTION = 1.3;
 export const PICKUP_RADIUS_M = 40;
 const UNLOAD_RADIUS_M = 60;
-const REPLAN_EVERY_S = 5;
+/** re-plan at most once per REPLAN_MIN_S after an event, and at least every REPLAN_EVERY_S while anyone needs help */
+const REPLAN_MIN_S = 3;
+const REPLAN_EVERY_S = 10;
 const RISK_EVERY_S = 30;
 const TTI_REPORT_MAX_S = 5400;
 
@@ -105,7 +107,11 @@ export function createSim(config: ScenarioConfig, scenarioId: string, opts: SimO
 
   if (sink?.onWorld) swallow(sink.onWorld(init));
 
-  const resolve = (s: HS, status: 'evacuated' | 'trapped') => { if (s.status === 'evacuated' || s.status === 'trapped') return; s.status = status; s.owner = -1; if (s.atRisk) unresolvedAtRisk--; dirty = true; };
+  const resolve = (s: HS, status: 'evacuated' | 'trapped') => {
+    if (s.status === 'evacuated' || s.status === 'trapped') return;
+    if (s.status === 'needs_help' || s.status === 'assigned' || s.status === 'enroute') dirty = true; // only these change what the dispatcher sees
+    s.status = status; s.owner = -1; if (s.atRisk) unresolvedAtRisk--;
+  };
   const routeTo = (a: LatLng, b: LatLng): LatLng[] => { const r = router.route(a, b, t); return r.length >= 2 ? r : [a, b]; };
 
   function tryDepart(s: HS) {
@@ -114,7 +120,8 @@ export function createSim(config: ScenarioConfig, scenarioId: string, opts: SimO
     const route = routeTo(s.h.position, dest);
     let caughtAt = Infinity;
     for (let k = 1; k <= 10; k++) { const f = k / 10; if (fire.isBurning(pointAlong(route, f), t + f * tt)) { caughtAt = t + f * tt; break; } }
-    s.status = 'self_evacuating'; s.owner = -1; dirty = true;
+    if (s.status === 'needs_help' || s.status === 'assigned') dirty = true;
+    s.status = 'self_evacuating'; s.owner = -1;
     if (Number.isFinite(caughtAt)) { s.endAt = caughtAt; s.endStatus = 'trapped'; } else { s.endAt = t + tt; s.endStatus = 'evacuated'; }
   }
 
@@ -218,7 +225,7 @@ export function createSim(config: ScenarioConfig, scenarioId: string, opts: SimO
   function maybePlan() {
     if (!lastMile || !hp.length) return;
     if (!(dirty || t - lastPlan >= REPLAN_EVERY_S)) return;
-    if (t - lastPlan < 1) return;
+    if (t - lastPlan < REPLAN_MIN_S) return;
     if (!hs.some((s) => s.status === 'needs_help' || s.status === 'assigned')) { dirty = false; return; }
     lastPlan = t; dirty = false; stats.plans++;
     adopt(dispatcher.plan(snapshot()));

@@ -8,15 +8,19 @@
 - Needs endpoint merged in the next PR: `POST /scenarios/:id/households/:hid/needs` body TriageResult -> 200 {ok,status,flipped}; 404 unknown scenario/household; 400 bad body or householdId mismatch; 409 if already resolved/leaving. hasRide=false / canWalkToRoad=false / urgency>=4 flips the household to needs_help and drops its own car.
 
 ## Preset results (real `runHeadless`, `engine/src/sim/presetsReport.ts`, nothing tuned)
-Run with the REAL router but the STUB dispatcher (returns no assignments), so Last Mile currently equals the baseline. Re-run when Lane D's dispatcher lands.
+REAL router and Lane D's real dispatcher (#20, #23). Engine re-plans at most every 3 sim s after an event / every 10 s (cadence chosen for speed: ~430 ms per last_mile run, ~70 ms per alerts_only run, 0 rejected plans, max tick 6.5 ms). Single seed per preset, so no CIs here; /montecarlo gives those.
 | preset | policy | at-risk | evacuated | trapped | vulnerable evacuated |
 |---|---|---|---|---|---|
-| wind-driven-run | both | 545 | 426 (78.2%) | 119 (21.8%) | 49/117 (41.9%) |
-| crosswind-flank | both | 539 | 444 (82.4%) | 95 (17.6%) | 59/120 (49.2%) |
-| slow-burn-few-helpers | both | 514 | 445 (86.6%) | 69 (13.4%) | 70/125 (56.0%) |
+| wind-driven-run | alerts_only | 545 | 426 (78.2%) | 119 (21.8%) | 49/117 (41.9%) |
+| wind-driven-run | last_mile | 545 | 471 (86.4%) | 74 (13.6%) | 94/117 (80.3%) |
+| crosswind-flank | alerts_only | 539 | 444 (82.4%) | 95 (17.6%) | 59/120 (49.2%) |
+| crosswind-flank | last_mile | 539 | 492 (91.3%) | 47 (8.7%) | 107/120 (89.2%) |
+| slow-burn-few-helpers | alerts_only | 514 | 445 (86.6%) | 69 (13.4%) | 70/125 (56.0%) |
+| slow-burn-few-helpers | last_mile | 514 | 496 (96.5%) | 18 (3.5%) | 121/125 (96.8%) |
+Caveat for the pitch: dispatch assumes help requests are known 1-3 min after a warning and that helpers are available at random road nodes; both are listed in the assumptions.
 
 ## Next
-Mount registerMonteCarlo(app) when Lane D ships it (time N=200), Vercel deploy, dispatcher integration check.
+Mount registerMonteCarlo(app) when Lane D ships it (time N=200), Vercel deploy.
 
 ## For Lane D (Rishabh): contracts between our code (all adapters live in engine/src/sim/deps.ts)
 - Router (#20) is wired: `createRouter(graph, fire)` and `routingAssumptions()` go into SimInit.assumptions. Still expecting the real `createDispatcher()` and `loadTown(town)`; adapters in `engine/src/sim/deps.ts`.
