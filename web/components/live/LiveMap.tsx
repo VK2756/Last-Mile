@@ -97,6 +97,8 @@ export function LiveMap({ init, frame, selectedId = null, onSelect, tiles = true
   const onMoveRef = useRef(onMove);
   onMoveRef.current = onMove;
   const syncing = useRef(false);
+  /** what the animation tick has to animate right now */
+  const animRef = useRef({ routes: false, fire: false });
   /** bounds of the last automatic camera fit; refit on resize until the user moves the map */
   const fitRef = useRef<[[number, number], [number, number]] | null>(null);
   const userMoved = useRef(false);
@@ -204,13 +206,15 @@ export function LiveMap({ init, frame, selectedId = null, onSelect, tiles = true
           ];
           let step = 0;
           let last = 0;
+          // ~8 Hz: each paint-property change repaints the whole map (two of them, at up to 4K),
+          // so only animate what is on screen and never faster than the eye needs.
           const tick = (ts: number) => {
             if (disposed) return;
-            if (ts - last > 60) {
+            if (ts - last > 120 && !document.hidden && (animRef.current.routes || animRef.current.fire)) {
               last = ts;
               step = (step + 1) % seq.length;
-              if (map.getLayer('routes')) map.setPaintProperty('routes', 'line-dasharray', seq[step]!);
-              if (map.getLayer('fire-glow')) map.setPaintProperty('fire-glow', 'line-opacity', 0.45 + 0.18 * Math.sin(ts / 520));
+              if (animRef.current.routes && map.getLayer('routes')) map.setPaintProperty('routes', 'line-dasharray', seq[step]!);
+              if (animRef.current.fire && map.getLayer('fire-glow')) map.setPaintProperty('fire-glow', 'line-opacity', 0.45 + 0.18 * Math.sin(ts / 520));
             }
             raf = requestAnimationFrame(tick);
           };
@@ -247,8 +251,12 @@ export function LiveMap({ init, frame, selectedId = null, onSelect, tiles = true
     if (!from.size || prefersReducedMotion() || gap === 0 || gap > 2000) { finish(); return; }
     const dur = Math.min(Math.max(gap * 0.9, 120), 700);
     const ease = (p: number) => (p < 0.5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2);
+    let lastSet = 0;
     const step = (ts: number) => {
       const p = Math.min(1, (ts - now) / dur);
+      // ~30 Hz is smooth for vehicles and halves GeoJSON re-tiling work
+      if (p < 1 && ts - lastSet < 33) { tweenRaf.current = requestAnimationFrame(step); return; }
+      lastSet = ts;
       const e = ease(p);
       const cur = new Map<string, [number, number]>();
       const features = target.features.map((f) => {
@@ -307,6 +315,7 @@ export function LiveMap({ init, frame, selectedId = null, onSelect, tiles = true
     setData('fire', fireFC(frame));
     setData('routes', routesFC(frame, selectedId));
     setData('embers', embersFC(frame));
+    animRef.current = { routes: (frame?.assignments.length ?? 0) > 0, fire: (frame?.fire.rings.length ?? 0) > 0 };
     tweenHelpers(helpersFC(frame));
     setData('households', householdsFC(init, frame, selectedId));
     // setData/tweenHelpers only touch refs and the map instance

@@ -8,7 +8,7 @@ import { cn } from '@/lib/cn';
 export function RunVerdict({ v, mock = false, onClose, className }: { v: Verdict; mock?: boolean; onClose: () => void; className?: string }) {
   const color = v.winner === 'last_mile' ? 'var(--color-accent)' : v.winner === 'alerts_only' ? 'var(--color-baseline)' : 'var(--color-fg-muted)';
   return (
-    <div role="status" className={cn('glass pointer-events-auto flex max-w-xl items-start gap-3 rounded-xl px-4 py-3', className)} style={{ borderColor: `color-mix(in oklab, ${color} 45%, transparent)` }} data-testid="run-verdict">
+    <div role="status" className={cn('glass-map pointer-events-auto flex max-w-xl items-start gap-3 rounded-xl px-4 py-3', className)} style={{ borderColor: `color-mix(in oklab, ${color} 45%, transparent)` }} data-testid="run-verdict">
       <Flag aria-hidden className="mt-0.5 size-4 shrink-0" style={{ color }} />
       <div className="min-w-0 flex-1">
         <div className="font-mono text-[0.625rem] font-bold uppercase tracking-[0.16em] text-fg-dim">Run complete · this seed</div>

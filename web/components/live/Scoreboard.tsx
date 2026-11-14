@@ -28,7 +28,7 @@ export function Scoreboard({ policy, metrics, className, compact = false, winner
     <section
       data-testid={testId}
       aria-label={`${POLICY_LABEL[policy]} scoreboard`}
-      className={cn('glass rounded-xl p-3 sm:p-4', winner && 'lm-winner', className)}
+      className={cn('glass-map rounded-xl p-3 sm:p-4', winner && 'lm-winner', className)}
       style={{ borderColor: `color-mix(in oklab, ${color} 38%, transparent)`, '--lm-win-color': color } as CSSProperties}
     >
       <p className="sr-only">{scoreSummary(policy, m)}</p>
