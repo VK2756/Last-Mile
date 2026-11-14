@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { ArrowRight, Cpu, Play, RefreshCw, Server, ShieldAlert } from 'lucide-react';
 import { ScenarioConfig, type MonteCarloComparison } from '@lastmile/contracts';
 import { sampleInit } from '@lastmile/contracts/fixtures';
-import { AppShell, Banner, Button, SimBadge } from '@/components/ui';
+import { AppShell, AssumptionsList, Banner, Button, SimBadge, eyebrowClass } from '@/components/ui';
 import { engineUrl } from '@/lib/engine';
 import { formatPct, formatPts } from '@/lib/format';
 import { cn } from '@/lib/cn';
@@ -150,7 +150,7 @@ export function ResultsView({ sensitivity }: { sensitivity: ReactNode | null }) 
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
         <header className="mb-8 flex flex-wrap items-end justify-between gap-6">
           <div className="max-w-2xl">
-            <p className="mb-3 font-mono text-xs font-semibold uppercase tracking-[0.2em] text-fire">Counterfactual evaluation</p>
+            <p className={`mb-3 ${eyebrowClass()}`}>Counterfactual evaluation</p>
             <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-5xl">Same fire. Two responses.</h1>
             <p className="mt-4 text-fg-muted">
               Every seed builds one synthetic town, one fire and one set of residents, then runs it twice:{' '}
@@ -189,7 +189,7 @@ export function ResultsView({ sensitivity }: { sensitivity: ReactNode | null }) 
 function SourcePill({ kind }: { kind: Kind }) {
   const s = SOURCE[kind];
   return (
-    <span className={cn('inline-flex h-8 items-center gap-2 rounded-md border px-3 font-mono text-[11px] font-semibold uppercase tracking-[0.12em]', s.tone)}>
+    <span className={cn('inline-flex h-8 items-center gap-2 rounded-md border px-3 font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.12em]', s.tone)}>
       <s.icon aria-hidden className="size-3.5" />
       {s.label}
     </span>
@@ -248,7 +248,7 @@ function Ready({ shown, sensitivity, model }: { shown: Shown; sensitivity: React
         data-testid="results-lift"
         className={cn('rounded-lg border p-6 sm:p-8', significant && positive && kind !== 'sample' ? 'border-accent/40 bg-accent/5' : 'border-line bg-surface')}
       >
-        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-fg-dim">
+        <p className="font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.16em] text-fg-dim">
           Paired lift · vulnerable households evacuated · {data.runs} seeds ({shown.seeds})
         </p>
         <div className="mt-3 flex flex-wrap items-baseline gap-x-6 gap-y-2">
@@ -275,7 +275,7 @@ function Ready({ shown, sensitivity, model }: { shown: Shown; sensitivity: React
           <table data-testid="confidence-intervals" className="mt-6 w-full text-sm">
             <caption className="sr-only">Means and 95% confidence intervals by policy</caption>
             <thead>
-              <tr className="border-b border-line text-left font-mono text-[10px] uppercase tracking-[0.14em] text-fg-dim">
+              <tr className="border-b border-line text-left font-mono text-[0.625rem] uppercase tracking-[0.14em] text-fg-dim">
                 <th className="pb-2 font-semibold">Metric</th>
                 <th className="pb-2 text-right font-semibold" style={{ color: POLICY_COLOR.alerts_only }}>Alerts only</th>
                 <th className="pb-2 text-right font-semibold" style={{ color: POLICY_COLOR.last_mile }}>Last Mile</th>
@@ -299,14 +299,7 @@ function Ready({ shown, sensitivity, model }: { shown: Shown; sensitivity: React
               <h2 id="drivers-h" className="text-sm font-semibold">What drives this result</h2>
               <SimBadge mock={kind === 'sample'} />
             </div>
-            <ol className="space-y-3">
-              {keyDrivers.map((t, i) => (
-                <li key={i} className="flex gap-3 text-sm leading-relaxed">
-                  <span className="tabular mt-0.5 font-mono text-xs text-fg-dim">{String(i + 1).padStart(2, '0')}</span>
-                  <span>{t}</span>
-                </li>
-              ))}
-            </ol>
+            <AssumptionsList assumptions={keyDrivers} />
             <a href="#assumptions" className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline">
               All {all.length} assumptions <ArrowRight aria-hidden className="size-3.5" />
             </a>
@@ -323,30 +316,23 @@ function Ready({ shown, sensitivity, model }: { shown: Shown; sensitivity: React
               </dd>
             </dl>
           </section>
-
-          <section data-testid="results-sensitivity" className="rounded-lg border border-warn/40 bg-warn/5 p-4 sm:p-6">
-            <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold">
-              <ShieldAlert aria-hidden className="size-4 text-warn" /> Under harsher assumptions
-            </h2>
-            {sensitivity ?? <p className="text-sm text-fg-muted">Sensitivity runs are not written up yet.</p>}
-            <p className="mt-3 font-mono text-[10px] text-fg-dim">Source: docs/submission/SENSITIVITY.md</p>
-          </section>
         </aside>
       </div>
+
+      <section data-testid="results-sensitivity" className="rounded-lg border border-warn/40 bg-warn/5 p-4 sm:p-6">
+        <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold">
+          <ShieldAlert aria-hidden className="size-4 text-warn" /> Under harsher assumptions
+        </h2>
+        <div className="max-w-4xl">{sensitivity ?? <p className="text-sm text-fg-muted">Sensitivity runs are not written up yet.</p>}</div>
+        <p className="mt-3 font-mono text-[0.625rem] text-fg-dim">Source: docs/submission/SENSITIVITY.md (real evaluator runs; refresh with docs/submission/tools/numbers.mjs)</p>
+      </section>
 
       <section id="assumptions" className="scroll-mt-20 rounded-lg border border-line bg-surface p-4 sm:p-6">
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <h2 className="text-sm font-semibold">Every assumption behind these numbers</h2>
           <SimBadge mock={kind === 'sample'} />
         </div>
-        <ol className="grid gap-3 sm:grid-cols-2">
-          {all.map((text, i) => (
-            <li key={i} className="flex gap-3 text-sm leading-relaxed">
-              <span className="tabular mt-0.5 font-mono text-xs text-fg-dim">{String(i + 1).padStart(2, '0')}</span>
-              <span>{text}</span>
-            </li>
-          ))}
-        </ol>
+        <AssumptionsList assumptions={all} className="sm:columns-2 sm:gap-8 [&>li]:break-inside-avoid [&>li]:mb-3" />
         <p className="mt-6 text-sm text-fg-muted">
           Everything here is a simulation with synthetic people. Change an assumption and the result can change; that is why they are listed.{' '}
           <Link href="/live" className="inline-flex items-center gap-1 font-semibold text-accent hover:underline">
@@ -364,11 +350,11 @@ function CiRow({ label, a, l }: { label: string; a: { mean: number; ci95: [numbe
       <th scope="row" className="py-2 text-left font-sans text-sm font-normal text-fg-muted">{label}</th>
       <td className="py-2 text-right">
         {formatPct(a.mean)}
-        <div className="text-[10px] text-fg-dim">[{formatPct(a.ci95[0])}, {formatPct(a.ci95[1])}]</div>
+        <div className="text-[0.625rem] text-fg-dim">[{formatPct(a.ci95[0])}, {formatPct(a.ci95[1])}]</div>
       </td>
       <td className="py-2 text-right">
         {formatPct(l.mean)}
-        <div className="text-[10px] text-fg-dim">[{formatPct(l.ci95[0])}, {formatPct(l.ci95[1])}]</div>
+        <div className="text-[0.625rem] text-fg-dim">[{formatPct(l.ci95[0])}, {formatPct(l.ci95[1])}]</div>
       </td>
     </tr>
   );

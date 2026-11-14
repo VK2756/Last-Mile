@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ArrowRight, Database, Cpu } from 'lucide-react';
-import { AppShell, Button, SimBadge } from '@/components/ui';
+import { AppShell, Button, SimBadge, eyebrowClass } from '@/components/ui';
 import { formatSimClock } from '@/lib/format';
 import { cn } from '@/lib/cn';
 import { SampleRibbon } from './SampleRibbon';
@@ -67,7 +67,7 @@ export function DashboardView() {
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
         <header className="mb-8 flex flex-wrap items-end justify-between gap-6">
           <div className="max-w-2xl">
-            <p className="mb-3 font-mono text-xs font-semibold uppercase tracking-[0.2em] text-fire">Operations dashboard</p>
+            <p className={`mb-3 ${eyebrowClass()}`}>Operations dashboard</p>
             <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">One scenario, over time.</h1>
             <p className="mt-3 text-fg-muted">
               What the dispatcher sees as the fire grows: who is still at risk and in what state, how close the fire is to the most
@@ -82,7 +82,7 @@ export function DashboardView() {
             }}
           >
             <label className="grid gap-1">
-              <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-fg-dim">Scenario ID</span>
+              <span className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-fg-dim">Scenario ID</span>
               <input
                 aria-label="Scenario ID"
                 value={draft}
