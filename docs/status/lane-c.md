@@ -5,7 +5,7 @@ Branch: `c/migration-hardening`. Data/deploy #5, voice #10, QA #15, submission #
 ## Task list
 - [x] Data sink with memory fallback, buffered Atlas/Tiger writes, query helpers, unit tests
 - [x] Tiger migration, Atlas collections/seed code; live credentials pending
-- [x] Vultr setup/deploy/Caddy scripts and exact SSH commands; VM/domain pending
+- [x] Vultr setup/deploy/Caddy scripts and exact SSH commands; restricted service restart added; VM/domain pending
 - [x] Gemini triage, API route and `/call` voice/typed flow with fallback
 - [ ] QA integration: Playwright suite exists; `/call` passes; split maps and results pending Lane B
 - [ ] Submission drafts/evidence checklist; real Monte Carlo, sponsor and deployment evidence pending
