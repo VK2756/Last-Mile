@@ -21,6 +21,7 @@
 import type { FireModel, LatLng, RoadGraph, Router } from '@lastmile/contracts';
 import { loadTown } from '../world/town';
 import { MinHeap } from './heap';
+import { largestScc } from './scc';
 
 const MPH_TO_MPS = 0.44704;
 const M_PER_DEG_LAT = 111_320;
@@ -300,6 +301,9 @@ export function createRouter(graph: RoadGraph = loadTown(), fire?: FireModel, op
   };
 
   // ---- snapping: uniform grid index + memo (households and safe zones never move) ----
+  // Only nodes in the largest strongly connected component are snap targets, so a trip never starts
+  // or ends on a disconnected island (or a one-way dead end) of the road graph.
+  const inMain = largestScc(N, Array.from({ length: E }, (_, i) => ({ from: eFrom[i]!, to: eTo[i]! })));
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (let i = 0; i < N; i++) {
     minX = Math.min(minX, xs[i]!); maxX = Math.max(maxX, xs[i]!);
@@ -309,6 +313,7 @@ export function createRouter(graph: RoadGraph = loadTown(), fire?: FireModel, op
   const gw = Math.floor((maxX - minX) / cell) + 1, gh = Math.floor((maxY - minY) / cell) + 1;
   const buckets = new Map<number, number[]>();
   for (let i = 0; i < N; i++) {
+    if (!inMain[i]) continue;
     const k = Math.floor((ys[i]! - minY) / cell) * gw + Math.floor((xs[i]! - minX) / cell);
     let b = buckets.get(k);
     if (!b) { b = []; buckets.set(k, b); }
