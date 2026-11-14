@@ -21,12 +21,13 @@ Everything is TypeScript, pnpm workspaces. Shared types live in `packages/contra
 ## Lanes and directory ownership (you may only edit your own lane's files)
 | Lane | Name | Person / Agent | Owns |
 |---|---|---|---|
-| **A** | ENGINE | Vidhaan, Claude Code | `engine/**` (server, fire sim, population, policies, routing, dispatch, Monte Carlo, road data) |
+| **A** | SIM + SERVER | Vidhaan, Claude Code | `engine/src/server*`, `engine/src/sim/**`, `engine/src/world/population*`, `engine/src/policy/**` |
 | **B** | WEB | Shrish, Claude Code | `web/**` EXCEPT Lane C's paths below (so `/`, `/live`, `/results`, `web/components/ui/**`, `web/lib/**`) |
 | **C** | DATA / VOICE / DEPLOY / QA / SUBMIT | Anant, Codex | `packages/data/**`, `packages/ai/**`, `web/app/call/**`, `web/app/api/**`, `web/e2e/**`, `web/playwright.config.ts`, `deploy/vultr/**`, `docs/submission/**` |
+| **D** | ROUTING / DISPATCH / MONTE CARLO | Rishabh, Claude Code | `engine/src/routing/**`, `engine/src/dispatch/**`, `engine/src/world/town*`, `engine/src/montecarlo/**`, `engine/scripts/**`, `engine/data/**` |
 | Shared | Manager (the humans + the manager chat) | | `packages/contracts/**`, `CLAUDE.md`, `AGENTS.md`, `scripts/**`, `.github/**`, `docs/*.md`, `docs/lanes/**` |
 
-Branch prefix = your lane letter (`a/…`, `b/…`, `c/…`). Labels: `lane:a`, `lane:b`, `lane:c`. Your lane brief: `docs/lanes/LANE_A_ENGINE.md`, `LANE_B_WEB.md` or `LANE_C_DATA_QA.md`. Read it right after this file. Status file: `docs/status/lane-<letter>.md`.
+Lanes A and D share the `engine/` package but edit only their own directories; they meet only through `packages/contracts/src/engine.ts` (FireModel, Router, Dispatcher, WorldSnapshot, HeadlessRunner). Branch prefix = your lane letter (`a/…`, `b/…`, `c/…`, `d/…`). Labels: `lane:a`, `lane:b`, `lane:c`, `lane:d`. Your lane brief: `docs/lanes/LANE_A_ENGINE.md` (Lane D uses it too: items 5, 6, 11, 13), `LANE_B_WEB.md` or `LANE_C_DATA_QA.md`. Read it right after this file. Status file: `docs/status/lane-<letter>.md`.
 
 ## STUB rule
 Some files start as stubs so lanes can build in parallel. Every stub is marked with a `STUB:` comment. The owner replaces it with the real thing. Lane C greps for `STUB:` before the freeze and **main must contain zero STUB markers at freeze**.
@@ -39,7 +40,7 @@ Heavy deps are pre-declared in each package. If you need another: `pnpm add <pkg
 - Breaking changes need the manager's OK (the human will relay). If blocked on a contract question, build against the fixtures in `packages/contracts/src/fixtures.ts` and keep going.
 
 ## Git workflow (trunk-based, small and fast)
-1. `git checkout main && git pull --ff-only` then branch: `a/<topic>`, `b/<topic>` or `c/<topic>` (prefix = your lane letter).
+1. `git checkout main && git pull --ff-only` then branch: `a/<topic>`, `b/<topic>`, `c/<topic>` or `d/<topic>` (prefix = your lane letter).
 2. Commit small and often. Open a PR early: `gh pr create --fill`. Keep PRs under about 300 lines when possible.
 3. **Before merging: `pnpm verify` must pass locally AND CI must be green** (`gh pr checks --watch`).
 4. Merge yourself: `gh pr merge --squash --delete-branch`. Do not wait for review; the verification protocol is the review.
