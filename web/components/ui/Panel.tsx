@@ -13,12 +13,12 @@ export interface PanelProps extends Omit<HTMLAttributes<HTMLElement>, 'title'> {
 export function Panel({ title, eyebrow, actions, flush, className, children, ...rest }: PanelProps) {
   const hasHeader = title !== undefined || eyebrow !== undefined || actions !== undefined;
   return (
-    <section className={cn('rounded-lg border border-line bg-surface', className)} {...rest}>
+    <section className={cn('glass rounded-xl', className)} {...rest}>
       {hasHeader && (
-        <header className="flex items-start justify-between gap-3 border-b border-line px-4 py-3">
+        <header className="flex items-start justify-between gap-3 border-b border-white/[0.06] px-4 py-3">
           <div className="min-w-0">
             {eyebrow !== undefined && (
-              <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-fg-dim">{eyebrow}</div>
+              <div className="font-mono text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-fg-dim">{eyebrow}</div>
             )}
             {title !== undefined && <h2 className="truncate text-sm font-semibold text-fg">{title}</h2>}
           </div>

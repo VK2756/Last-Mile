@@ -17,7 +17,7 @@ export function ReplayBar({ startT, liveT, replayT, onScrub, onLive }: {
   const replaying = replayT !== null;
   return (
     <div className={cn('flex items-center gap-3 border-t border-line bg-surface px-3 py-2', replaying && 'bg-info/[0.06]')} data-testid="replay-scrubber">
-      <span className={cn('flex w-24 shrink-0 items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.14em]', replaying ? 'text-info' : 'text-fg-dim')}>
+      <span className={cn('flex w-24 shrink-0 items-center gap-1.5 font-mono text-[0.625rem] font-bold uppercase tracking-[0.14em]', replaying ? 'text-info' : 'text-fg-dim')}>
         <History aria-hidden className="size-3.5" />{replaying ? 'Replay' : 'Rewind'}
       </span>
       <input

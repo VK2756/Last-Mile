@@ -13,7 +13,7 @@ export function SimBadge({ className, mock = false }: { className?: string; mock
       aria-label={mock ? 'Simulation, mock data' : 'Simulation with synthetic people'}
       className={cn(
         'inline-flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border border-warn/50 bg-warn/10 px-2',
-        'font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-warn',
+        'font-mono text-[0.6875rem] font-bold uppercase tracking-[0.14em] text-warn',
         className,
       )}
     >
