@@ -1,5 +1,5 @@
 # Lane E status (STORY PAGES + SUBMISSION) — Prince / Claude Code
-_Updated: Sat 14 Nov, ~16:40 EST._
+_Updated: Sat 14 Nov, ~17:10 EST._
 
 ## Done (merged)
 - #44 docs: 5-lane ownership (CLAUDE.md, AGENTS.md), `docs/lanes/LANE_E_STORY.md`, attribution off in `.claude/settings.json`, `lane:e` label.
@@ -9,7 +9,8 @@ _Updated: Sat 14 Nov, ~16:40 EST._
 - #58 `/how-it-works`: inline-SVG pipeline (fire, risk clock, dispatch, voice, Monte Carlo) + plain-language sections with parameters read from engine code.
 - #62 landing v2: hero live preview iframe `/live?mock=1&view=maps&pitch=1&auto=1` (loaded after idle; static illustration on phones / reduced motion), Who this is for, How we prove it, scroll reveal, full footer.
 - #70 `/results` v2: instant paint from `GET /montecarlo/preset`, "Run full 200-seed comparison" = fresh seeds 1001-1200 via POST, SAMPLE ribbon only if engine unreachable or response says placeholder, model assumptions beside the chart, harsher-assumptions panel from `docs/submission/SENSITIVITY.md` (real sweep, raw JSON in `docs/submission/sensitivity/`).
-- `/dashboard` (this PR): Recharts from `GET /api/risk-series?scenarioId=` (status groups stacked, min TTI, dispatches/min when the API returns them); SAMPLE ribbon + mock-derived series when no scenario, Tiger not configured, or error.
+- #83 `/dashboard`: Recharts from `GET /api/risk-series?scenarioId=` (status groups stacked, min TTI, dispatches/min when the API returns them); SAMPLE ribbon + mock-derived series when no scenario, Tiger not configured, or error.
+- Submission docs (this PR): DEVPOST, SPONSORS (evidence table, all pending deploy/credentials), PRIZE_CHECKLIST (one [HACKUMASS] tag, SpaceXSI not targeted), DEV_POST, VIDEO (2:30), PITCH_QA (15 Qs), architecture.svg. Outcome numbers are [PLACEHOLDERS] filled from NUMBERS.md next.
 - Closed #46 (stubs/CIs) with evidence.
 
 ## Evidence
@@ -24,4 +25,4 @@ _Updated: Sat 14 Nov, ~16:40 EST._
 - C: #53 e2e `getByText('SIMULATION')` is now ambiguous; use `getByTestId('sim-badge').first()`.
 
 ## Next
-submission docs (DEVPOST, SPONSORS, PRIZE_CHECKLIST, DEV_POST, VIDEO, PITCH_QA), SOURCES check, polish.
+NUMBERS.md + fill placeholders, SOURCES/DEMO_SCRIPT, DEMO_RUNBOOK, polish.

@@ -1,34 +1,104 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="650" viewBox="0 0 1200 650" role="img" aria-labelledby="title desc">
-  <title id="title">Last Mile simulation architecture</title>
-  <desc id="desc">Vercel web app connects to a Vultr engine and Gemini triage; the engine writes to MongoDB Atlas and Tiger Data.</desc>
-  <rect width="1200" height="650" fill="#f4f7f2"/>
-  <text x="600" y="54" text-anchor="middle" font-family="Arial" font-size="30" font-weight="700" fill="#16352b">Last Mile · SIMULATION</text>
-  <text x="600" y="84" text-anchor="middle" font-family="Arial" font-size="17" fill="#4a6659">Synthetic households, helpers, and fire · shared TypeScript contracts</text>
-  <g font-family="Arial" text-anchor="middle">
-    <rect x="65" y="178" width="265" height="150" rx="18" fill="#dcebe0" stroke="#3c6a52" stroke-width="2"/>
-    <text x="198" y="220" font-size="25" font-weight="700" fill="#16352b">Vercel · Web</text>
-    <text x="198" y="255" font-size="17" fill="#254536">/live · /results · /call</text>
-    <text x="198" y="283" font-size="15" fill="#254536">SSE maps and Monte Carlo CIs</text>
-    <rect x="466" y="178" width="265" height="150" rx="18" fill="#dbe8ef" stroke="#426b82" stroke-width="2"/>
-    <text x="598" y="220" font-size="25" font-weight="700" fill="#173948">Vultr · Engine</text>
-    <text x="598" y="255" font-size="17" fill="#254b5b">fire · routing · dispatch</text>
-    <text x="598" y="283" font-size="15" fill="#254b5b">paired-seed Monte Carlo</text>
-    <rect x="867" y="178" width="265" height="150" rx="18" fill="#eee5d8" stroke="#8e6b3d" stroke-width="2"/>
-    <text x="999" y="220" font-size="25" font-weight="700" fill="#49351e">Gemini · Triage</text>
-    <text x="999" y="255" font-size="17" fill="#57432b">needs extraction</text>
-    <text x="999" y="283" font-size="15" fill="#57432b">deterministic fallback</text>
-    <rect x="250" y="440" width="265" height="145" rx="18" fill="#e6e1f0" stroke="#6e5a91" stroke-width="2"/>
-    <text x="382" y="482" font-size="25" font-weight="700" fill="#33224c">MongoDB Atlas</text>
-    <text x="382" y="516" font-size="17" fill="#4a3c64">scenario and household data</text>
-    <text x="382" y="543" font-size="15" fill="#4a3c64">$geoNear helper query</text>
-    <rect x="685" y="440" width="265" height="145" rx="18" fill="#f0e0df" stroke="#995753" stroke-width="2"/>
-    <text x="818" y="482" font-size="25" font-weight="700" fill="#522724">Tiger Data</text>
-    <text x="818" y="516" font-size="17" fill="#663d38">risk and dispatch time series</text>
-    <text x="818" y="543" font-size="15" fill="#663d38">hypertables · 1m aggregates</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="t d">
+  <title id="t">Last Mile architecture (simulation)</title>
+  <desc id="d">Browser pages on Vercel talk to the engine on Vultr over HTTPS and Server-Sent Events, and to Next.js API routes. The API routes call Gemini and read Tiger Data. The engine runs the fire model, router, dispatcher and Monte Carlo evaluator, and writes to MongoDB Atlas and Tiger Data. Shared zod contracts connect all parts.</desc>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#93a1b0"/></marker>
+    <pattern id="g" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#fff" stroke-opacity="0.03"/></pattern>
+  </defs>
+  <style>
+    .t{font-family:Inter,Helvetica,Arial,sans-serif;fill:#e8edf3}
+    .m{font-family:'JetBrains Mono',Menlo,monospace;fill:#93a1b0}
+    .h{font-size:22px;font-weight:700}
+    .s{font-size:15px}
+    .x{font-size:13px}
+    .box{fill:#0c1016;stroke:#2d3a4a;stroke-width:1.5}
+    .in{fill:#121821;stroke:#1f2935}
+    .l{stroke:#93a1b0;stroke-width:1.6;fill:none}
+  </style>
+  <rect width="1600" height="900" fill="#06080b"/>
+  <rect width="1600" height="900" fill="url(#g)"/>
+
+  <text x="60" y="70" class="t" font-size="34" font-weight="800">Last Mile</text>
+  <text x="235" y="70" class="m" font-size="16">architecture</text>
+  <rect x="1330" y="42" width="210" height="36" rx="6" fill="#f5b301" fill-opacity="0.1" stroke="#f5b301" stroke-opacity="0.5"/>
+  <text x="1435" y="66" text-anchor="middle" class="m" font-size="14" font-weight="700" fill="#f5b301" style="fill:#f5b301;letter-spacing:2px">SIMULATION</text>
+  <text x="60" y="100" class="m" font-size="14">Synthetic households, helpers and fire · TypeScript end to end · contracts in packages/contracts (zod)</text>
+
+  <!-- Browser / Vercel -->
+  <rect x="60" y="140" width="420" height="620" rx="12" class="box"/>
+  <rect x="60" y="140" width="5" height="620" rx="2" fill="#2ee6c5"/>
+  <text x="90" y="182" class="t h">Web · Vercel</text>
+  <text x="90" y="206" class="m x">Next.js 15 · React · MapLibre · Recharts</text>
+  <g class="t s">
+    <rect x="90" y="228" width="360" height="54" rx="6" class="in"/><text x="106" y="252">/live</text><text x="106" y="272" class="m x">split screen: alerts only vs Last Mile</text>
+    <rect x="90" y="292" width="360" height="54" rx="6" class="in"/><text x="106" y="316">/results</text><text x="106" y="336" class="m x">paired Monte Carlo, 95% CIs, sensitivity</text>
+    <rect x="90" y="356" width="360" height="54" rx="6" class="in"/><text x="106" y="380">/call</text><text x="106" y="400" class="m x">speech in, speech out, needs card</text>
+    <rect x="90" y="420" width="360" height="54" rx="6" class="in"/><text x="106" y="444">/dashboard</text><text x="106" y="464" class="m x">risk and dispatch time series</text>
+    <rect x="90" y="484" width="360" height="54" rx="6" class="in"/><text x="106" y="508">/ · /how-it-works</text><text x="106" y="528" class="m x">story, live preview, pipeline</text>
   </g>
-  <g fill="none" stroke="#567266" stroke-width="3" marker-end="url(#arrow)">
-    <path d="M330 252 H455"/><path d="M867 252 H742"/><path d="M547 328 L430 428"/><path d="M652 328 L770 428"/>
+  <rect x="90" y="572" width="360" height="160" rx="8" fill="#0f141b" stroke="#38bdf8" stroke-opacity="0.5" stroke-dasharray="5 4"/>
+  <text x="106" y="600" class="t s" font-weight="700">API routes (server)</text>
+  <text x="106" y="626" class="m x">POST /api/triage  → Gemini</text>
+  <text x="106" y="648" class="m x">GET  /api/risk-series → Tiger Data</text>
+  <text x="106" y="680" class="m x">no key / no DB → labelled fallbacks</text>
+  <text x="106" y="702" class="m x">(deterministic parser, SAMPLE DATA)</text>
+
+  <!-- Engine / Vultr -->
+  <rect x="610" y="140" width="460" height="620" rx="12" class="box"/>
+  <rect x="610" y="140" width="5" height="620" rx="2" fill="#ff5a1f"/>
+  <text x="640" y="182" class="t h">Engine · Vultr</text>
+  <text x="640" y="206" class="m x">Node + TypeScript · Fastify · SSE · Caddy TLS</text>
+  <g class="t s">
+    <rect x="640" y="228" width="400" height="60" rx="6" class="in"/><text x="656" y="252">Fire model</text><text x="656" y="274" class="m x">arrival time per 50 m cell, wind + fuel noise</text>
+    <rect x="640" y="298" width="400" height="60" rx="6" class="in"/><text x="656" y="322">World + behaviour</text><text x="656" y="344" class="m x">600 synthetic homes on OSM Amherst roads</text>
+    <rect x="640" y="368" width="400" height="60" rx="6" class="in"/><text x="656" y="392">Router</text><text x="656" y="414" class="m x">Dijkstra, fire-closed roads, smoke slowdown</text>
+    <rect x="640" y="438" width="400" height="60" rx="6" class="in"/><text x="656" y="462">Dispatcher</text><text x="656" y="484" class="m x">insertion + local search, hard constraints</text>
+    <rect x="640" y="508" width="400" height="60" rx="6" class="in"/><text x="656" y="532">Sim loop (1 s ticks)</text><text x="656" y="554" class="m x">alerts-only baseline + Last Mile help</text>
+    <rect x="640" y="578" width="400" height="60" rx="6" class="in"/><text x="656" y="602">Monte Carlo evaluator</text><text x="656" y="624" class="m x">paired seeds, worker pool, bootstrap CI</text>
   </g>
-  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#567266"/></marker></defs>
-  <g font-family="Arial" font-size="14" fill="#486157" text-anchor="middle"><text x="392" y="239">SSE/HTTPS</text><text x="799" y="239">JSON</text><text x="490" y="393">documents</text><text x="718" y="393">events</text></g>
+  <text x="640" y="676" class="m x">GET /scenarios/:id/stream (SSE frames)</text>
+  <text x="640" y="698" class="m x">POST /scenarios/:id/households/:hid/needs</text>
+  <text x="640" y="720" class="m x">GET /montecarlo/preset · POST /montecarlo</text>
+
+  <!-- Data -->
+  <rect x="1200" y="140" width="340" height="250" rx="12" class="box"/>
+  <rect x="1200" y="140" width="5" height="250" rx="2" fill="#34d399"/>
+  <text x="1230" y="182" class="t h">MongoDB Atlas</text>
+  <text x="1230" y="214" class="t s">scenarios · households</text>
+  <text x="1230" y="238" class="t s">helpers · triage_calls</text>
+  <text x="1230" y="276" class="m x">$geoNear on 2dsphere</text>
+  <text x="1230" y="298" class="m x">helpers.location, filtered by</text>
+  <text x="1230" y="320" class="m x">capacity + wheelchairCapable</text>
+
+  <rect x="1200" y="430" width="340" height="250" rx="12" class="box"/>
+  <rect x="1200" y="430" width="5" height="250" rx="2" fill="#38bdf8"/>
+  <text x="1230" y="472" class="t h">Tiger Data</text>
+  <text x="1230" y="504" class="t s">risk_samples · dispatch_events</text>
+  <text x="1230" y="528" class="t s">outcomes (hypertables)</text>
+  <text x="1230" y="566" class="m x">continuous aggregates</text>
+  <text x="1230" y="588" class="m x">risk_1m · dispatch_1m</text>
+  <text x="1230" y="610" class="m x">compression by scenario, policy</text>
+
+  <!-- Gemini -->
+  <rect x="60" y="800" width="420" height="70" rx="12" class="box"/>
+  <rect x="60" y="800" width="5" height="70" rx="2" fill="#a78bfa"/>
+  <text x="90" y="832" class="t h">Gemini API</text>
+  <text x="90" y="856" class="m x">gemini-2.5-flash · JSON schema = TriageResult</text>
+
+  <!-- arrows -->
+  <path class="l" d="M480 300 H604" marker-end="url(#a)"/>
+  <text x="492" y="290" class="m x">HTTPS + SSE</text>
+  <path class="l" d="M604 330 H486" marker-end="url(#a)"/>
+  <text x="500" y="352" class="m x">frames, MC</text>
+  <path class="l" d="M450 660 C540 660 540 690 604 690" marker-end="url(#a)"/>
+  <text x="488" y="650" class="m x">needs</text>
+  <path class="l" d="M270 732 V794" marker-end="url(#a)"/>
+  <path class="l" d="M1070 265 H1194" marker-end="url(#a)"/>
+  <text x="1082" y="255" class="m x">DATA_SINK</text>
+  <path class="l" d="M1070 555 H1194" marker-end="url(#a)"/>
+  <text x="1082" y="545" class="m x">every 30 sim s</text>
+  <path class="l" d="M1370 680 C1370 860 700 880 455 660" marker-end="url(#a)" stroke-dasharray="5 4"/>
+  <text x="980" y="840" class="m x">risk series → /dashboard</text>
+
+  <text x="1540" y="880" text-anchor="end" class="m x">HackUMass XIV · Vidhaan · Shrish · Anant · Rishabh · Prince</text>
 </svg>
