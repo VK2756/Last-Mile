@@ -82,7 +82,7 @@ export function DashboardView() {
             }}
           >
             <label className="grid gap-1">
-              <span className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-fg-dim">Scenario ID</span>
+              <span className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-fg-muted">Scenario ID</span>
               <input
                 aria-label="Scenario ID"
                 value={draft}
@@ -105,7 +105,7 @@ export function DashboardView() {
             {sample ? <Cpu aria-hidden className="size-3.5" /> : <Database aria-hidden className="size-3.5" />}
             {loading ? 'Loading…' : view?.series.source}
           </span>
-          {scenario && <span className="font-mono text-fg-dim">scenario {scenario}</span>}
+          {scenario && <span className="font-mono text-fg-muted">scenario {scenario}</span>}
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
@@ -168,7 +168,7 @@ export function DashboardView() {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <p className="flex h-full items-center justify-center px-6 text-center text-sm text-fg-dim">
+              <p className="flex h-full items-center justify-center px-6 text-center text-sm text-fg-muted">
                 The risk-series API does not return dispatch counts yet (Tiger&apos;s <code className="mx-1 font-mono">dispatch_1m</code> aggregate exists).
               </p>
             )}
@@ -190,7 +190,7 @@ function ChartCard({ title, sub, children, className, testId }: { title: string;
   return (
     <section data-testid={testId} className={cn('rounded-lg border border-line bg-surface p-4 sm:p-6', className)}>
       <h2 className="text-sm font-semibold">{title}</h2>
-      <p className="mb-4 text-xs text-fg-dim">{sub}</p>
+      <p className="mb-4 text-xs text-fg-muted">{sub}</p>
       <div className="h-64">{children}</div>
     </section>
   );

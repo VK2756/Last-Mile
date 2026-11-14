@@ -1,15 +1,16 @@
 import type { Metadata } from 'next';
+import { storyMeta } from '@/components/story/meta';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { AppShell, SimBadge, eyebrowClass } from '@/components/ui';
 import { PIPELINE, PipelineDiagram } from '@/components/story/PipelineDiagram';
 
-export const metadata: Metadata = {
-  title: 'How it works · Last Mile',
-  description:
-    'The Last Mile pipeline: a wind-driven fire model, a time-to-impact clock for every household, a capacity-aware dispatch optimizer, Gemini voice triage, and a paired Monte Carlo evaluation. Simulation with synthetic people.',
-};
+export const metadata: Metadata = storyMeta(
+  'How it works · Last Mile',
+  'The Last Mile pipeline: a wind-driven fire model, a time-to-impact clock for every household, a capacity-aware dispatch optimizer, Gemini voice triage, and a paired Monte Carlo evaluation. Simulation with synthetic people.',
+  '/how-it-works',
+);
 
 type Stage = {
   id: (typeof PIPELINE)[number]['id'];
@@ -126,14 +127,14 @@ export default function HowItWorksPage() {
                 <div className="grid gap-6 p-5 sm:p-8 md:grid-cols-[1.1fr_1fr]">
                   <div>
                     <div className="mb-3 flex items-center gap-3">
-                      <span className="tabular font-mono text-xs text-fg-dim">{meta.n}</span>
+                      <span className="tabular font-mono text-xs text-fg-muted">{meta.n}</span>
                       <span aria-hidden className="h-0.5 w-6 rounded-full" style={{ background: meta.color }} />
                     </div>
                     <h2 className="mb-3 text-2xl font-bold tracking-tight">{meta.title}</h2>
                     <p className="leading-relaxed text-fg-muted">{s.plain}</p>
                   </div>
                   <div className="rounded-md border border-line bg-bg p-4">
-                    <h3 className="mb-3 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-fg-dim">Under the hood</h3>
+                    <h3 className="mb-3 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-fg-muted">Under the hood</h3>
                     <ul className="space-y-2.5 text-sm leading-relaxed">
                       {s.details.map((d) => (
                         <li key={d} className="flex gap-2">
@@ -142,7 +143,7 @@ export default function HowItWorksPage() {
                         </li>
                       ))}
                     </ul>
-                    <p className="mt-4 break-words font-mono text-[0.6875rem] text-fg-dim">{s.code.join(' · ')}</p>
+                    <p className="mt-4 break-words font-mono text-[0.6875rem] text-fg-muted">{s.code.join(' · ')}</p>
                   </div>
                 </div>
               </li>

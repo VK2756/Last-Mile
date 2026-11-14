@@ -101,7 +101,7 @@ export function PipelineDiagram() {
         ))}
         <path d={`M${46 + BOX_W} ${8 + 4 * 126 + BOX_H / 2} h28 V${8 + BOX_H / 2} h-26`} fill="none" stroke="#34d399" strokeOpacity="0.7" strokeWidth="1.5" markerEnd="url(#pd-arrow)" className="pd-flow" />
       </svg>
-      <figcaption className="mt-3 text-center font-mono text-[0.6875rem] text-fg-dim">Click a stage to jump to its explanation.</figcaption>
+      <figcaption className="mt-3 text-center font-mono text-[0.6875rem] text-fg-muted">Click a stage to jump to its explanation.</figcaption>
     </figure>
   );
 }

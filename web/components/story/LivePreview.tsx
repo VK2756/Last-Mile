@@ -66,12 +66,12 @@ export function LivePreview() {
             style={{ width: FRAME_W, height: FRAME_H, transform: `scale(${scale})` }}
           />
         )}
-        <span className="pointer-events-none absolute left-3 top-3 rounded-md bg-bg/85 backdrop-blur">
+        <span className="pointer-events-none absolute left-3 top-3 rounded-md bg-bg/90">
           <SimBadge note={loaded ? 'live preview, mock data' : 'illustration'} />
         </span>
         <Link
           href="/live"
-          className={buttonClass({ variant: 'secondary', size: 'sm', className: 'absolute bottom-3 right-3 bg-bg/85 backdrop-blur' })}
+          className={buttonClass({ variant: 'secondary', size: 'sm', className: 'absolute bottom-3 right-3 bg-bg/90' })}
         >
           <Maximize2 aria-hidden className="size-3.5" /> Open full demo
         </Link>
@@ -83,7 +83,7 @@ export function LivePreview() {
         <span>
           Right: <span className="text-accent">Last Mile</span>
         </span>
-        <span className="text-fg-dim">Same fire, same synthetic town</span>
+        <span className="text-fg-muted">Same fire, same synthetic town</span>
       </figcaption>
     </figure>
   );

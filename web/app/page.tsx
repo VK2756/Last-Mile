@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { storyMeta } from '@/components/story/meta';
 import Link from 'next/link';
 import {
   Accessibility,
@@ -20,11 +21,11 @@ import { AppShell, SimBadge, buttonClass, eyebrowClass } from '@/components/ui';
 import { LivePreview } from '@/components/story/LivePreview';
 import { Reveal } from '@/components/story/Reveal';
 
-export const metadata: Metadata = {
-  title: "Last Mile · live evacuation dispatch for people who can't drive out",
-  description:
-    "Last Mile predicts every household's time to impact, dispatches the nearest capable helper, and phones each home to learn its needs. Demonstrated in simulation with synthetic people.",
-};
+export const metadata: Metadata = storyMeta(
+  'Last Mile · live evacuation dispatch for people who can\'t drive out',
+  'Last Mile predicts every household\'s time to impact, dispatches the nearest capable helper, and phones each home to learn its needs. Demonstrated in simulation with synthetic people.',
+  '/',
+);
 
 const STEPS = [
   {
@@ -101,14 +102,14 @@ const SIMULATED = [
 
 const TEAM = ['Vidhaan', 'Shrish', 'Anant', 'Rishabh', 'Prince'];
 
-const eyebrow = `mb-2 ${eyebrowClass('dim')}`;
+const eyebrow = `mb-2 ${eyebrowClass('accent')}`;
 
 export default function Home() {
   return (
     <AppShell right={<SimBadge />}>
       {/* HERO */}
       <section className="ops-grid relative overflow-hidden border-b border-line">
-        <div aria-hidden className="pointer-events-none absolute -right-40 -top-40 size-[36rem] rounded-full bg-fire/10 blur-3xl" />
+        <div aria-hidden className="pointer-events-none absolute -right-40 -top-40 size-[36rem] rounded-full bg-[radial-gradient(circle,rgb(255_90_31/0.12),transparent_65%)]" />
         <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[0.9fr_1.1fr] lg:py-20">
           <div>
             <p className={`mb-5 inline-flex items-center gap-2 ${eyebrowClass()}`}>
@@ -136,7 +137,7 @@ export default function Home() {
                 See the evidence
               </Link>
             </div>
-            <p className="mt-5 font-mono text-xs text-fg-dim">
+            <p className="mt-5 font-mono text-xs text-fg-muted">
               Simulation with synthetic people ·{' '}
               <Link href="#honesty" className="underline hover:text-fg-muted">
                 what is simulated
@@ -150,7 +151,7 @@ export default function Home() {
       {/* THE GAP */}
       <section className="border-b border-line bg-surface">
         <Reveal className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-[auto_1fr] md:items-center">
-          <p className={eyebrowClass('dim')}>The gap</p>
+          <p className={eyebrowClass('accent')}>The gap</p>
           <div className="grid gap-4 md:grid-cols-2">
             <p className="text-lg leading-relaxed">
               A warning only helps if you can act on it. Without a car, with a wheelchair or an oxygen line, or on a landline that never got
@@ -223,7 +224,7 @@ export default function Home() {
             {STEPS.map((s, i) => (
               <Reveal as="li" key={s.n} delay={i * 100} className="flex flex-col bg-bg p-6">
                 <div className="mb-6 flex items-center justify-between">
-                  <span className="tabular font-mono text-xs text-fg-dim">{s.n}</span>
+                  <span className="tabular font-mono text-xs text-fg-muted">{s.n}</span>
                   <s.icon aria-hidden className="size-5 text-accent" />
                 </div>
                 <h3 className="mb-2 text-xl font-semibold">{s.title}</h3>
@@ -258,7 +259,7 @@ export default function Home() {
             {PROOF.map((p, i) => (
               <Reveal as="li" key={p.k} delay={i * 80} className="bg-bg p-5">
                 <div className="mb-2 flex items-center gap-2">
-                  <span className="tabular font-mono text-xs text-fg-dim">{String(i + 1).padStart(2, '0')}</span>
+                  <span className="tabular font-mono text-xs text-fg-muted">{String(i + 1).padStart(2, '0')}</span>
                   <span className="font-semibold">{p.k}</span>
                 </div>
                 <p className="text-sm leading-relaxed text-fg-muted">{p.v}</p>
@@ -270,7 +271,7 @@ export default function Home() {
 
       {/* STACK */}
       <section aria-labelledby="stack" className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
-        <h2 id="stack" className={`mb-6 ${eyebrowClass('dim')}`}>
+        <h2 id="stack" className={`mb-6 ${eyebrowClass('accent')}`}>
           Built on
         </h2>
         <Reveal as="div">
@@ -279,7 +280,7 @@ export default function Home() {
               <li key={s.name} className="bg-bg p-5">
                 <s.icon aria-hidden className="mb-3 size-5 text-fg-muted" />
                 <div className="font-semibold">{s.name}</div>
-                <div className="mt-1 text-xs leading-relaxed text-fg-dim">{s.role}</div>
+                <div className="mt-1 text-xs leading-relaxed text-fg-muted">{s.role}</div>
               </li>
             ))}
           </ul>
@@ -323,12 +324,12 @@ export default function Home() {
               Live evacuation dispatch for people who can&apos;t drive out. A HackUMass XIV prototype, demonstrated in simulation with synthetic
               people. Not an emergency service.
             </p>
-            <p className="mt-4 text-sm text-fg-dim">
+            <p className="mt-4 text-sm text-fg-muted">
               Built by <span className="text-fg-muted">{TEAM.join(', ')}</span>.
             </p>
           </div>
           <nav aria-label="Product" className="text-sm">
-            <p className="mb-3 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-fg-dim">Product</p>
+            <p className="mb-3 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-fg-muted">Product</p>
             <ul className="space-y-2">
               <li><Link href="/live" className="text-fg-muted hover:text-fg">Live demo</Link></li>
               <li><Link href="/results" className="text-fg-muted hover:text-fg">Monte Carlo results</Link></li>
@@ -337,7 +338,7 @@ export default function Home() {
             </ul>
           </nav>
           <div className="text-sm">
-            <p className="mb-3 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-fg-dim">Sources</p>
+            <p className="mb-3 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-fg-muted">Sources</p>
             <ul className="space-y-2">
               <li>
                 <a className="text-fg-muted hover:text-fg" href="https://www.nist.gov/publications/case-study-camp-fire-notification-evacuation-traffic-and-temporary-refuge-areas-nettra" target="_blank" rel="noreferrer">

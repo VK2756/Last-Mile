@@ -249,7 +249,7 @@ export function CallView() {
               <div className="flex items-center gap-2 text-sm">
                 <span className={cn('size-2 rounded-full', inCall ? 'animate-pulse-slow bg-ok' : 'bg-fg-dim')} aria-hidden />
                 <span className="font-semibold">{inCall ? 'Call in progress' : 'Not connected'}</span>
-                {householdId && <span className="font-mono text-xs text-fg-dim">· household {householdId}</span>}
+                {householdId && <span className="font-mono text-xs text-fg-muted">· household {householdId}</span>}
               </div>
               <div className="flex items-center gap-1">
                 <Button variant="ghost" size="sm" onClick={() => setMuted((m) => !m)} aria-pressed={muted} aria-label={muted ? 'Unmute assistant voice' : 'Mute assistant voice'}>
@@ -282,7 +282,7 @@ export function CallView() {
                       t.role === 'resident' ? 'bg-accent/15 text-fg' : 'border border-line bg-surface-2',
                     )}
                   >
-                    <div className="mb-0.5 font-mono text-[0.625rem] uppercase tracking-[0.14em] text-fg-dim">{t.role === 'resident' ? 'Resident' : 'Assistant'}</div>
+                    <div className="mb-0.5 font-mono text-[0.625rem] uppercase tracking-[0.14em] text-fg-muted">{t.role === 'resident' ? 'Resident' : 'Assistant'}</div>
                     {t.text}
                   </div>
                 </li>
@@ -293,7 +293,7 @@ export function CallView() {
                 </li>
               )}
               {busy && (
-                <li className="flex items-center gap-2 text-xs text-fg-dim">
+                <li className="flex items-center gap-2 text-xs text-fg-muted">
                   <Loader2 aria-hidden className="size-3.5 animate-spin" /> Assistant is thinking…
                 </li>
               )}
@@ -324,7 +324,7 @@ export function CallView() {
                 onChange={(e) => setInput(e.target.value)}
                 maxLength={2000}
                 placeholder={listening ? 'Listening…' : householdId ? 'Type the resident’s answer…' : 'Enter a household ID first'}
-                className="h-12 min-w-0 flex-1 rounded-md border border-line-strong bg-bg px-3 text-sm placeholder:text-fg-dim focus-visible:outline-2 focus-visible:outline-accent"
+                className="h-12 min-w-0 flex-1 rounded-md border border-line-strong bg-bg px-3 text-sm placeholder:text-fg-muted focus-visible:outline-2 focus-visible:outline-accent"
               />
               <Button type="submit" variant="primary" size="lg" disabled={busy || !householdId || !input.trim()}>
                 <Send aria-hidden className="size-4" /> Send
@@ -345,14 +345,14 @@ export function CallView() {
             </div>
             <div className="p-4">
               <div className="mb-4">
-                <div className="mb-2 font-mono text-[0.625rem] uppercase tracking-[0.14em] text-fg-dim">Needs</div>
+                <div className="mb-2 font-mono text-[0.625rem] uppercase tracking-[0.14em] text-fg-muted">Needs</div>
                 <div className="flex min-h-7 flex-wrap gap-1.5">
                   {learned?.needs.length ? (
                     learned.needs.map((n) => (
                       <span key={n} className="rounded border border-danger/40 bg-danger/10 px-2 py-0.5 text-xs font-medium text-fg">{NEED_LABEL[n]}</span>
                     ))
                   ) : (
-                    <span className="text-sm text-fg-dim">None reported yet</span>
+                    <span className="text-sm text-fg-muted">None reported yet</span>
                   )}
                 </div>
                 <p className="mt-2 font-mono text-[0.6875rem] text-fg-muted">
@@ -364,7 +364,7 @@ export function CallView() {
                 <Fact label="Can walk to road" value={learned ? yesNo(learned.canWalkToRoad) : '—'} warn={learned?.canWalkToRoad === false} />
                 <Fact label="Residents" value={learned?.residents?.toString() ?? (learned ? 'Unknown' : '—')} />
                 <div className="bg-bg p-3">
-                  <dt className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-fg-dim">Urgency</dt>
+                  <dt className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-fg-muted">Urgency</dt>
                   <dd className="mt-1 flex items-center gap-2">
                     <span className="tabular font-mono font-bold">{learned ? `${learned.urgency}/5` : '—'}</span>
                     <span className="flex gap-0.5" aria-hidden>
@@ -393,7 +393,7 @@ const inputCls =
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="grid gap-1">
-      <span className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-fg-dim">{label}</span>
+      <span className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-fg-muted">{label}</span>
       {children}
     </label>
   );
@@ -402,14 +402,14 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function Fact({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
   return (
     <div className="bg-bg p-3">
-      <dt className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-fg-dim">{label}</dt>
+      <dt className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-fg-muted">{label}</dt>
       <dd className={cn('mt-1 font-semibold', warn && 'text-danger')}>{value}</dd>
     </div>
   );
 }
 
 function AppliedStatus({ applied, done }: { applied: Applied; done: boolean }) {
-  if (!done) return <p className="text-xs text-fg-dim">The live map updates once needs and ride availability are captured.</p>;
+  if (!done) return <p className="text-xs text-fg-muted">The live map updates once needs and ride availability are captured.</p>;
   switch (applied.kind) {
     case 'sending':
       return <p className="flex items-center gap-2 text-xs text-fg-muted"><Loader2 aria-hidden className="size-3.5 animate-spin" /> Sending to the live simulation…</p>;
