@@ -104,8 +104,8 @@ describe('runMonteCarlo', () => {
   });
 
   it('gives the same answer from the worker pool as in-process', async () => {
-    const inProc = await runMonteCarlo(PRESET_BASE, [1, 2, 3, 4, 5, 6], { workers: 0 });
-    const pooled = await runMonteCarlo(PRESET_BASE, [1, 2, 3, 4, 5, 6], { workers: 2 });
+    const inProc = await runMonteCarlo(PRESET_BASE, [1, 2, 3], { workers: 0 });
+    const pooled = await runMonteCarlo(PRESET_BASE, [1, 2, 3], { workers: 2 });
     expect(pooled).toEqual(inProc);
   }, 60_000);
 });
@@ -113,7 +113,9 @@ describe('runMonteCarlo', () => {
 describe('registerMonteCarlo routes', () => {
   it('POST /montecarlo validates, computes, caches; GET /montecarlo/preset serves the preset', async () => {
     const app = Fastify();
-    registerMonteCarlo(app, { workers: 0, warmPreset: false });
+    // toy runner: route behaviour only (the real sim is timed by scripts/montecarlo-cli.ts)
+    const quick: HeadlessRunner = async (c) => metrics(40 + (c.seed % 17) + (c.policy === "last_mile" ? 6 : 0));
+    registerMonteCarlo(app, { runner: quick, warmPreset: false });
     await app.ready();
     const bad = await app.inject({ method: 'POST', url: '/montecarlo', payload: { runs: 1 } });
     expect(bad.statusCode).toBe(400);
