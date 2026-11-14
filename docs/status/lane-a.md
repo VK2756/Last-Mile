@@ -42,6 +42,9 @@ Caveat for the pitch: dispatch assumes help requests are known 1-3 min after a w
 ## Contract change (additive, PR `contract: ...`)
 ScenarioConfig gains OPTIONAL `helperMix`, `helperCapacityScale`, `baseline{familyPickupProb, prepDelayScale, alertIssueS, urgentFamilyPickup, neighborRideProb}` (issues #69-#73). Absent = today's behaviour, results do not move. Engine support lands knob by knob right after. Everyone: run scripts/postmerge.sh.
 
+## Knob #73 (helper fleet) merged
+Stress (40 paired seeds, preset base, vulnerable evacuated): default fleet lift +30.9 [28.8, 32.9]; all-neighbour fleet (capacity 3, no wheelchair vehicles) +23.1 [21.3, 24.8]; all-neighbour with capacities x0.67 +17.8 [16.5, 19.1]. `engine/test/golden.test.ts` pins default results so no knob can move them silently.
+
 ## Next
 Vercel deploy, sensitivity table, full-stack click-through, Vultr readiness.
 

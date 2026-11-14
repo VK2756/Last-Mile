@@ -41,3 +41,27 @@ describe('population', () => {
     p.safeZones.forEach((z) => expect(f.ignitionTime(z.position)).toBeGreaterThan(med));
   });
 });
+
+import { helperKinds } from '../src/world/population';
+describe('helper fleet knobs (#73)', () => {
+  const withKnobs = (extra: Partial<ScenarioConfig>) => { const c = { ...mk(5), ...extra }; return generatePopulation(c, makeGridGraph(), createFireModel(c)); };
+  it('defaults: no knobs equals explicit undefined knobs, built-in pattern and capacities', () => {
+    expect(withKnobs({ helperMix: undefined, helperCapacityScale: undefined })).toEqual(gen(5));
+    expect(gen(5).helpers.slice(0, 4).map((h) => [h.kind, h.capacity])).toEqual([['neighbor', 3], ['volunteer', 4], ['neighbor', 3], ['accessible_van', 6]]);
+  });
+  it('all-neighbour fleet: capacity 3, no wheelchair-capable helper, same positions of the draw stream', () => {
+    const p = withKnobs({ helperMix: { neighbor: 1 } });
+    expect(p.helpers).toHaveLength(24); expect(p.helpers.every((h) => h.kind === 'neighbor' && h.capacity === 3 && !h.wheelchairCapable)).toBe(true);
+    expect(p.helpers.map((h) => h.position)).toEqual(gen(5).helpers.map((h) => h.position)); // same seed, same start nodes
+    expect(p.assumptions.join('\n')).toMatch(/helper fleet mix is set explicitly/);
+  });
+  it('mix weights are split by largest remainder and always sum to helperCount', () => {
+    const k = helperKinds(10, { neighbor: 1, accessible_van: 1 }); expect(k.filter((x) => x === 'neighbor')).toHaveLength(5); expect(k.filter((x) => x === 'accessible_van')).toHaveLength(5);
+    for (const n of [1, 7, 24, 33]) expect(helperKinds(n, { neighbor: 3, volunteer: 2, shuttle_bus: 1 })).toHaveLength(n);
+  });
+  it('capacity scale rounds, never below 1, and is announced', () => {
+    const p = withKnobs({ helperCapacityScale: 0.25 }); expect(p.helpers.every((h) => h.capacity >= 1)).toBe(true); expect(p.helpers[3]!.capacity).toBe(2); // van 6 * 0.25 -> 2
+    expect(p.assumptions.join('\n')).toMatch(/seat capacities are scaled by 0.25/);
+    expect(withKnobs({ helperCapacityScale: 2 }).helpers[0]!.capacity).toBe(6);
+  });
+});
