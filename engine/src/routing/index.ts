@@ -57,6 +57,10 @@ export interface RouterStats {
   version: number;
   treeBuilds: number;
   treeHits: number;
+  /** cold pairs answered by an early-exit point-to-point search instead of a cached tree */
+  pointToPointRuns: number;
+  /** fire-free trees this router had to build (shared trees built by earlier routers are free) */
+  baseTreeBuilds: number;
   closedEdges: number;
   smokyEdges: number;
 }
@@ -65,6 +69,8 @@ export interface GraphRouter extends Router {
   stats(): RouterStats;
   /** Bring edge states up to time t without running a query (queries do this themselves). */
   sync(t: number): void;
+  /** a guaranteed lower bound on travelSeconds(a, b, t) for any t: straight line at the fastest speed */
+  lowerBoundSeconds(a: LatLng, b: LatLng): number;
 }
 
 const DEFAULT_SMOKE: SmokeBand[] = [
@@ -119,6 +125,17 @@ interface Tree {
   via: Int32Array;
 }
 
+/** A fire-free forward tree plus its settle order (parents come before children). */
+interface BaseTree extends Tree { order: Int32Array }
+
+/**
+ * Fire-free forward shortest-path trees, shared by every router built on the same graph object (and so
+ * across all Monte Carlo seeds and both policies in one worker). Their content depends only on the
+ * graph and the root, so sharing them cannot change any result.
+ */
+const BASE_TREES = new WeakMap<RoadGraph, Map<number, BaseTree>>();
+const MAX_BASE_TREES = 4096;
+
 /**
  * Build a router for one scenario. Every argument is optional so `createRouter()` keeps working:
  * no graph -> `loadTown()`, no fire -> nothing ever closes or slows.
@@ -143,6 +160,8 @@ export function createRouter(graph: RoadGraph = loadTown(), fire?: FireModel, op
   const px = (p: LatLng) => p.lng * mPerDegLng;
   const py = (p: LatLng) => p.lat * M_PER_DEG_LAT;
   const accessMps = o.accessSpeedMph * MPH_TO_MPS;
+  let fastestMps = accessMps; // fastest speed anywhere (roads or access legs), for lowerBoundSeconds
+  for (const e of graph.edges) fastestMps = Math.max(fastestMps, e.speedMph * MPH_TO_MPS);
 
   // ---- edges, with CSR adjacency in both directions ----
   const eFrom = new Int32Array(E), eTo = new Int32Array(E);
@@ -218,6 +237,8 @@ export function createRouter(graph: RoadGraph = loadTown(), fire?: FireModel, op
   let version = 0;
   let closedEdges = 0, smokyEdges = 0;
   let treeBuilds = 0, treeHits = 0;
+  /** quantized time of the last sync (road states are judged at this time) */
+  let curTq = -Infinity;
   const fwd = new Map<number, Tree>();
   const rev = new Map<number, Tree>();
   const srcHits = new Map<number, number>();
@@ -226,6 +247,7 @@ export function createRouter(graph: RoadGraph = loadTown(), fire?: FireModel, op
   const sync = (t: number) => {
     // quantize to the end of the current refresh window (conservative), so states change at most once per window
     const tq = o.stateRefreshSeconds > 0 ? (Math.floor(t / o.stateRefreshSeconds) + 1) * o.stateRefreshSeconds : t;
+    curTq = tq;
     const r = rank(tq);
     if (r === syncedRank) return;
     const first = syncedRank === -1;
@@ -255,21 +277,24 @@ export function createRouter(graph: RoadGraph = loadTown(), fire?: FireModel, op
     for (const [k, tree] of rev) for (const e of changedEdges) if (tree.via[eFrom[e]!] === e) { rev.delete(k); break; }
   };
 
-  const heap = new MinHeap();
+  const heap = new MinHeap(E + N + 16);
+  // settled-node marks shared by every tree build (generation stamps instead of a fresh array per build)
+  const doneMark = new Int32Array(N);
+  let doneGen = 0;
   const popped: [number, number] = [0, 0];
   const buildTree = (root: number, reverse: boolean): Tree => {
     treeBuilds++;
     const dist = new Float64Array(N).fill(Infinity);
     const via = new Int32Array(N).fill(-1);
-    const done = new Uint8Array(N);
+    const g = ++doneGen;
     const adj = reverse ? inc : out;
     const other = reverse ? eFrom : eTo;
     dist[root] = 0;
     heap.push(root, 0);
     while (heap.pop(popped)) {
       const u = popped[0], du = popped[1];
-      if (done[u] || du > dist[u]!) continue;
-      done[u] = 1;
+      if (doneMark[u] === g || du > dist[u]!) continue;
+      doneMark[u] = g;
       for (let k = adj.off[u]!; k < adj.off[u + 1]!; k++) {
         const e = adj.list[k]!;
         const w = weight[e]!;
@@ -287,15 +312,113 @@ export function createRouter(graph: RoadGraph = loadTown(), fire?: FireModel, op
     m.set(k, tree);
   };
 
-  /** A cached or freshly built tree that answers na -> nb; sets `lastReverse` (hot path, no allocation). */
+  // Point-to-point Dijkstra with early exit, for COLD pairs (neither end queried before in this road
+  // state), e.g. the sim asking for the next hop of a moving helper. Exact, but it settles only the
+  // nodes closer than the target instead of building (and caching) a whole tree. Scratch arrays are
+  // reused across calls via a generation stamp, so it allocates nothing.
+  const pDist = new Float64Array(N), pVia = new Int32Array(N), pSeen = new Int32Array(N), pDone = new Int32Array(N);
+  let pGen = 0;
+  let p2pRuns = 0;
+  /** build (and cache) a whole tree only once a source or target has been asked for this many times */
+  const TREE_AFTER = Number(process.env.LASTMILE_TREE_AFTER ?? 3);
+  const pointToPoint = (na: number, nb: number): number => {
+    p2pRuns++;
+    pGen++;
+    const g = pGen;
+    pSeen[na] = g; pDist[na] = 0; pVia[na] = -1;
+    heap.reset();
+    heap.push(na, 0);
+    while (heap.pop(popped)) {
+      const u = popped[0], du = popped[1];
+      if (pDone[u] === g || du > pDist[u]!) continue;
+      pDone[u] = g;
+      if (u === nb) { heap.reset(); return du; }
+      for (let k = out.off[u]!; k < out.off[u + 1]!; k++) {
+        const e = out.list[k]!;
+        const w = weight[e]!;
+        if (w === Infinity) continue;
+        const v = eTo[e]!;
+        const dv = du + w;
+        if (pSeen[v] !== g || dv < pDist[v]!) { pSeen[v] = g; pDist[v] = dv; pVia[v] = e; heap.push(v, dv); }
+      }
+    }
+    return Infinity;
+  };
+
+  // ---- fire-free base trees (shared across routers on this graph) ----
+  // Fire and smoke only ever make edges slower. So if no edge on the fire-free shortest path from root
+  // to x has changed state yet, that path is still the shortest at time t, and its fire-free length is
+  // exact. validUntil(root)[x] = the earliest quantized time any edge on that path leaves the open state.
+  const widest = Math.max(o.closureLookaheadSeconds, ...o.smokeBands.map((b) => b.withinSeconds));
+  const firstChange = new Float64Array(E);
+  for (let i = 0; i < E; i++) firstChange[i] = burnTime[i]! - widest; // Infinity - x = Infinity
+  let shared = BASE_TREES.get(graph);
+  if (!shared) { shared = new Map(); BASE_TREES.set(graph, shared); }
+  const baseShared = shared;
+  let baseBuilds = 0, baseHits = 0;
+  const baseTree = (root: number): BaseTree => {
+    let bt = baseShared.get(root);
+    if (bt) return bt;
+    baseBuilds++;
+    const dist = new Float64Array(N).fill(Infinity);
+    const via = new Int32Array(N).fill(-1);
+    const done = new Uint8Array(N);
+    const order = new Int32Array(N);
+    let n = 0;
+    dist[root] = 0;
+    heap.reset();
+    heap.push(root, 0);
+    while (heap.pop(popped)) {
+      const u = popped[0], du = popped[1];
+      if (done[u] || du > dist[u]!) continue;
+      done[u] = 1;
+      order[n++] = u;
+      for (let k = out.off[u]!; k < out.off[u + 1]!; k++) {
+        const e = out.list[k]!;
+        const v = eTo[e]!;
+        const dv = du + baseSeconds[e]!;
+        if (dv < dist[v]!) { dist[v] = dv; via[v] = e; heap.push(v, dv); }
+      }
+    }
+    bt = { dist, via, order: order.slice(0, n) };
+    if (baseShared.size >= MAX_BASE_TREES) baseShared.clear();
+    baseShared.set(root, bt);
+    return bt;
+  };
+  const validMemo = new Map<number, Float64Array>();
+  const validUntil = (root: number, bt: BaseTree): Float64Array => {
+    let m = validMemo.get(root);
+    if (m) return m;
+    m = new Float64Array(N).fill(Infinity); // unreachable nodes stay unreachable: always "valid"
+    for (let k = 1; k < bt.order.length; k++) { // order[0] is the root
+      const u = bt.order[k]!;
+      const e = bt.via[u]!;
+      m[u] = Math.min(m[eFrom[e]!]!, firstChange[e]!);
+    }
+    if (validMemo.size >= 4 * o.maxCachedTrees) validMemo.clear();
+    validMemo.set(root, m);
+    return m;
+  };
+  /** the fire-free tree from na if it is still exact for na -> nb at the current time, else null */
+  const baseFor = (na: number, nb: number): BaseTree | null => {
+    const bt = baseTree(na);
+    if (curTq < validUntil(na, bt)[nb]!) { baseHits++; return bt; }
+    return null;
+  };
+
+  /**
+   * A cached or freshly built tree that answers na -> nb, or null when the pair is cold and should be
+   * answered by pointToPoint(). Sets `lastReverse` (hot path, no allocation).
+   */
   let lastReverse = false;
-  const treeFor = (na: number, nb: number): Tree => {
+  const treeFor = (na: number, nb: number): Tree | null => {
     const f = fwd.get(na);
     if (f) { treeHits++; lastReverse = false; return f; }
     const r = rev.get(nb);
     if (r) { treeHits++; lastReverse = true; return r; }
     const sh = (srcHits.get(na) ?? 0) + 1, dh = (dstHits.get(nb) ?? 0) + 1;
     srcHits.set(na, sh); dstHits.set(nb, dh);
+    if (sh < TREE_AFTER && dh < TREE_AFTER) return null;
     if (dh > sh) { const t = buildTree(nb, true); remember(rev, nb, t); lastReverse = true; return t; }
     const t = buildTree(na, false); remember(fwd, na, t); lastReverse = false; return t;
   };
@@ -360,13 +483,29 @@ export function createRouter(graph: RoadGraph = loadTown(), fire?: FireModel, op
   const endpointBurning = (a: LatLng, b: LatLng, t: number) => !!fire && (fire.isBurning(a, t) || fire.isBurning(b, t));
   const nodePos = (i: number): LatLng => ({ lat: graph.nodes[i]!.lat, lng: graph.nodes[i]!.lng });
 
+  /**
+   * Road seconds between snapped nodes na -> nb, and where to read the path from: a fire-free base tree
+   * (when still exact), a road-state tree, or the last point-to-point search.
+   */
+  type Answer = { road: number; via: Int32Array; reverse: boolean };
+  const answer: Answer = { road: 0, via: pVia, reverse: false };
+  const solve = (na: number, nb: number): Answer => {
+    const base = baseFor(na, nb);
+    if (base) { answer.road = base.dist[nb]!; answer.via = base.via; answer.reverse = false; return answer; }
+    const tree = treeFor(na, nb);
+    if (tree === null) { answer.road = pointToPoint(na, nb); answer.via = pVia; answer.reverse = false; return answer; }
+    answer.reverse = lastReverse;
+    answer.road = lastReverse ? tree.dist[na]! : tree.dist[nb]!;
+    answer.via = tree.via;
+    return answer;
+  };
+
   const travelSeconds = (a: LatLng, b: LatLng, t: number): number => {
     sync(t);
     if (endpointBurning(a, b, t)) return Infinity;
     const na = snap(a), nb = snap(b);
     if (na === nb) return straightMeters(a, b) / accessMps;
-    const tree = treeFor(na, nb);
-    const road = lastReverse ? tree.dist[na]! : tree.dist[nb]!;
+    const road = solve(na, nb).road;
     if (road === Infinity) return Infinity;
     return (toNodeMeters(a, na) + toNodeMeters(b, nb)) / accessMps + road;
   };
@@ -376,19 +515,17 @@ export function createRouter(graph: RoadGraph = loadTown(), fire?: FireModel, op
     if (endpointBurning(a, b, t)) return [];
     const na = snap(a), nb = snap(b);
     if (na === nb) return [a, b];
-    const tree = treeFor(na, nb);
-    const reverse = lastReverse;
-    const road = reverse ? tree.dist[na]! : tree.dist[nb]!;
+    const { road, via, reverse } = solve(na, nb);
     if (road === Infinity) return [];
     const path: LatLng[] = [a];
     if (reverse) {
       let u = na;
       path.push(nodePos(u));
-      while (u !== nb) { u = eTo[tree.via[u]!]!; path.push(nodePos(u)); }
+      while (u !== nb) { u = eTo[via[u]!]!; path.push(nodePos(u)); }
     } else {
       const back: number[] = [];
       let u = nb;
-      while (u !== na) { back.push(u); u = eFrom[tree.via[u]!]!; }
+      while (u !== na) { back.push(u); u = eFrom[via[u]!]!; }
       back.push(na);
       for (let k = back.length - 1; k >= 0; k--) path.push(nodePos(back[k]!));
     }
@@ -400,6 +537,8 @@ export function createRouter(graph: RoadGraph = loadTown(), fire?: FireModel, op
     travelSeconds,
     route,
     sync,
-    stats: () => ({ version, treeBuilds, treeHits, closedEdges, smokyEdges }),
+    // road edges are at least as long as the straight line between their ends, and smoke only slows them
+    lowerBoundSeconds: (a, b) => straightMeters(a, b) / fastestMps,
+    stats: () => ({ version, treeBuilds, treeHits: treeHits + baseHits, pointToPointRuns: p2pRuns, baseTreeBuilds: baseBuilds, closedEdges, smokyEdges }),
   };
 }

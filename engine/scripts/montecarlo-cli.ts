@@ -23,8 +23,11 @@ const seeds = Array.from({ length: runs }, (_, i) => seedStart + i);
 const workers = opt('workers') === undefined ? undefined : Number(opt('workers'));
 
 const t0 = performance.now();
+const cpu0 = process.cpuUsage();
 const c = await runMonteCarlo(base, seeds, workers === undefined ? {} : { workers });
 const secs = (performance.now() - t0) / 1000;
+const cpu = process.cpuUsage(cpu0);
+const cpuSecs = (cpu.user + cpu.system) / 1e6; // whole process, all worker threads
 
 if (flag('json')) {
   console.log(JSON.stringify({ seconds: secs, seeds: [seeds[0], seeds[seeds.length - 1]], ...c }, null, 2));
@@ -32,7 +35,7 @@ if (flag('json')) {
   const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
   const ci = (m: { mean: number; ci95: [number, number] }) => `${pct(m.mean)} [${pct(m.ci95[0])}, ${pct(m.ci95[1])}]`;
   const pts = (m: { mean: number; ci95: [number, number] }) => `${(m.mean * 100).toFixed(1)} pts [${(m.ci95[0] * 100).toFixed(1)}, ${(m.ci95[1] * 100).toFixed(1)}]`;
-  console.log(`runs=${c.runs} seeds ${seeds[0]}..${seeds[seeds.length - 1]} town=${base.town} wind=${base.wind.speedMph}mph@${base.wind.dirDeg}deg helpers=${base.helperCount}  (${secs.toFixed(1)} s)`);
+  console.log(`runs=${c.runs} seeds ${seeds[0]}..${seeds[seeds.length - 1]} town=${base.town} wind=${base.wind.speedMph}mph@${base.wind.dirDeg}deg helpers=${base.helperCount}  (${secs.toFixed(1)} s wall, ${cpuSecs.toFixed(1)} s CPU)`);
   for (const p of ['alerts_only', 'last_mile'] as const) {
     const r = c.results[p];
     console.log(`  ${p.padEnd(11)} evacuated ${ci(r.evacuatedRate)}  vulnerable evacuated ${ci(r.vulnerableEvacuatedRate)}  trapped/run ${r.trappedMean.toFixed(1)}`);

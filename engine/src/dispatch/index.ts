@@ -190,8 +190,29 @@ export function createDispatcher(options: DispatchOptions = {}): DispatchPlanner
     }
 
     // ---- travel: helper -> household is exact (router); household -> household is estimated in search ----
+    // If the router offers a guaranteed lower bound and even that misses the home's deadline, the exact
+    // time cannot make it either: store the bound (still > deadline, so every feasibility test gives the
+    // same answer) and skip the query. `exactDH` resolves it where the true value matters.
     const dH = new Float64Array(H * R);
-    for (let v = 0; v < H; v++) for (let r = 0; r < R; r++) dH[v * R + r] = router.travelSeconds(vans[v]!.pos, reqs[r]!.h.position, t);
+    const pruned = new Uint8Array(H * R);
+    const lb = 'lowerBoundSeconds' in router && typeof router.lowerBoundSeconds === 'function'
+      ? (router.lowerBoundSeconds as (a: LatLng, b: LatLng) => number).bind(router)
+      : null;
+    for (let v = 0; v < H; v++) {
+      for (let r = 0; r < R; r++) {
+        const k = v * R + r;
+        if (lb) {
+          const bound = lb(vans[v]!.pos, reqs[r]!.h.position);
+          if (bound > reqs[r]!.deadline) { dH[k] = bound; pruned[k] = 1; continue; }
+        }
+        dH[k] = router.travelSeconds(vans[v]!.pos, reqs[r]!.h.position, t);
+      }
+    }
+    const exactDH = (v: number, r: number): number => {
+      const k = v * R + r;
+      if (pruned[k]) { dH[k] = router.travelSeconds(vans[v]!.pos, reqs[r]!.h.position, t); pruned[k] = 0; }
+      return dH[k]!;
+    };
     const est = (a: number, b: number) => {
       const m = straightMeters(reqs[a]!.h.position, reqs[b]!.h.position);
       return m > o.pairingRadiusMeters ? Infinity : (m * o.detourFactor) / estMps;
@@ -365,6 +386,7 @@ export function createDispatcher(options: DispatchOptions = {}): DispatchPlanner
         for (let v = 0; v < H; v++) {
           const van = vans[v]!;
           if (van.seq.length > 0 || van.pinned >= 0 || !compatible(van, r)) continue; // idle helpers only (see above)
+          exactDH(v, ri); // best effort compares against the fire, not the deadline: needs the true time
           const c = evaluate(v, van.seq, exact, van.seq.length, ri);
           if (c === Infinity) continue;
           const delta = c - van.completion;
@@ -386,7 +408,7 @@ export function createDispatcher(options: DispatchOptions = {}): DispatchPlanner
       if (H === 0) return 'No helper is available';
       if (r.wheelchair && cap.length === 0) return 'No wheelchair-capable helper is available';
       if (cap.every((v) => v.helper.capacity - v.base < r.h.residents)) return `No available helper has room for ${people}`;
-      if (vans.every((_, v) => dH[v * R + ri] === Infinity)) return 'No helper can reach this home because the fire has cut off the roads';
+      if (vans.every((_, v) => exactDH(v, ri) === Infinity)) return 'No helper can reach this home because the fire has cut off the roads';
       // a free helper could make it, so the problem is that every one of them is committed elsewhere
       const couldMakeIt = vans.some((van, v) => compatible(van, r) && dH[v * R + ri]! <= r.deadline);
       if (couldMakeIt) return `Every helper that could reach this home in time is already committed to homes with earlier deadlines (${minutes(r.deadline)} left)`;
