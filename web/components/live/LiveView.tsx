@@ -12,6 +12,7 @@ import { combinedStatus } from '@/lib/sync';
 import { AssumptionsDrawer } from './AssumptionsDrawer';
 import { Legend } from './Legend';
 import { MapPane, type MapView } from './MapPane';
+import { OperatorPanel } from './OperatorPanel';
 import { StreamStatusPill } from './StreamStatusPill';
 import { useSyncedFrames } from './useSyncedFrames';
 
@@ -122,6 +123,7 @@ export function LiveView() {
               </Button>
             </div>
           </Panel>
+          <OperatorPanel init={right.init} frame={synced.right} selectedId={selected?.policy === 'last_mile' ? selected.id : null} onSelect={(id) => setSelected({ id, policy: 'last_mile' })} />
           <Panel eyebrow="Map key" title="Legend" data-dev-only>
             <Legend />
           </Panel>
