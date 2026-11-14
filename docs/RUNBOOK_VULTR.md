@@ -4,12 +4,12 @@ This deploys the simulation engine on an Ubuntu 24.04 Vultr Cloud Compute VM. Ru
 
 ## 1. Create the VM
 
-In the Vultr dashboard choose **Deploy → Cloud Compute → Regular Performance → Ubuntu 24.04**, select a nearby location, add your SSH public key, and deploy. Copy the public IPv4 address. Allow inbound TCP 22, 80 and 443 in any Vultr firewall group you attach. Replace `<VM_PUBLIC_IP>` below with that IPv4 address. Use the username shown by Vultr if it is not `ubuntu`.
+In the Vultr dashboard choose **Deploy → Cloud Compute → Regular Performance → Ubuntu 24.04**, select a nearby location, add your SSH public key, enable **Limited User Login**, and deploy. Vultr creates the sudo-capable `linuxuser` account with this option ([Vultr provisioning guide](https://docs.vultr.com/products/compute/instances/cloud-compute/provisioning)). Copy the public IPv4 address. Allow inbound TCP 22, 80 and 443 in any Vultr firewall group you attach. Replace `<VM_PUBLIC_IP>` below with that IPv4 address.
 
 On your own computer:
 
 ```bash
-ssh ubuntu@<VM_PUBLIC_IP>
+ssh linuxuser@<VM_PUBLIC_IP>
 ```
 
 The remaining blocks run inside that SSH session.
@@ -19,7 +19,7 @@ The remaining blocks run inside that SSH session.
 ```bash
 sudo apt-get update
 sudo apt-get install -y git
-sudo install -d -o ubuntu -g ubuntu /opt/lastmile
+sudo install -d -o "$(id -un)" -g "$(id -gn)" /opt/lastmile
 git clone https://github.com/VK2756/Last-Mile.git /opt/lastmile
 export API_HOST="$(curl -4fsS https://api.ipify.org).sslip.io"
 printf 'Engine hostname: %s\n' "$API_HOST"
