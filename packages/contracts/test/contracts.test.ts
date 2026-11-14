@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SimInit, SimFrame, StreamEvent, TriageResult, isVulnerable, createMemorySink } from '../src/index';
+import { ScenarioConfig, SimInit, SimFrame, StreamEvent, TriageResult, isVulnerable, createMemorySink } from '../src/index';
 import { sampleInit, sampleFrame } from '../src/fixtures';
 
 describe('contracts', () => {
@@ -25,5 +25,18 @@ describe('contracts', () => {
     const s = createMemorySink();
     await s.recordOutcome({ scenarioId: 'x', policy: 'last_mile', seed: 1, metrics: sampleFrame.metrics });
     expect(s.outcomes.length).toBe(1);
+  });
+});
+
+describe('optional fleet and baseline knobs (additive)', () => {
+  const base = { seed: 1, wind: { speedMph: 10, dirDeg: 90 }, ignition: { lat: 42.37, lng: -72.52 }, policy: 'last_mile' as const };
+  it('a config without knobs parses exactly as before (no knob keys appear)', () => {
+    const c = ScenarioConfig.parse(base);
+    expect(c).not.toHaveProperty('helperMix'); expect(c).not.toHaveProperty('helperCapacityScale'); expect(c).not.toHaveProperty('baseline');
+  });
+  it('accepts valid knobs and rejects nonsense', () => {
+    expect(ScenarioConfig.parse({ ...base, helperMix: { neighbor: 1 }, helperCapacityScale: 0.5, baseline: { familyPickupProb: 0.5, urgentFamilyPickup: true, neighborRideProb: 0.3 } }).baseline?.neighborRideProb).toBe(0.3);
+    expect(ScenarioConfig.safeParse({ ...base, helperMix: {} }).success).toBe(false);
+    expect(ScenarioConfig.safeParse({ ...base, baseline: { familyPickupProb: 2 } }).success).toBe(false);
   });
 });
