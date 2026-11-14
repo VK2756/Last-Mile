@@ -12,7 +12,8 @@
 // - Travel to or from a point that is burning at time t is impossible (Infinity, empty route).
 //
 // Caching: per-edge state is quantized (open / smoke band / closed), so edge weights only change when
-// some edge crosses a band threshold. Each change bumps `version`; shortest-path trees are cached per
+// some edge crosses a band threshold. Each change bumps `version` and drops only the cached trees that
+// use a changed edge (exact while time moves forward). Shortest-path trees are cached per
 // (root node, direction) and reused across ticks until the version changes. A query a -> b is answered
 // from a forward tree rooted at a OR a reverse tree rooted at b, whichever exists; on a miss we build
 // the side that has been queried more often (helpers fan out to many households, many households fan
@@ -42,6 +43,12 @@ export interface RouterOptions {
   sampleSpacingMeters?: number;
   /** Memory cap: the tree cache is cleared when it holds this many trees. Default 512. */
   maxCachedTrees?: number;
+  /**
+   * Road states are refreshed once per window of this many seconds, using the fire at the END of the
+   * window (conservative: a road may close up to one window early, never late). 0 = exact at every t.
+   * Default 30.
+   */
+  stateRefreshSeconds?: number;
 }
 
 export interface RouterStats {
@@ -70,6 +77,7 @@ interface Resolved {
   accessSpeedMph: number;
   sampleSpacingMeters: number;
   maxCachedTrees: number;
+  stateRefreshSeconds: number;
 }
 
 function resolve(opts: RouterOptions): Resolved {
@@ -85,6 +93,7 @@ function resolve(opts: RouterOptions): Resolved {
     accessSpeedMph: opts.accessSpeedMph ?? 15,
     sampleSpacingMeters: opts.sampleSpacingMeters ?? 25,
     maxCachedTrees: opts.maxCachedTrees ?? 512,
+    stateRefreshSeconds: opts.stateRefreshSeconds ?? 30,
   };
 }
 
@@ -98,6 +107,7 @@ export function routingAssumptions(opts: RouterOptions = {}): string[] {
     `Routing: fastest path on the road graph; a road closes ${o.closureLookaheadSeconds}s before the fire reaches any point on it and never reopens.`,
     `Routing: smoke slows roads near the fire front (${bands}).`,
     `Routing: the leg between a home or helper and its nearest road node is a straight line at ${o.accessSpeedMph} mph.`,
+    ...(o.stateRefreshSeconds > 0 ? [`Routing: road closures and smoke are refreshed every ${o.stateRefreshSeconds} s using where the fire will be at the end of that window (roads may close slightly early, never late).`] : []),
   ];
 }
 
@@ -213,25 +223,35 @@ export function createRouter(graph: RoadGraph = loadTown(), fire?: FireModel, op
   const dstHits = new Map<number, number>();
 
   const sync = (t: number) => {
-    const r = rank(t);
+    // quantize to the end of the current refresh window (conservative), so states change at most once per window
+    const tq = o.stateRefreshSeconds > 0 ? (Math.floor(t / o.stateRefreshSeconds) + 1) * o.stateRefreshSeconds : t;
+    const r = rank(tq);
     if (r === syncedRank) return;
     const first = syncedRank === -1;
     syncedRank = r;
-    let changed = first;
+    let anyDecrease = false;
+    const changedEdges: number[] = [];
     closedEdges = 0; smokyEdges = 0;
     for (let i = 0; i < E; i++) {
-      const st = stateAt(i, t);
+      const st = stateAt(i, tq);
       if (st === CLOSED) closedEdges++; else if (st > 0) smokyEdges++;
       if (first || st !== state[i]) {
-        if (st !== state[i]) changed = true;
+        const w = st === CLOSED ? Infinity : baseSeconds[i]! / factorOf(st);
+        if (!first) { changedEdges.push(i); if (w < weight[i]!) anyDecrease = true; }
         state[i] = st;
-        weight[i] = st === CLOSED ? Infinity : baseSeconds[i]! / factorOf(st);
+        weight[i] = w;
       }
     }
-    if (changed) {
-      version++;
+    if (!first && changedEdges.length === 0) return;
+    version++;
+    if (first || anyDecrease) { // time went backwards (or first sync): nothing cached can be trusted
       fwd.clear(); rev.clear(); srcHits.clear(); dstHits.clear();
+      return;
     }
+    // Weights only went up. A shortest-path tree stays exact unless one of ITS edges got worse
+    // (a costlier non-tree edge cannot create a shorter path), so drop only the trees that use one.
+    for (const [k, tree] of fwd) for (const e of changedEdges) if (tree.via[eTo[e]!] === e) { fwd.delete(k); break; }
+    for (const [k, tree] of rev) for (const e of changedEdges) if (tree.via[eFrom[e]!] === e) { rev.delete(k); break; }
   };
 
   const heap = new MinHeap();

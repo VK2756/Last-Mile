@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { FireModel, LatLng, RoadGraph } from '@lastmile/contracts';
+import { sampleInit } from '@lastmile/contracts/fixtures';
 import { createRouter, routingAssumptions } from '../src/routing/index';
 import { makeGridGraph } from '../src/world/town';
+import { createFireModel } from '../src/sim/fire';
 
 const MPS_25 = 25 * 0.44704;
 const node = (g: RoadGraph, id: number): LatLng => { const n = g.nodes.find((x) => x.id === id)!; return { lat: n.lat, lng: n.lng }; };
@@ -86,7 +88,7 @@ describe('createRouter on the synthetic grid', () => {
 
   it('closes roads closureLookaheadSeconds before the fire arrives, and not earlier', () => {
     const fire = wallFire(lngLo, lngHi, 1000);
-    const r = createRouter(g, fire, { closureLookaheadSeconds: 60, smokeBands: [{ withinSeconds: 1, speedFactor: 1 }] });
+    const r = createRouter(g, fire, { closureLookaheadSeconds: 60, smokeBands: [{ withinSeconds: 1, speedFactor: 1 }], stateRefreshSeconds: 0 });
     const a = node(g, 0), b = node(g, 9);
     expect(r.travelSeconds(a, b, 0)).toBeCloseTo((9 * 150) / MPS_25, 6);
     expect(r.travelSeconds(a, b, 939)).toBeCloseTo((9 * 150) / MPS_25, 6);
@@ -195,5 +197,62 @@ describe('createRouter matches brute force on random directed graphs', () => {
         else { expect(path[0]).toEqual(pos(s)); expect(path[path.length - 1]).toEqual(pos(target)); }
       }
     }
+  });
+});
+
+describe('createRouter with the real fire model (Lane A sim/fire)', () => {
+  it('never routes through ground that is burning, and closes more roads as the fire grows', () => {
+    const g = makeGridGraph(20, 150);
+    const fire = createFireModel(sampleInit.config);
+    const r = createRouter(g, fire);
+    const pts = g.nodes.filter((_, i) => i % 23 === 0).map((n) => ({ lat: n.lat, lng: n.lng }));
+    let closedBefore = -1;
+    for (const t of [0, 900, 1800, 3600]) {
+      for (const a of pts) for (const b of pts) {
+        if (a === b) continue;
+        const path = r.route(a, b, t);
+        if (path.length === 0) continue;
+        expect(r.travelSeconds(a, b, t)).toBeLessThan(Infinity);
+        for (let i = 2; i < path.length - 1; i++) { // road nodes only (endpoints are checked separately)
+          const p = path[i - 1]!, q = path[i]!;
+          for (const f of [0, 0.5, 1]) expect(fire.isBurning({ lat: p.lat + (q.lat - p.lat) * f, lng: p.lng + (q.lng - p.lng) * f }, t)).toBe(false);
+        }
+      }
+      const { closedEdges } = r.stats();
+      expect(closedEdges).toBeGreaterThanOrEqual(closedBefore);
+      closedBefore = closedEdges;
+    }
+    expect(closedBefore).toBeGreaterThan(0);
+  });
+});
+
+describe('incremental tree invalidation', () => {
+  it('a long-lived router answers exactly like a fresh router at every time', () => {
+    const g = makeGridGraph(20, 150);
+    const fire = createFireModel(sampleInit.config);
+    const live = createRouter(g, fire);
+    const pts = g.nodes.filter((_, i) => i % 17 === 0).map((n) => ({ lat: n.lat, lng: n.lng }));
+    for (let t = 0; t <= 5400; t += 150) {
+      const fresh = createRouter(g, fire);
+      for (const a of pts) for (const b of pts) {
+        const x = live.travelSeconds(a, b, t), y = fresh.travelSeconds(a, b, t);
+        if (y === Infinity) expect(x).toBe(Infinity); else expect(x).toBeCloseTo(y, 9);
+      }
+    }
+  });
+});
+
+describe('state refresh window', () => {
+  it('closes a road at most one window early and never late', () => {
+    const g = makeGridGraph(10, 150);
+    const W = 20 / (111_320 * Math.cos((42.3732 * Math.PI) / 180));
+    const mid = (g.nodes[4]!.lng + g.nodes[5]!.lng) / 2;
+    const ign = (p: LatLng) => (Math.abs(p.lng - mid) <= W ? 1000 : Infinity);
+    const fire: FireModel = { ignitionTime: ign, isBurning: (p, t) => ign(p) <= t, rings: () => [], burnedFraction: () => 0 };
+    const r = createRouter(g, fire, { closureLookaheadSeconds: 60, smokeBands: [{ withinSeconds: 1, speedFactor: 1 }], stateRefreshSeconds: 30 });
+    const a = { lat: g.nodes[0]!.lat, lng: g.nodes[0]!.lng }, b = { lat: g.nodes[9]!.lat, lng: g.nodes[9]!.lng };
+    expect(r.travelSeconds(a, b, 929)).toBeLessThan(Infinity); // window [900,930) is judged at 930: 70 s left > 60, open
+    expect(r.travelSeconds(a, b, 930)).toBe(Infinity);          // window [930,960) judged at 960: closed 10 s before the exact rule (940)
+    expect(r.travelSeconds(a, b, 941)).toBe(Infinity);          // strict rule closes at 940: never late
   });
 });
