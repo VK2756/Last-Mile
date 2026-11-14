@@ -1,6 +1,6 @@
 'use client';
 import { useMemo } from 'react';
-import type { Policy, SimFrame, SimInit } from '@lastmile/contracts';
+import type { LatLng, Policy, SimFrame, SimInit } from '@lastmile/contracts';
 import { POLICY_LABEL } from '@/lib/status';
 import { HouseholdCard } from './HouseholdCard';
 import { LiveMap } from './LiveMap';
@@ -15,7 +15,7 @@ const TESTIDS = {
 
 /** One half of the split screen: map + live scoreboard (carries the policy label) + selected-household card. */
 export function MapPane({
-  side, policy, init, frame, tiles, selectedId, showCard, onSelect, view, onMove,
+  side, policy, init, frame, tiles, selectedId, showCard, onSelect, view, onMove, onPick = null, pendingIgnition = null,
 }: {
   side: 'left' | 'right';
   policy: Policy;
@@ -27,6 +27,8 @@ export function MapPane({
   onSelect: (id: string | null) => void;
   view: MapView | null;
   onMove: (v: MapView) => void;
+  onPick?: ((p: LatLng) => void) | null;
+  pendingIgnition?: LatLng | null;
 }) {
   const ids = TESTIDS[side];
   const isLM = policy === 'last_mile';
@@ -45,7 +47,7 @@ export function MapPane({
     <div className="relative min-h-0 bg-bg" data-testid={ids.mapAlias}>
       <LiveMap
         className="absolute inset-0" init={init} frame={frame} selectedId={selectedId} onSelect={onSelect}
-        tiles={tiles} accent={isLM ? '#2ee6c5' : '#c9a227'} view={view} onMove={onMove}
+        tiles={tiles} accent={isLM ? '#2ee6c5' : '#c9a227'} view={view} onMove={onMove} onPick={onPick} pendingIgnition={pendingIgnition}
         data-testid={ids.map} label={`${POLICY_LABEL[policy]} map`}
       />
       <div className="absolute left-3 top-3 w-[min(300px,calc(100%-1.5rem))]" data-testid={ids.scoreAlias}>

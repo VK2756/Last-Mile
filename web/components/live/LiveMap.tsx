@@ -4,7 +4,7 @@
 // fail to load (flaky venue wifi), or when ?tiles=0 forces the offline style.
 import { useEffect, useRef, useState } from 'react';
 import type { Map as MLMap, GeoJSONSource, StyleSpecification } from 'maplibre-gl';
-import type { SimFrame, SimInit } from '@lastmile/contracts';
+import type { LatLng, SimFrame, SimInit } from '@lastmile/contracts';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { cn } from '@/lib/cn';
 import { EMPTY_FC, fireFC, gridFC, helpersFC, householdsFC, ignitionFC, routesFC, safeZonesFC, type FC } from '@/lib/geo';
@@ -25,6 +25,10 @@ export interface LiveMapProps {
   onMove?: (view: { center: [number, number]; zoom: number }) => void;
   view?: { center: [number, number]; zoom: number } | null;
   label?: string;
+  /** when set, a map click picks a point (e.g. the ignition) instead of selecting a household */
+  onPick?: ((p: LatLng) => void) | null;
+  /** draft ignition to preview instead of the running scenario's */
+  pendingIgnition?: LatLng | null;
 }
 
 const TILE_ATTRIB = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>';
@@ -56,12 +60,14 @@ function baseStyle(tiles: boolean): StyleSpecification {
 
 const prefersReducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-export function LiveMap({ init, frame, selectedId = null, onSelect, tiles = true, accent = '#2ee6c5', className, label, onMove, view, ...rest }: LiveMapProps) {
+export function LiveMap({ init, frame, selectedId = null, onSelect, tiles = true, accent = '#2ee6c5', className, label, onMove, view, onPick = null, pendingIgnition = null, ...rest }: LiveMapProps) {
   const el = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MLMap | null>(null);
   const [ready, setReady] = useState(false);
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
+  const onPickRef = useRef(onPick);
+  onPickRef.current = onPick;
   const onMoveRef = useRef(onMove);
   onMoveRef.current = onMove;
   const syncing = useRef(false);
@@ -125,10 +131,12 @@ export function LiveMap({ init, frame, selectedId = null, onSelect, tiles = true
         });
 
         map.on('click', 'households', (e) => {
+          if (onPickRef.current) return;
           const id = e.features?.[0]?.properties?.id;
           if (typeof id === 'string') onSelectRef.current?.(id);
         });
         map.on('click', (e) => {
+          if (onPickRef.current) { onPickRef.current({ lat: e.lngLat.lat, lng: e.lngLat.lng }); return; }
           if (!map.queryRenderedFeatures(e.point, { layers: ['households'] }).length) onSelectRef.current?.(null);
         });
         map.on('mouseenter', 'households', () => { map.getCanvas().style.cursor = 'pointer'; });
@@ -181,11 +189,28 @@ export function LiveMap({ init, frame, selectedId = null, onSelect, tiles = true
     if (!ready || !map || !init) return;
     setData('grid', gridFC(init));
     setData('zones', safeZonesFC(init));
-    setData('ignition', ignitionFC(init));
-    const { sw, ne } = init.bounds;
-    if (!view) map.fitBounds([[sw.lng, sw.lat], [ne.lng, ne.lat]], { padding: 24, duration: 0 });
+    if (!pendingIgnition) setData('ignition', ignitionFC(init));
+    // frame the people, not the whole simulation grid (engine bounds include empty margin)
+    let { sw, ne } = init.bounds;
+    if (init.households.length) {
+      const lats = init.households.map((h) => h.position.lat);
+      const lngs = init.households.map((h) => h.position.lng);
+      sw = { lat: Math.min(...lats), lng: Math.min(...lngs) };
+      ne = { lat: Math.max(...lats), lng: Math.max(...lngs) };
+    }
+    if (!view) map.fitBounds([[sw.lng, sw.lat], [ne.lng, ne.lat]], { padding: { top: 160, bottom: 40, left: 40, right: 40 }, duration: 0, maxZoom: 16 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, initId]);
+
+  // ---- draft ignition preview + crosshair while picking ----
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    map.getCanvas().style.cursor = onPick ? 'crosshair' : '';
+    if (pendingIgnition) setData('ignition', { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [pendingIgnition.lng, pendingIgnition.lat] } }] });
+    else if (init) setData('ignition', ignitionFC(init));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, onPick, pendingIgnition?.lat, pendingIgnition?.lng, initId]);
 
   // ---- dynamic layers every frame ----
   useEffect(() => {

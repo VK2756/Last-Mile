@@ -4,6 +4,7 @@ _Updated: Sat 14 Nov, M2 in progress._
 ## Done (M2)
 - Split-screen `/live` merged (#25): LEFT Alerts only / RIGHT Last Mile, same config except policy, one Run, shared clock (frames buffered per side, shown at the slower side's t), pause/speed to both scenarios, mirrored cameras. testids `map-left/right`, `scoreboard-left/right`, `frame-counter`, plus e2e aliases `map-alerts`, `map-last-mile`, `score-alerts`, `score-last-mile`.
 - Operator panel: at-risk households sorted by ttiSeconds, countdown chips, Vulnerable/All filter, click flies + shows Assignment.reason (`operator-panel`, `operator-row`, `operator-reason`).
+- Scenario picker: 3 presets from engine `GET /presets` (built-in copy when mock/offline), wind speed/direction, helpers, seed, click-map ignition, Randomize; edits apply on Run. testids `scenario-picker`, `preset-1..3`, `randomize`, `pick-ignition`.
 
 ## Done (M1, merged #19)
 - **UI kit published: `web/components/ui/**`** (import from `@/components/ui`): AppShell (top bar + nav Live/Results/Call), Button, Badge, Banner, Panel, StatTile, SimBadge (`data-testid="sim-badge"`), CountdownChip, StatusIcon/ShapeGlyph, Drawer, Segmented, Spinner, EmptyState, Kbd, Logo. Tokens in `web/app/globals.css` (Tailwind v4 `@theme`: bg-surface, text-fg-muted, border-line, text-accent…). Lane C: wrap /call in `<AppShell right={<SimBadge />}>`.
