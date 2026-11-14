@@ -7,7 +7,7 @@ import type { Map as MLMap, GeoJSONSource, StyleSpecification } from 'maplibre-g
 import type { LatLng, SimFrame, SimInit } from '@lastmile/contracts';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { cn } from '@/lib/cn';
-import { EMPTY_FC, fireFC, gridFC, helpersFC, householdsFC, ignitionFC, routesFC, safeZonesFC, type FC } from '@/lib/geo';
+import { EMPTY_FC, embersFC, fireFC, gridFC, helpersFC, householdsFC, ignitionFC, routesFC, safeZonesFC, type FC } from '@/lib/geo';
 import { registerMapIcons } from '@/lib/map-icons';
 
 export interface LiveMapProps {
@@ -145,11 +145,17 @@ export function LiveMap({ init, frame, selectedId = null, onSelect, tiles = true
         if (disposed) return;
         registerMapIcons(map);
         const add = (id: string) => map.addSource(id, { type: 'geojson', data: EMPTY_FC });
-        ['fire', 'routes', 'zones', 'ignition', 'households', 'helpers'].forEach(add);
+        ['fire', 'embers', 'routes', 'zones', 'ignition', 'households', 'helpers'].forEach(add);
 
-        map.addLayer({ id: 'fire-fill', type: 'fill', source: 'fire', paint: { 'fill-color': '#ff5a1f', 'fill-opacity': 0.26 } });
+        // fire: wide soft halo, translucent body, hot glowing front, faint embers ahead of it
+        map.addLayer({ id: 'fire-halo', type: 'line', source: 'fire', paint: { 'line-color': '#ff4d12', 'line-width': 46, 'line-blur': 40, 'line-opacity': 0.16 } });
+        map.addLayer({ id: 'fire-fill', type: 'fill', source: 'fire', paint: { 'fill-color': '#ff5a1f', 'fill-opacity': 0.24 } });
         map.addLayer({ id: 'fire-glow', type: 'line', source: 'fire', paint: { 'line-color': '#ff5a1f', 'line-width': 14, 'line-blur': 12, 'line-opacity': 0.55 } });
-        map.addLayer({ id: 'fire-edge', type: 'line', source: 'fire', paint: { 'line-color': '#ffb020', 'line-width': 2 } });
+        map.addLayer({ id: 'fire-edge', type: 'line', source: 'fire', paint: { 'line-color': '#ffc04d', 'line-width': 2, 'line-blur': 0.5 } });
+        map.addLayer({
+          id: 'embers', type: 'circle', source: 'embers', minzoom: 12,
+          paint: { 'circle-color': '#ffb020', 'circle-radius': ['*', ['get', 'r'], ['interpolate', ['linear'], ['zoom'], 12, 0.8, 16, 1.6]], 'circle-opacity': ['get', 'a'], 'circle-blur': 0.6 },
+        });
 
         map.addLayer({ id: 'routes-casing', type: 'line', source: 'routes', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#06080b', 'line-width': ['case', ['get', 'selected'], 7, 5], 'line-opacity': 0.8 } });
         map.addLayer({ id: 'routes', type: 'line', source: 'routes', layout: { 'line-cap': 'butt', 'line-join': 'round' }, paint: { 'line-color': accent, 'line-width': ['case', ['get', 'selected'], 4, 2.5], 'line-dasharray': [0, 4, 3] } });
@@ -204,6 +210,7 @@ export function LiveMap({ init, frame, selectedId = null, onSelect, tiles = true
               last = ts;
               step = (step + 1) % seq.length;
               if (map.getLayer('routes')) map.setPaintProperty('routes', 'line-dasharray', seq[step]!);
+              if (map.getLayer('fire-glow')) map.setPaintProperty('fire-glow', 'line-opacity', 0.45 + 0.18 * Math.sin(ts / 520));
             }
             raf = requestAnimationFrame(tick);
           };
@@ -221,6 +228,44 @@ export function LiveMap({ init, frame, selectedId = null, onSelect, tiles = true
       setReady(false);
     };
   }, [tiles, accent]);
+
+  // ---- helpers glide between frames (ease-in-out) instead of jumping; instant under reduced motion ----
+  const helperPos = useRef(new Map<string, [number, number]>());
+  const tweenRaf = useRef(0);
+  const lastFrameAt = useRef(0);
+  useEffect(() => () => cancelAnimationFrame(tweenRaf.current), []);
+  const tweenHelpers = (target: FC) => {
+    cancelAnimationFrame(tweenRaf.current);
+    const now = performance.now();
+    const gap = lastFrameAt.current ? now - lastFrameAt.current : 0;
+    lastFrameAt.current = now;
+    const from = new Map(helperPos.current);
+    const to = new Map<string, [number, number]>();
+    for (const f of target.features) to.set(String(f.properties?.id), (f.geometry as GeoJSON.Point).coordinates as [number, number]);
+    const finish = () => { helperPos.current = to; setData('helpers', target); };
+    // first frame, reduced motion, or a long gap (paused / replay jump): snap
+    if (!from.size || prefersReducedMotion() || gap === 0 || gap > 2000) { finish(); return; }
+    const dur = Math.min(Math.max(gap * 0.9, 120), 700);
+    const ease = (p: number) => (p < 0.5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2);
+    const step = (ts: number) => {
+      const p = Math.min(1, (ts - now) / dur);
+      const e = ease(p);
+      const cur = new Map<string, [number, number]>();
+      const features = target.features.map((f) => {
+        const id = String(f.properties?.id);
+        const b = to.get(id)!;
+        const a = from.get(id) ?? b;
+        const c: [number, number] = [a[0] + (b[0] - a[0]) * e, a[1] + (b[1] - a[1]) * e];
+        cur.set(id, c);
+        return { ...f, geometry: { type: 'Point' as const, coordinates: c } };
+      });
+      helperPos.current = cur;
+      setData('helpers', { type: 'FeatureCollection', features });
+      if (p < 1) tweenRaf.current = requestAnimationFrame(step);
+      else finish();
+    };
+    tweenRaf.current = requestAnimationFrame(step);
+  };
 
   const setData = (id: string, data: FC) => (mapRef.current?.getSource(id) as GeoJSONSource | undefined)?.setData(data);
 
@@ -261,8 +306,11 @@ export function LiveMap({ init, frame, selectedId = null, onSelect, tiles = true
     if (!ready || !init) return;
     setData('fire', fireFC(frame));
     setData('routes', routesFC(frame, selectedId));
-    setData('helpers', helpersFC(frame));
+    setData('embers', embersFC(frame));
+    tweenHelpers(helpersFC(frame));
     setData('households', householdsFC(init, frame, selectedId));
+    // setData/tweenHelpers only touch refs and the map instance
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, init, frame, selectedId]);
 
   // ---- fly to the selected household ----
