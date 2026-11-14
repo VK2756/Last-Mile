@@ -19,6 +19,10 @@ _Updated: Sat 14 Nov, M2 + pitch mode + stretch merged._
 - URL flags: `?mock=1`, `?tiles=0` (offline basemap), `?speed=30`, `?pitch=1`, `?view=maps`.
 - testids: `map-left`, `scoreboard-left`, `run-button`, `sim-badge`, `household-card`, `why-helper`, `assumptions-button`.
 
+## Run it locally
+- `pnpm --filter @lastmile/engine start` (engine on :8080), then `pnpm --filter @lastmile/web demo` (prod build in `web/.next-demo`, served on http://localhost:3102, engine URL defaults to http://localhost:8080). The demo build dir is separate, so `pnpm verify` / `postmerge.sh` can't break a running demo.
+- No `pnpm` on PATH? `corepack enable pnpm` (or prefix commands with `corepack pnpm`).
+
 ## Evidence
 - `pnpm verify` ✅ (web: 13 unit tests incl. parser rejects malformed events, mock frames all parse).
 - `next start` + Playwright: `/live?mock=1` renders, 0 console errors (besides blocked tile requests in sandbox).
