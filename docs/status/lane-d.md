@@ -25,6 +25,13 @@ These came out of searching 36 ignition x wind settings x 4 seeds. Each seed is 
 2. **southeast-big-lift** (seed 10, ignition 42.36242,-72.505309, wind toward 180): vulnerable 9/18 -> 17/18 (+44; +14 to +60), trapped 15 -> 7.
 3. **downtown-north-wheelchair** (seed 7, ignition 42.3732,-72.5199, wind toward 0): vulnerable 44/98 -> 76/98 (+33), trapped 124 -> 92, but ~5.5 wheelchair homes per run are still trapped without a capable vehicle (waits up to ~12 min).
 
+## Map alignment (checked, no Lane B issue needed)
+`scripts/check-map-alignment.ts`, 5 seeds of real engine output vs the baked Amherst roads:
+- homes are a median 13 m from the nearest road segment (max ~48 m, house setbacks); helpers and safe zones sit exactly on road nodes
+- 6-12 of 600 homes per seed sit just outside the baked box (by <= 35 m)
+- fire rings are in `[lng, lat]` order and enclose the ignition point; route vertices are on roads, except the stop points at homes
+- visually, the baked roads drawn over the same OpenFreeMap/OSM basemap the web uses sit exactly on the streets (Spring St, College St, Northampton Rd, Lincoln Ave), with homes along them. The web code converts `{lat, lng}` to `[lng, lat]` correctly everywhere I looked (`web/lib/geo.ts`).
+
 ## Next
-Map alignment check with Lane B.
+Merge #66, #75, #76, #82 once main is green (#68). Re-time Monte Carlo on the Vultr box.
 **Blockers:** main red (#68).
