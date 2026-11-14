@@ -157,7 +157,7 @@ export function LiveView() {
           />
           <div className="pointer-events-none absolute inset-x-3 top-14 z-10 mx-auto flex max-w-xl flex-col gap-2">
             {engineError && (
-              <Banner tone="danger" title="Live engine offline." className="pointer-events-auto bg-surface/95" action={<Button size="sm" variant="primary" onClick={switchToMock}>Switch to mock mode</Button>}>
+              <Banner tone="danger" title="Live engine offline." className="pointer-events-auto bg-surface/95" action={<div className="flex gap-2"><Button size="sm" onClick={restart}>Retry</Button><Button size="sm" variant="primary" onClick={switchToMock}>Switch to mock mode</Button></div>}>
                 {engineError}
               </Banner>
             )}

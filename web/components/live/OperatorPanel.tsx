@@ -29,7 +29,7 @@ export function OperatorPanel({ init, frame, selectedId, onSelect }: { init: Sim
       {rows.length === 0 ? (
         <div className="p-4">
           <EmptyState icon={<Siren aria-hidden className="size-5" />} title={frame ? 'Nobody threatened right now' : 'Waiting for the run'}>
-            {frame ? 'Households appear here when the fire model gives them a time to impact.' : 'Press Run to start both simulations.'}
+            {frame ? 'Households appear here when the fire model gives them a time to impact.' : 'The queue fills as soon as the first frame arrives.'}
           </EmptyState>
         </div>
       ) : (
