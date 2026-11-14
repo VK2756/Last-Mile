@@ -77,7 +77,8 @@ function checkRules(w: WorldSnapshot, plan: Assignment[], flagged: Set<string>) 
       if (h.needs.includes('wheelchair')) expect(p.wheelchairCapable).toBe(true);
     }
     expect(people).toBeLessThanOrEqual(p.capacity);
-    if (a.etaSeconds > a.deadlineSeconds) for (const id of a.householdIds) expect(flagged.has(id)).toBe(true);
+    // a late trip must contain a flagged (best-effort) home, and must say so
+    if (a.etaSeconds > a.deadlineSeconds) { expect(a.householdIds.some((id) => flagged.has(id))).toBe(true); expect(a.reason).toMatch(/^Best effort:/); }
     expect(a.reason).toMatch(/^[A-Z].*\.$/);
     expect(a.reason.slice(0, -1)).not.toMatch(/\.\s/); // one sentence
   }
@@ -263,5 +264,31 @@ describe('createDispatcher', () => {
 
   it('describes its rules in plain English', () => {
     expect(dispatchAssumptions().join(' ')).toMatch(/wheelchair/);
+  });
+});
+
+describe('dispatch quality', () => {
+  it('does not lock a flagged home to a busy helper (measured in the real sim: no gain)', () => {
+    // one helper busy with an urgent home; the second home misses its deadline after that trip
+    const w = world(
+      [hh('urgent', nodeAt(10, 11)), hh('later', nodeAt(10, 18))],
+      { urgent: 400, later: 520 },
+      [helper('p1', nodeAt(10, 10), 4)],
+    );
+    const d = createDispatcher();
+    const plan = d.plan(w);
+    expect(plan.map((a) => a.householdIds)).toEqual([['urgent']]);
+    const u = d.lastUnservable();
+    expect(u.map((x) => [x.householdId, x.bestEffort])).toEqual([['later', false]]);
+    expect(u[0]!.reason).toMatch(/already committed to homes with earlier deadlines/);
+  });
+
+  it('says when a home is waiting only because every capable helper is busy', () => {
+    const w = world([hh('x', nodeAt(10, 12)), hh('y', nodeAt(10, 8))], { x: 900, y: 905 }, [helper('p1', nodeAt(10, 10), 1)]);
+    const d = createDispatcher();
+    expect(d.plan(w)).toHaveLength(1);
+    const u = d.lastUnservable();
+    expect(u).toHaveLength(1);
+    expect(u[0]!.reason).toMatch(/already committed to homes with earlier deadlines/);
   });
 });

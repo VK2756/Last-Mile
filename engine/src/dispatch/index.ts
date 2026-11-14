@@ -9,8 +9,8 @@
 //   - a household needing a wheelchair is only served by a wheelchairCapable helper
 //   - every pickup is reached by its deadline (boarding time counted between stops)
 // Households no trip can serve are FLAGGED (see `lastUnservable()`), never silently dropped. If a
-// flagged household can still be reached before the fire itself arrives (ignoring the safety margin)
-// by a helper that would otherwise sit idle, it gets a clearly labelled best-effort trip.
+// flagged household can still be reached before the fire itself arrives (ignoring the safety margin),
+// an idle helper is sent on a clearly labelled best-effort trip.
 //
 // Algorithm, deterministic for identical input:
 //   1. Pin: a helper already `enroute` keeps its current first pickup while that is still feasible.
@@ -349,38 +349,54 @@ export function createDispatcher(options: DispatchOptions = {}): DispatchPlanner
     }
     flagged.sort((a, b) => a - b);
 
-    // ---- flag the rest; best-effort trips for idle helpers that can still beat the fire ----
-    const bestEffort = new Map<number, number>(); // van -> request
+    // ---- flag the rest; best-effort pickups that still beat the fire itself ----
+    // A flagged home gets a best-effort trip from an IDLE helper that would still arrive before the fire
+    // reaches it, ignoring the safety margin. (Appending to busy helpers was measured in the real sim and
+    // did not help: it locks the home to a busy helper. The home stays flagged; the trip says "Best effort".)
+    const bestEffortStops = new Set<number>();
     const flaggedOut: Unservable[] = [];
     for (const ri of flagged) {
       const r = reqs[ri]!;
-      let pick = -1, pickArrive = Infinity;
-      for (let v = 0; v < H; v++) {
-        const van = vans[v]!;
-        if (van.seq.length > 0 || bestEffort.has(v) || !compatible(van, r) || van.pinned >= 0) continue;
-        const d = dH[v * R + ri]!;
-        if (d < r.fireIn && d < pickArrive) { pick = v; pickArrive = d; }
+      const busyReason = unservableReason(r, ri);
+      let bestV = -1, bestC = Infinity, bestDelta = Infinity;
+      if (Number.isFinite(r.fireIn)) {
+        const strict = r.deadline;
+        r.deadline = r.fireIn - 1e-6; // must arrive before the fire itself
+        for (let v = 0; v < H; v++) {
+          const van = vans[v]!;
+          if (van.seq.length > 0 || van.pinned >= 0 || !compatible(van, r)) continue; // idle helpers only (see above)
+          const c = evaluate(v, van.seq, exact, van.seq.length, ri);
+          if (c === Infinity) continue;
+          const delta = c - van.completion;
+          if (delta < bestDelta - 1e-9) { bestV = v; bestC = c; bestDelta = delta; }
+        }
+        r.deadline = strict;
       }
-      if (pick >= 0) bestEffort.set(pick, ri);
-      flaggedOut.push({ householdId: r.h.id, reason: unservableReason(r, ri, pick >= 0), bestEffort: pick >= 0 });
+      if (bestV >= 0) { apply(bestV, [...vans[bestV]!.seq, ri], bestC); bestEffortStops.add(ri); }
+      flaggedOut.push({
+        householdId: r.h.id,
+        reason: bestV >= 0 ? `${busyReason}; a best-effort pickup was added that should arrive before the fire itself.` : `${busyReason}.`,
+        bestEffort: bestV >= 0,
+      });
     }
 
-    function unservableReason(r: Req, ri: number, sent: boolean): string {
+    function unservableReason(r: Req, ri: number): string {
       const cap = vans.filter((v) => !(r.wheelchair && !v.helper.wheelchairCapable));
       const people = `${r.h.residents} ${r.h.residents === 1 ? 'person' : 'people'}`;
-      let why: string;
-      if (H === 0) why = 'No helper is available';
-      else if (r.wheelchair && cap.length === 0) why = 'No wheelchair-capable helper is available';
-      else if (cap.every((v) => v.helper.capacity < r.h.residents)) why = `No available helper has room for ${people}`;
-      else if (vans.every((_, v) => dH[v * R + ri] === Infinity)) why = 'No helper can reach this home because the fire has cut off the roads';
-      else why = `No helper can arrive before the safety deadline (${minutes(r.deadline)} from now)`;
-      return sent ? `${why}; a best-effort trip was sent that should arrive before the fire itself.` : `${why}.`;
+      if (H === 0) return 'No helper is available';
+      if (r.wheelchair && cap.length === 0) return 'No wheelchair-capable helper is available';
+      if (cap.every((v) => v.helper.capacity - v.base < r.h.residents)) return `No available helper has room for ${people}`;
+      if (vans.every((_, v) => dH[v * R + ri] === Infinity)) return 'No helper can reach this home because the fire has cut off the roads';
+      // a free helper could make it, so the problem is that every one of them is committed elsewhere
+      const couldMakeIt = vans.some((van, v) => compatible(van, r) && dH[v * R + ri]! <= r.deadline);
+      if (couldMakeIt) return `Every helper that could reach this home in time is already committed to homes with earlier deadlines (${minutes(r.deadline)} left)`;
+      return `No helper can arrive before the safety deadline (${minutes(r.deadline)} from now)`;
     }
 
     // ---- build assignments ----
     const out: Assignment[] = [];
     const newMemory = new Map<string, string[]>();
-    const emit = (v: number, seq: number[], isBestEffort: boolean) => {
+    const emit = (v: number, seq: number[]) => {
       const van = vans[v]!;
       const arrivals: number[] = [];
       let time = 0;
@@ -417,7 +433,7 @@ export function createDispatcher(options: DispatchOptions = {}): DispatchPlanner
         route,
         etaSeconds: arrivals[crit]!,
         deadlineSeconds: critReq.deadline,
-        reason: isBestEffort ? bestEffortReason(van, arrivals[0]!, critReq) : reasonFor(v, seq, arrivals, crit),
+        reason: bestEffortStops.has(seq[crit]!) ? bestEffortReason(van, seq, arrivals[crit]!, critReq) : reasonFor(v, seq, arrivals, crit),
       });
     };
 
@@ -437,12 +453,12 @@ export function createDispatcher(options: DispatchOptions = {}): DispatchPlanner
       else if (choices[seq[0]!] === 1) tail = '; it is the only helper that can make it in time';
       return `${parts.join(', ')}${tail}.`;
     }
-    function bestEffortReason(van: Van, arrive: number, r: Req): string {
-      return `Best effort: no helper can beat the safety deadline, but this ${label(van).toLowerCase()} is ${minutes(arrive)} away and should arrive ${minutes(r.fireIn - arrive)} before the fire.`;
+    function bestEffortReason(van: Van, seq: number[], arrive: number, r: Req): string {
+      const when = seq.length > 1 ? `will come after its other ${seq.length - 1 === 1 ? 'pickup' : `${seq.length - 1} pickups`}` : `is ${minutes(arrive)} away`;
+      return `Best effort: no helper can beat the safety deadline, but this ${label(van).toLowerCase()} ${when} and should arrive ${minutes(r.fireIn - arrive)} before the fire.`;
     }
 
-    for (let v = 0; v < H; v++) if (vans[v]!.seq.length) emit(v, vans[v]!.seq, false);
-    for (const [v, ri] of bestEffort) emit(v, [ri], true);
+    for (let v = 0; v < H; v++) if (vans[v]!.seq.length) emit(v, vans[v]!.seq);
 
     memory = newMemory;
     unservable = flaggedOut;
