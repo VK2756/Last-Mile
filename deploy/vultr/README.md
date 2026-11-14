@@ -17,4 +17,6 @@ sudo -u lastmile env API_HOST="$API_HOST" bash /opt/lastmile/deploy/vultr/deploy
 
 Put `ENGINE_CORS_ORIGIN=https://<VERCEL_HOST>` in `engine.env`. Add `MONGODB_URI`, `MONGODB_DB`, and `TIGER_DATABASE_URL` only when available, and `DATA_SINK=real` after the engine integrates the package. Never paste secret values into chat or commit them. For future deploys, run `sudo -u lastmile env API_HOST="$API_HOST" bash /opt/lastmile/deploy/vultr/deploy.sh`.
 
+`setup.sh` gives `lastmile` permission to restart only `lastmile-engine`; the deploy script uses it after verification.
+
 After domain registration, set the `api` A record to the VM IP, change `API_HOST` to `api.<DOMAIN>`, rerun `setup.sh`, and set Vercel `NEXT_PUBLIC_ENGINE_URL=https://api.<DOMAIN>`.

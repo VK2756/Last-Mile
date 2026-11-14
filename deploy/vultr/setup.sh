@@ -6,7 +6,7 @@ REPO_DIR="${REPO_DIR:-/opt/lastmile}"
 API_HOST="${API_HOST:?Set API_HOST to api.example.tech or <IP>.sslip.io}"
 ENGINE_USER="${ENGINE_USER:-lastmile}"
 apt-get update
-apt-get install -y ca-certificates curl gnupg git ufw
+apt-get install -y ca-certificates curl gnupg git sudo ufw
 if ! command -v node >/dev/null || [[ "$(node --version)" != v22.* ]]; then
   curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
   apt-get install -y nodejs
@@ -23,6 +23,9 @@ fi
 id -u "$ENGINE_USER" >/dev/null 2>&1 || useradd --system --create-home --shell /usr/sbin/nologin "$ENGINE_USER"
 install -d -o "$ENGINE_USER" -g "$ENGINE_USER" "$REPO_DIR"
 install -d -o root -g "$ENGINE_USER" -m 0750 /etc/lastmile
+printf '%s ALL=(root) NOPASSWD: /usr/bin/systemctl restart lastmile-engine\n' "$ENGINE_USER" > /etc/sudoers.d/lastmile-engine
+chmod 0440 /etc/sudoers.d/lastmile-engine
+visudo -cf /etc/sudoers.d/lastmile-engine
 cat > /etc/systemd/system/lastmile-engine.service <<UNIT
 [Unit]
 Description=Last Mile simulation engine
