@@ -17,6 +17,7 @@ _Updated: Sat 14 Nov, M2 + pitch mode + stretch merged._
   - 1920x1080 @2x: 116.5 fps with a 167 ms hitch -> 120 fps (p99 9.3 ms, 0 frames > 20 ms)
   - 1280x720 @2x: 120 fps (p99 9.3 ms); 1920x1080 @1x: 120 fps (p99 9.2 ms)
   - Cause: route/glow paint animation repainting both WebGL maps ~16x/s plus backdrop blur over them. Fix: animate at ~8 Hz only when routes/fire are on screen, helper easing capped at ~30 Hz, no backdrop blur on overlays above the maps (`.glass-map`).
+- A11y + failure UX: one accent focus ring everywhere (incl. map controls), skip link to the operator queue, arrow keys pan a focused map instead of seeking, scoreboards are labelled regions with a plain-English summary. SSE drop mid-run: banner "Lost at T+x", the browser retries, then health-checked re-attach to the SAME run (resumes where the engine is), "Reconnected" toast; only if the run is gone (engine restarted) does it fail with Retry. Verified with a TCP proxy that severed the connection for 20 s: resumed 6 s after the network came back, same scenario, clock jumped T+2:18 -> T+2:54.
 
 ## Done (M1, merged #19)
 - **UI kit published: `web/components/ui/**`** (import from `@/components/ui`): AppShell (top bar + nav), Button, Badge, Banner, Panel, StatTile, SimBadge (`data-testid="sim-badge"`), CountdownChip, StatusIcon/ShapeGlyph, Drawer, Segmented, Spinner, EmptyState, Kbd, Logo. Tokens in `web/app/globals.css` (Tailwind v4 `@theme`: bg-surface, text-fg-muted, border-line, text-accent…). Lane C: wrap /call in `<AppShell right={<SimBadge />}>`.

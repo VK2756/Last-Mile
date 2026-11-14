@@ -19,6 +19,9 @@ export function keyAction(e: KeyLike): KeyAction | null {
   if (e.metaKey || e.ctrlKey || e.altKey) return null;
   const t = e.target as (HTMLElement & { isContentEditable?: boolean }) | null | undefined;
   if (t && (TYPING.has(t.tagName ?? '') || t.isContentEditable)) return e.key === 'Escape' ? { type: 'escape' } : null;
+  // a focused map uses the arrow keys to pan; don't also seek the replay
+  const inMap = typeof (t as Element | null | undefined)?.closest === 'function' && !!(t as Element).closest('.maplibregl-map');
+  if (inMap && e.key.startsWith('Arrow')) return null;
   switch (e.key) {
     case ' ': return { type: 'space' };
     case 'r': case 'R': return { type: 'reset' };
