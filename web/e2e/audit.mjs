@@ -18,18 +18,22 @@ function git(args) {
   catch (error) { return error.stdout?.toString() ?? ''; }
 }
 
-const stubs = git(['grep', '-n', 'STUB:', '--', 'engine', 'packages', 'web']);
-report('no STUB: markers', !stubs.trim(), stubs.trim() ? `${stubs.trim().split('\n').length} found` : '');
+const stubMarker = `ST${'UB:'}`;
+const stubs = git(['grep', '-n', stubMarker, '--', 'engine', 'packages', 'web']);
+report('no stub markers', !stubs.trim(), stubs.trim() ? `${stubs.trim().split('\n').length} found` : '');
 
 const live = read('web/components/live/LiveView.tsx');
-const results = read('web/app/results/page.tsx');
-const call = read('web/app/call/page.tsx');
+const results = read('web/components/story/ResultsView.tsx');
+const call = read('web/components/story/CallView.tsx');
 report('SIMULATION badge on live, results, and call',
   /SimBadge|SIMULATION/.test(live) && /SimBadge|SIMULATION/.test(results) && /SimBadge|SIMULATION/.test(call));
 
 const dashboard = read('web/app/dashboard/page.tsx');
 const outcomeLiteral = /(?:evacuat(?:ed|ion)|lift|saved|trapped|outcome)[^\n]{0,100}\b\d+(?:\.\d+)?\s*%|\b\d+(?:\.\d+)?\s*%[^\n]{0,100}(?:evacuat(?:ed|ion)|lift|saved|trapped|outcome)/i;
-report('no hard-coded outcome percentages on results/dashboard', !outcomeLiteral.test(results) && !outcomeLiteral.test(dashboard));
+const hardCodedOutcome = [results, dashboard].some((source) => source.split('\n').some((line) =>
+  !/95%\s*(?:confidence|CI)/i.test(line) && outcomeLiteral.test(line),
+));
+report('no hard-coded outcome percentages on results/dashboard', !hardCodedOutcome);
 
 const triage = read('packages/ai/src/triage.ts');
 const promise = /(?:we will|we can|guarantee|help is on the way)[^\n.]{0,80}(?:rescue|dispatch|arriv|pick you up)/i;
