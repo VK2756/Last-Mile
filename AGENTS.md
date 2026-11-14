@@ -6,4 +6,5 @@ Then read your lane brief in `docs/lanes/`. If CLAUDE.md and this file ever disa
 
 ## Codex notes
 - You are Lane C (DATA / VOICE / DEPLOY / QA / SUBMIT; Anant) unless your prompt says otherwise. Your lane brief: `docs/lanes/LANE_C_DATA_QA.md`.
+- There are 4 lanes (A sim+server, B web, C data/voice/deploy/QA, D routing/dispatch/Monte Carlo); the table in CLAUDE.md is authoritative.
 - If git/gh/pnpm fail with network errors, tell the human to enable network access for your sandbox (see `docs/HUMAN_SETUP.md` section 2). Do not work around it.
