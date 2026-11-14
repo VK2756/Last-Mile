@@ -1,7 +1,7 @@
 'use client';
 // One live map. GeoJSON layers only (no per-household DOM markers) so 600+ points stay at 60fps.
-// Basemap: CARTO dark raster tiles over a background + grid that still looks right when tiles
-// fail to load (flaky venue wifi), or when ?tiles=0 forces the offline style.
+// Basemap: OpenFreeMap vector tiles (no API key) styled dark, over a background + grid that still
+// looks right when tiles fail to load (flaky venue wifi), or when ?tiles=0 forces the offline style.
 import { useEffect, useRef, useState } from 'react';
 import type { Map as MLMap, GeoJSONSource, StyleSpecification } from 'maplibre-gl';
 import type { LatLng, SimFrame, SimInit } from '@lastmile/contracts';
@@ -31,29 +31,42 @@ export interface LiveMapProps {
   pendingIgnition?: LatLng | null;
 }
 
-const TILE_ATTRIB = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>';
+const TILE_ATTRIB = '<a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> © <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a> Data from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
+
+/** OpenFreeMap: free OpenMapTiles vector tiles, no API key. Styled here so it matches the ops-room theme. */
+export const OPENFREEMAP_URL = 'https://tiles.openfreemap.org/planet';
+
+type Layer = StyleSpecification['layers'][number];
+const roadWidth = (base: number) => ['interpolate', ['exponential', 1.5], ['zoom'], 11, base * 0.4, 14, base, 17, base * 4] as unknown as number;
+
+/** Dark, label-free basemap layers (no glyphs or sprites needed). */
+function basemapLayers(): Layer[] {
+  const src = { source: 'ofm' } as const;
+  return [
+    { id: 'bm-landuse', type: 'fill', ...src, 'source-layer': 'landuse', filter: ['in', ['get', 'class'], ['literal', ['residential', 'commercial', 'retail', 'industrial']]], paint: { 'fill-color': '#0c1118', 'fill-opacity': 0.9 } },
+    { id: 'bm-green', type: 'fill', ...src, 'source-layer': 'landcover', filter: ['in', ['get', 'class'], ['literal', ['wood', 'grass', 'farmland']]], paint: { 'fill-color': '#0c1612', 'fill-opacity': 0.8 } },
+    { id: 'bm-park', type: 'fill', ...src, 'source-layer': 'park', paint: { 'fill-color': '#0d1813', 'fill-opacity': 0.8 } },
+    { id: 'bm-water', type: 'fill', ...src, 'source-layer': 'water', paint: { 'fill-color': '#0a1826' } },
+    { id: 'bm-waterway', type: 'line', ...src, 'source-layer': 'waterway', paint: { 'line-color': '#0f2335', 'line-width': 1.2 } },
+    { id: 'bm-building', type: 'fill', ...src, 'source-layer': 'building', minzoom: 14, paint: { 'fill-color': '#131a24', 'fill-outline-color': '#1a2330' } },
+    { id: 'bm-road-minor', type: 'line', ...src, 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['minor', 'service', 'track']]], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#1f2833', 'line-width': roadWidth(1.2) } },
+    { id: 'bm-road-mid', type: 'line', ...src, 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['secondary', 'tertiary']]], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#2a3442', 'line-width': roadWidth(1.8) } },
+    { id: 'bm-road-major', type: 'line', ...src, 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk', 'primary']]], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#384455', 'line-width': roadWidth(2.4) } },
+  ];
+}
 
 function baseStyle(tiles: boolean): StyleSpecification {
   return {
     version: 8,
     sources: {
       grid: { type: 'geojson', data: EMPTY_FC },
-      ...(tiles
-        ? {
-            carto: {
-              type: 'raster',
-              tiles: ['a', 'b', 'c', 'd'].map((s) => `https://${s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png`),
-              tileSize: 256,
-              attribution: TILE_ATTRIB,
-              maxzoom: 19,
-            },
-          }
-        : {}),
+      ...(tiles ? { ofm: { type: 'vector', url: OPENFREEMAP_URL, attribution: TILE_ATTRIB } } : {}),
     },
     layers: [
       { id: 'bg', type: 'background', paint: { 'background-color': '#080b10' } },
-      { id: 'grid', type: 'line', source: 'grid', paint: { 'line-color': '#1a2330', 'line-width': 1 } },
-      ...(tiles ? [{ id: 'carto', type: 'raster' as const, source: 'carto', paint: { 'raster-opacity': 0.92, 'raster-saturation': -0.4, 'raster-contrast': 0.08 } }] : []),
+      // the grid is the offline basemap; with tiles it stays faint underneath in case they fail
+      { id: 'grid', type: 'line', source: 'grid', paint: { 'line-color': '#1a2330', 'line-width': 1, 'line-opacity': tiles ? 0.35 : 1 } },
+      ...(tiles ? basemapLayers() : []),
     ],
   };
 }
@@ -98,7 +111,7 @@ export function LiveMap({ init, frame, selectedId = null, onSelect, tiles = true
       map.on('error', (e) => {
         // tile failures are expected offline; the grid basemap stays visible underneath
         const msg = String((e as { error?: { message?: string } }).error?.message ?? '');
-        if (!/tile|cartocdn|Failed to fetch|NetworkError/i.test(msg)) console.warn('[map]', msg);
+        if (!/tile|openfreemap|Failed to fetch|NetworkError|AJAXError/i.test(msg)) console.warn('[map]', msg);
       });
       map.on('load', () => {
         if (disposed) return;
