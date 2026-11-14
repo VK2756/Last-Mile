@@ -18,6 +18,13 @@ const SIZE: Record<ButtonSize, string> = {
   xl: 'h-14 px-7 text-lg gap-3',
 };
 
+const BASE = 'inline-flex items-center justify-center rounded-md font-semibold tracking-tight transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-40';
+
+/** Button styling for things that aren't <button>s, e.g. a Next <Link>: <Link className={buttonClass({ variant: 'primary' })}> */
+export function buttonClass({ variant = 'secondary', size = 'md', className }: { variant?: ButtonVariant; size?: ButtonSize; className?: string } = {}): string {
+  return cn(BASE, VARIANT[variant], SIZE[size], className);
+}
+
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
@@ -31,14 +38,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     <button
       ref={ref}
       type={type}
-      className={cn(
-        'inline-flex items-center justify-center rounded-md font-semibold tracking-tight transition-colors',
-        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-        'disabled:pointer-events-none disabled:opacity-40',
-        VARIANT[variant],
-        SIZE[size],
-        className,
-      )}
+      className={buttonClass({ variant, size, className })}
       {...rest}
     />
   );
