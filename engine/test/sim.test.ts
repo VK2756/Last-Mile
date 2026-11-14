@@ -98,7 +98,7 @@ describe('sensitivity variants', () => {
     const base = createSim(mk(1, 'last_mile'), 'v0').init.assumptions.join('\n');
     expect(base).not.toContain('SENSITIVITY'); expect(base).toMatch(/1 to 3 min after that household is warned/);
     const harsh = createSim(mk(1, 'last_mile'), 'v1', { variant: { helpDelayS: [300, 600], helperPlacement: 'far_from_fire' } }).init.assumptions.join('\n');
-    expect(harsh).toMatch(/5 to 10 min after that household is warned \(SENSITIVITY/); expect(harsh).toMatch(/SENSITIVITY: helpers .* far from the fire/);
+    expect(harsh).toMatch(/5 to 10 min after that household is warned \(SENSITIVITY/); expect(harsh).toMatch(/SENSITIVITY: helpers .*far from the fire/);
   });
   it('variants are deterministic and slower help never beats instant help by construction of the same people', () => {
     const v = { helpDelayS: [300, 600] as [number, number] };
