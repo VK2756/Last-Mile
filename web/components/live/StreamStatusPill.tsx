@@ -13,10 +13,10 @@ const META: Record<StreamStatus, { label: string; dot: string; text: string }> =
 export function StreamStatusPill({ status, source }: { status: StreamStatus; source: 'engine' | 'mock' }) {
   const m = META[status];
   return (
-    <span className={cn('inline-flex h-7 items-center gap-2 rounded-md border border-line bg-surface-2 px-2.5 font-mono text-[11px] font-semibold uppercase tracking-[0.1em]', m.text)}>
+    <span role="status" aria-label={`Stream ${m.label}, ${source}`} title={`${m.label} · ${source}`} className={cn('inline-flex h-7 shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-line bg-surface-2 px-2 font-mono text-[11px] font-semibold uppercase tracking-[0.1em]', m.text)}>
       <span className={cn('size-2 rounded-full', m.dot)} aria-hidden />
-      {m.label}
-      <span className="text-fg-dim">· {source}</span>
+      <span className="hidden sm:inline">{m.label}</span>
+      <span className="hidden text-fg-dim lg:inline">· {source}</span>
     </span>
   );
 }
