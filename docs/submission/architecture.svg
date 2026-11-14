@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="650" viewBox="0 0 1200 650" role="img" aria-labelledby="title desc">
+  <title id="title">Last Mile simulation architecture</title>
+  <desc id="desc">Vercel web app connects to a Vultr engine and Gemini triage; the engine writes to MongoDB Atlas and Tiger Data.</desc>
+  <rect width="1200" height="650" fill="#f4f7f2"/>
+  <text x="600" y="54" text-anchor="middle" font-family="Arial" font-size="30" font-weight="700" fill="#16352b">Last Mile · SIMULATION</text>
+  <text x="600" y="84" text-anchor="middle" font-family="Arial" font-size="17" fill="#4a6659">Synthetic households, helpers, and fire · shared TypeScript contracts</text>
+  <g font-family="Arial" text-anchor="middle">
+    <rect x="65" y="178" width="265" height="150" rx="18" fill="#dcebe0" stroke="#3c6a52" stroke-width="2"/>
+    <text x="198" y="220" font-size="25" font-weight="700" fill="#16352b">Vercel · Web</text>
+    <text x="198" y="255" font-size="17" fill="#254536">/live · /results · /call</text>
+    <text x="198" y="283" font-size="15" fill="#254536">SSE maps and Monte Carlo CIs</text>
+    <rect x="466" y="178" width="265" height="150" rx="18" fill="#dbe8ef" stroke="#426b82" stroke-width="2"/>
+    <text x="598" y="220" font-size="25" font-weight="700" fill="#173948">Vultr · Engine</text>
+    <text x="598" y="255" font-size="17" fill="#254b5b">fire · routing · dispatch</text>
+    <text x="598" y="283" font-size="15" fill="#254b5b">paired-seed Monte Carlo</text>
+    <rect x="867" y="178" width="265" height="150" rx="18" fill="#eee5d8" stroke="#8e6b3d" stroke-width="2"/>
+    <text x="999" y="220" font-size="25" font-weight="700" fill="#49351e">Gemini · Triage</text>
+    <text x="999" y="255" font-size="17" fill="#57432b">needs extraction</text>
+    <text x="999" y="283" font-size="15" fill="#57432b">deterministic fallback</text>
+    <rect x="250" y="440" width="265" height="145" rx="18" fill="#e6e1f0" stroke="#6e5a91" stroke-width="2"/>
+    <text x="382" y="482" font-size="25" font-weight="700" fill="#33224c">MongoDB Atlas</text>
+    <text x="382" y="516" font-size="17" fill="#4a3c64">scenario and household data</text>
+    <text x="382" y="543" font-size="15" fill="#4a3c64">$geoNear helper query</text>
+    <rect x="685" y="440" width="265" height="145" rx="18" fill="#f0e0df" stroke="#995753" stroke-width="2"/>
+    <text x="818" y="482" font-size="25" font-weight="700" fill="#522724">Tiger Data</text>
+    <text x="818" y="516" font-size="17" fill="#663d38">risk and dispatch time series</text>
+    <text x="818" y="543" font-size="15" fill="#663d38">hypertables · 1m aggregates</text>
+  </g>
+  <g fill="none" stroke="#567266" stroke-width="3" marker-end="url(#arrow)">
+    <path d="M330 252 H455"/><path d="M867 252 H742"/><path d="M547 328 L430 428"/><path d="M652 328 L770 428"/>
+  </g>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#567266"/></marker></defs>
+  <g font-family="Arial" font-size="14" fill="#486157" text-anchor="middle"><text x="392" y="239">SSE/HTTPS</text><text x="799" y="239">JSON</text><text x="490" y="393">documents</text><text x="718" y="393">events</text></g>
+</svg>
