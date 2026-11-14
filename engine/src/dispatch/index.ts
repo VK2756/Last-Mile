@@ -10,7 +10,7 @@
 //   - every pickup is reached by its deadline (boarding time counted between stops)
 // Households no trip can serve are FLAGGED (see `lastUnservable()`), never silently dropped. If a
 // flagged household can still be reached before the fire itself arrives (ignoring the safety margin),
-// it is appended after some helper's existing stops (delaying nobody) as a clearly labelled best-effort pickup.
+// an idle helper is sent on a clearly labelled best-effort trip.
 //
 // Algorithm, deterministic for identical input:
 //   1. Pin: a helper already `enroute` keeps its current first pickup while that is still feasible.
@@ -350,9 +350,9 @@ export function createDispatcher(options: DispatchOptions = {}): DispatchPlanner
     flagged.sort((a, b) => a - b);
 
     // ---- flag the rest; best-effort pickups that still beat the fire itself ----
-    // A flagged home may be appended AFTER a helper's existing stops (so no other home is delayed) when
-    // the helper would still arrive before the fire reaches it, ignoring the safety margin. Idle
-    // helpers qualify too. The home stays flagged and the trip says "Best effort".
+    // A flagged home gets a best-effort trip from an IDLE helper that would still arrive before the fire
+    // reaches it, ignoring the safety margin. (Appending to busy helpers was measured in the real sim and
+    // did not help: it locks the home to a busy helper. The home stays flagged; the trip says "Best effort".)
     const bestEffortStops = new Set<number>();
     const flaggedOut: Unservable[] = [];
     for (const ri of flagged) {
@@ -364,7 +364,7 @@ export function createDispatcher(options: DispatchOptions = {}): DispatchPlanner
         r.deadline = r.fireIn - 1e-6; // must arrive before the fire itself
         for (let v = 0; v < H; v++) {
           const van = vans[v]!;
-          if (!compatible(van, r) || van.people + r.h.residents > van.helper.capacity) continue;
+          if (van.seq.length > 0 || van.pinned >= 0 || !compatible(van, r)) continue; // idle helpers only (see above)
           const c = evaluate(v, van.seq, exact, van.seq.length, ri);
           if (c === Infinity) continue;
           const delta = c - van.completion;

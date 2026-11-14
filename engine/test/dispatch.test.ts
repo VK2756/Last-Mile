@@ -268,9 +268,8 @@ describe('createDispatcher', () => {
 });
 
 describe('dispatch quality', () => {
-  it('a busy helper adds a best-effort pickup after its current stop, without delaying it', () => {
-    // one helper, an urgent home next door and a second home it cannot reach by the safety deadline
-    // but can reach after the first pickup before the fire itself
+  it('does not lock a flagged home to a busy helper (measured in the real sim: no gain)', () => {
+    // one helper busy with an urgent home; the second home misses its deadline after that trip
     const w = world(
       [hh('urgent', nodeAt(10, 11)), hh('later', nodeAt(10, 18))],
       { urgent: 400, later: 520 },
@@ -278,14 +277,10 @@ describe('dispatch quality', () => {
     );
     const d = createDispatcher();
     const plan = d.plan(w);
-    expect(plan).toHaveLength(1);
-    expect(plan[0]!.householdIds).toEqual(['urgent', 'later']);
-    expect(plan[0]!.reason).toMatch(/^Best effort: .* will come after its other pickup and should arrive/);
+    expect(plan.map((a) => a.householdIds)).toEqual([['urgent']]);
     const u = d.lastUnservable();
-    expect(u.map((x) => [x.householdId, x.bestEffort])).toEqual([['later', true]]);
-    // the urgent stop's timing is unchanged by the appended one
-    const solo = createDispatcher().plan(world([hh('urgent', nodeAt(10, 11))], { urgent: 400 }, [helper('p1', nodeAt(10, 10), 4)]));
-    expect(solo[0]!.householdIds).toEqual(['urgent']);
+    expect(u.map((x) => [x.householdId, x.bestEffort])).toEqual([['later', false]]);
+    expect(u[0]!.reason).toMatch(/already committed to homes with earlier deadlines/);
   });
 
   it('says when a home is waiting only because every capable helper is busy', () => {
