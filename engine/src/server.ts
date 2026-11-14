@@ -2,7 +2,7 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import { z } from 'zod';
-import { ScenarioConfig, type DataSink } from '@lastmile/contracts';
+import { ScenarioConfig, TriageResult, type DataSink } from '@lastmile/contracts';
 import { Registry, type RunnerFactory } from './sim/registry';
 import { createSim } from './sim/engine';
 import { loadSink } from './sim/sink';
@@ -57,6 +57,19 @@ export async function buildServer(opts: ServerOpts = {}): Promise<FastifyInstanc
     if (c.data.action === 'speed' && c.data.value === undefined) return reply.code(400).send({ error: 'speed needs value' });
     s.control(c.data.action, c.data.value);
     return { ok: true, paused: s.paused, speed: s.speed };
+  });
+
+  app.post<{ Params: { id: string; hid: string } }>('/scenarios/:id/households/:hid/needs', async (req, reply) => {
+    const s = registry.get(req.params.id);
+    if (!s) return reply.code(404).send({ error: 'unknown scenario' });
+    const parsed = TriageResult.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'invalid TriageResult', issues: parsed.error.issues });
+    if (parsed.data.householdId !== req.params.hid) return reply.code(400).send({ error: 'householdId does not match URL' });
+    if (!s.runner.applyTriage) return reply.code(501).send({ error: 'runner does not support triage' });
+    s.lastTouched = Date.now();
+    const out = s.runner.applyTriage(parsed.data);
+    if (!out.ok) return reply.code(out.code === 'unknown_household' ? 404 : 409).send(out);
+    return out;
   });
 
   return app as unknown as FastifyInstance & { registry: Registry };

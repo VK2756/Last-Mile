@@ -1,7 +1,7 @@
 // OWNER: Lane A. Scenario registry: owns each scenario's ticker, fans events out to SSE subscribers,
 // expires idle scenarios (TTL), never throws into the event loop.
 import { randomUUID } from 'node:crypto';
-import { StreamEvent, type Metrics, type ScenarioConfig, type SimFrame, type SimInit } from '@lastmile/contracts';
+import { StreamEvent, type TriageResult, type Metrics, type ScenarioConfig, type SimFrame, type SimInit } from '@lastmile/contracts';
 
 export interface ScenarioRunner {
   init: SimInit;
@@ -9,6 +9,8 @@ export interface ScenarioRunner {
   /** advance the simulation by dt simulated seconds and return the new frame */
   step(dt: number): SimFrame;
   finalMetrics(): Metrics;
+  /** optional: runners that support voice triage */
+  applyTriage?(r: TriageResult): { ok: boolean; [k: string]: unknown };
 }
 export type RunnerFactory = (scenarioId: string, config: ScenarioConfig) => ScenarioRunner;
 export type Listener = (ev: StreamEvent) => void;
