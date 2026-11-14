@@ -130,7 +130,8 @@ describe('createRouter on the synthetic grid', () => {
     const s2 = r.stats();
     expect(s2.version).toBe(s1.version + 1);
     expect(s2.smokyEdges).toBeGreaterThan(0);
-    expect(s2.treeBuilds).toBe(s1.treeBuilds + 1);
+    // the fire-free path is no longer valid, so the query does fresh work (a tree or a point-to-point search)
+    expect(s2.treeBuilds + s2.pointToPointRuns).toBe(s1.treeBuilds + s1.pointToPointRuns + 1);
   });
 
   it('fan-in queries (many homes to one safe zone) build a single reverse tree', () => {

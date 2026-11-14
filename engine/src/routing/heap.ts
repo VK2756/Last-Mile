@@ -1,15 +1,28 @@
 // OWNER: Lane D (routing). Minimal binary min-heap over (node, key) pairs, used by Dijkstra.
 // Lazy deletion: callers skip stale entries by comparing the popped key to their best-known distance.
+// Backed by typed arrays that grow by doubling, so steady-state pushes and pops allocate nothing.
 export class MinHeap {
-  private nodes: number[] = [];
-  private keys: number[] = [];
+  private nodes: Int32Array;
+  private keys: Float64Array;
+  private n = 0;
 
-  get size(): number { return this.nodes.length; }
+  constructor(capacity = 1024) {
+    this.nodes = new Int32Array(Math.max(16, capacity));
+    this.keys = new Float64Array(Math.max(16, capacity));
+  }
+
+  get size(): number { return this.n; }
+
+  /** drop every entry (keeps the backing arrays) */
+  reset(): void { this.n = 0; }
 
   push(node: number, key: number): void {
+    if (this.n === this.nodes.length) {
+      const nodes = new Int32Array(this.n * 2); nodes.set(this.nodes); this.nodes = nodes;
+      const keys = new Float64Array(this.n * 2); keys.set(this.keys); this.keys = keys;
+    }
     const nodes = this.nodes, keys = this.keys;
-    let i = nodes.length;
-    nodes.push(node); keys.push(key);
+    let i = this.n++;
     while (i > 0) {
       const p = (i - 1) >> 1;
       const pk = keys[p]!;
@@ -22,14 +35,15 @@ export class MinHeap {
 
   /** Pops the smallest entry into `out` ([node, key]). Returns false when empty. */
   pop(out: [number, number]): boolean {
-    const nodes = this.nodes, keys = this.keys;
-    const n = nodes.length;
+    const n = this.n;
     if (n === 0) return false;
+    const nodes = this.nodes, keys = this.keys;
     out[0] = nodes[0]!; out[1] = keys[0]!;
-    const lastNode = nodes.pop()!, lastKey = keys.pop()!;
-    if (n === 1) return true;
-    let i = 0;
     const m = n - 1;
+    this.n = m;
+    if (m === 0) return true;
+    const lastNode = nodes[m]!, lastKey = keys[m]!;
+    let i = 0;
     for (;;) {
       const l = 2 * i + 1;
       if (l >= m) break;
