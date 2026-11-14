@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { sampleInit } from '@lastmile/contracts/fixtures';
 
 function watchConsole(page: Page): string[] {
   const errors: string[] = [];
@@ -56,5 +57,23 @@ test('call screen renders and accepts a typed answer', async ({ page }) => {
   await page.getByRole('textbox', { name: 'Your answer' }).fill('I need a ride and use a wheelchair.');
   await page.getByRole('button', { name: 'Send' }).click();
   await expect(page.getByText(/Needs:.*wheelchair/)).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('completed call updates a real engine scenario', async ({ page, request }) => {
+  test.skip(process.env.E2E_REAL_ENGINE !== '1', 'Set E2E_REAL_ENGINE=1 with a local or deployed engine');
+  const errors = watchConsole(page);
+  const engine = process.env.E2E_ENGINE_URL || 'http://127.0.0.1:8080';
+  const created = await request.post(`${engine}/scenarios`, {
+    data: { ...sampleInit.config, seed: 9876, speedMultiplier: 0.25 },
+  });
+  expect(created.ok()).toBe(true);
+  const { scenarioId } = await created.json() as { scenarioId: string };
+  await openPageOrSkip(page, `/call?scenario=${encodeURIComponent(scenarioId)}&household=h1`);
+  await page.getByRole('textbox', { name: 'Your answer' }).fill('I need a ride and use a wheelchair. Two people are with me.');
+  const update = page.waitForResponse((response) => response.url().includes(`/scenarios/${scenarioId}/households/h1/needs`) && response.request().method() === 'POST');
+  await page.getByRole('button', { name: 'Send' }).click();
+  expect((await update).ok()).toBe(true);
+  await expect(page.getByText(/Needs recorded in the simulation/)).toBeVisible();
   expect(errors).toEqual([]);
 });
