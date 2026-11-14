@@ -28,6 +28,16 @@ export interface Behavior {
   helpRequestDelayS: number;
 }
 
+/** Knobs for sensitivity tests. Defaults are the headline assumptions; every non-default is listed in SimInit.assumptions. */
+export interface Variant {
+  /** seconds between being warned and the help request reaching dispatch (last_mile only) */
+  helpDelayS?: [number, number];
+  /** where helpers start: random road nodes, or only among the 30% of nodes the fire reaches last */
+  helperPlacement?: 'random' | 'far_from_fire';
+}
+export const DEFAULT_HELP_DELAY_S: [number, number] = [60, 180];
+export const minutes = (s: number) => `${Math.round((s / 60) * 10) / 10}`;
+
 export interface SafeZone { id: string; name: string; position: LatLng }
 export interface Population {
   households: Household[];
@@ -55,7 +65,7 @@ function pickSafeZones(graph: RoadGraph, fire: FireModel): SafeZone[] {
   return chosen.map((c, i) => ({ id: `z${i + 1}`, name: `Safe zone ${String.fromCharCode(65 + i)}`, position: { lat: c.n.lat, lng: c.n.lng } }));
 }
 
-function drawHousehold(i: number, rng: Rng, graph: RoadGraph): { hh: Household; beh: Behavior } {
+function drawHousehold(i: number, rng: Rng, graph: RoadGraph, helpDelay: [number, number]): { hh: Household; beh: Behavior } {
   const node = rng.pick(graph.nodes);
   const pos = fromXY(rng.range(-35, 35), rng.range(-35, 35), { lat: node.lat, lng: node.lng });
   const needs: Need[] = [];
@@ -75,19 +85,22 @@ function drawHousehold(i: number, rng: Rng, graph: RoadGraph): { hh: Household; 
     prepS: Math.min(1800, 120 + rng.exp(240) + (needs.includes('young_children') ? 60 : 0) + (needs.includes('pets') ? 60 : 0)),
     familyPickup: rng.chance(P.familyPickup),
     pickupDelayS: 900 + rng.range(0, 1500),
-    helpRequestDelayS: rng.range(60, 180),
+    helpRequestDelayS: rng.range(helpDelay[0], helpDelay[1]),
   };
   return { hh, beh };
 }
 
-export function generatePopulation(config: ScenarioConfig, graph: RoadGraph, fire: FireModel): Population {
+export function generatePopulation(config: ScenarioConfig, graph: RoadGraph, fire: FireModel, variant: Variant = {}): Population {
+  const helpDelay = variant.helpDelayS ?? DEFAULT_HELP_DELAY_S;
   const rng = createRng(config.seed, SALT.population);
   const households: Household[] = []; const behavior: Record<string, Behavior> = {};
-  for (let i = 0; i < HOUSEHOLD_COUNT; i++) { const { hh, beh } = drawHousehold(i, rng, graph); households.push(hh); behavior[hh.id] = beh; }
+  for (let i = 0; i < HOUSEHOLD_COUNT; i++) { const { hh, beh } = drawHousehold(i, rng, graph, helpDelay); households.push(hh); behavior[hh.id] = beh; }
   const hr = createRng(config.seed, SALT.helpers);
   const helpers: Helper[] = [];
+  const byLate = [...graph.nodes].sort((a, b) => fire.ignitionTime(b) - fire.ignitionTime(a) || a.id - b.id);
+  const helperNodes = variant.helperPlacement === 'far_from_fire' ? byLate.slice(0, Math.max(1, Math.round(byLate.length * 0.3))) : graph.nodes;
   for (let i = 0; i < config.helperCount; i++) {
-    const kind = HELPER_PATTERN[i % HELPER_PATTERN.length]!; const node = hr.pick(graph.nodes);
+    const kind = HELPER_PATTERN[i % HELPER_PATTERN.length]!; const node = hr.pick(helperNodes);
     helpers.push(Helper.parse({ id: `p${i + 1}`, kind, position: { lat: node.lat, lng: node.lng }, ...HELPER_SPEC[kind] }));
   }
   const safeZones = pickSafeZones(graph, fire);
@@ -100,7 +113,10 @@ export function generatePopulation(config: ScenarioConfig, graph: RoadGraph, fir
     `${HOUSEHOLD_COUNT} households placed within 35 m of road nodes. Household needs are drawn independently: no vehicle ${pct(P.noVehicle)}, wheelchair ${pct(P.wheelchair)}, oxygen ${pct(P.oxygen)}, other medical device ${pct(P.medicalDevice)}, dementia ${pct(P.dementia)}, vision impaired ${pct(P.vision)}, limited English ${pct(P.limitedEnglish)}, landline only ${pct(P.landlineOnly)}.`,
     'A household is "vulnerable" if it has no vehicle or any of: wheelchair, oxygen, dementia, medical device, vision impaired (single shared definition in the contracts).',
     `The official alert goes out ${ALERT_ISSUE_S} s after ignition. Each household acts on it after a random delay (mean 150 s; +300 s landline-only, +120 s limited English, +240 s no cell signal).`,
-    'Helpers (neighbors, volunteers, accessible vans, shuttle buses) start at random road nodes; vans and buses are wheelchair-capable. Capacity counts people.',
+    variant.helperPlacement === 'far_from_fire'
+      ? 'SENSITIVITY: helpers (neighbors, volunteers, accessible vans, shuttle buses) start only on the 30% of road nodes the fire reaches last (far from the fire); vans and buses are wheelchair-capable. Capacity counts people.'
+      : 'Helpers (neighbors, volunteers, accessible vans, shuttle buses) start at random road nodes; vans and buses are wheelchair-capable. Capacity counts people.',
+    `Last Mile only learns of a household that cannot drive ${minutes(helpDelay[0])} to ${minutes(helpDelay[1])} min after that household is warned${variant.helpDelayS ? ' (SENSITIVITY: non-default)' : ''}.`,
     `Safe zones are the 3 road nodes the fire reaches last (at least 1.4 km apart). Only the ${HOUSEHOLD_COUNT} synthetic households within the modeled road area exist; the road network is a synthetic grid unless a baked town is loaded.`,
   ];
   return { households, helpers, safeZones, behavior, bounds, assumptions };
