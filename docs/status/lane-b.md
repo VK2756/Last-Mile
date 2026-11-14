@@ -1,6 +1,14 @@
 # Lane B status (WEB) — Shrish / Claude Code
 _Updated: Sat 14 Nov, M2 + pitch mode + stretch merged._
 
+## For Lane E (Prince): shared pieces in `@/components/ui`
+- `<SimBadge mock? note? />`: the honesty badge; `note` replaces the suffix, e.g. `note="live preview, mock data"`.
+- `<AssumptionsList assumptions={init.assumptions} dense? empty? />`: numbered list (also takes `MonteCarloComparison.assumptions`).
+- `<Stat label value sub tone size icon format? />`: headline number that counts up (instant under reduced motion). Values must come from the engine/Monte Carlo, never hard-coded.
+- `<SectionHeading eyebrow title lede as="h1|h2|h3" tone="fire|accent|dim" align />` and `eyebrowClass(tone)` for a bare kicker.
+- `buttonClass({ variant, size, className })` to style a `<Link>` exactly like `<Button>`.
+- `.glass` (blurred panel) and `.glass-map` (no blur, for overlays above a map); type is rem-based, so it scales on projectors and 4K.
+
 ## Done (M2)
 - Split-screen `/live` merged (#25): LEFT Alerts only / RIGHT Last Mile, same config except policy, one Run, shared clock (frames buffered per side, shown at the slower side's t), pause/speed to both scenarios, mirrored cameras. testids `map-left/right`, `scoreboard-left/right`, `frame-counter`, plus e2e aliases `map-alerts`, `map-last-mile`, `score-alerts`, `score-last-mile`.
 - Operator panel: at-risk households sorted by ttiSeconds, countdown chips, Vulnerable/All filter, click flies + shows Assignment.reason (`operator-panel`, `operator-row`, `operator-reason`).
