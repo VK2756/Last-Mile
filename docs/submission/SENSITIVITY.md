@@ -13,20 +13,21 @@ pnpm exec tsx scripts/montecarlo-cli.ts --json [--seed-start N] [--wind-mph X --
 
 ## On the results page
 
-Vulnerable households evacuated, mean over 200 paired seeds, with the paired lift and its 95% CI (real engine, main @ `e9080ee`):
+Vulnerable households evacuated and the paired lift with its 95% CI. Real engine, real Amherst roads, preset scenario unless noted.
 
-| scenario | alerts only | Last Mile | lift |
-|---|---|---|---|
-| preset: 20 mph wind, 24 helpers | 45.1% | 74.5% | +29.4 pts [28.6, 30.2] |
-| fresh seeds 1001–1200 (replication) | 44.8% | 74.4% | +29.6 pts [28.8, 30.4] |
-| faster fire: 35 mph | 36.7% | 59.9% | +23.3 pts [22.6, 23.9] |
-| fewer helpers: 6 instead of 24 | 45.1% | 65.2% | +20.1 pts [19.4, 20.8] |
-| both: 35 mph and 6 helpers | 36.7% | 51.7% | +15.0 pts [14.5, 15.6] |
-| sanity: 0 helpers (50 seeds) | 44.2% | 44.2% | +0.0 pts [0.0, 0.0] |
+| assumption changed | seeds | alerts only | Last Mile | lift |
+|---|---|---|---|---|
+| none (headline preset) | 200 | 45.1% | 74.5% | +29.4 pts [28.6, 30.2] |
+| none, fresh seeds 1001–1200 | 200 | 44.8% | 74.4% | +29.6 pts [28.8, 30.4] |
+| help requests known 5–10 min after warning (not 1–3) | 50 | 44.2% | 71.9% | +27.7 pts [26.1, 29.3] |
+| helpers start far from the fire | 50 | 44.2% | 73.8% | +29.6 pts [28.1, 31.1] |
+| 6 helpers instead of 24 | 200 | 45.1% | 65.2% | +20.1 pts [19.4, 20.8] |
+| faster fire: 35 mph wind | 200 | 36.7% | 59.9% | +23.3 pts [22.6, 23.9] |
+| 35 mph wind and 6 helpers | 200 | 36.7% | 51.7% | +15.0 pts [14.5, 15.6] |
+| slow requests + 6 helpers + far start | 50 | 44.2% | 64.3% | +20.1 pts [18.7, 21.4] |
+| sanity: 0 helpers | 50 | 44.2% | 44.2% | +0.0 pts [0.0, 0.0] |
 
-The lift shrinks by about half when the fire is faster and helpers are scarce, but stays above zero in every case we ran.
-With no helpers the two policies are identical, as they should be. **Not yet varied:** how quickly help requests reach
-dispatch (assumed 1 to 3 min after the warning) and where helpers start (random road nodes); both are listed assumptions.
+Harsher assumptions cut the lift roughly in half in the worst case we ran (fast fire, few helpers) but never to zero; with no helpers the two policies are identical, as they should be. The number of helpers matters most; the request delay matters little because the fire needs about an hour to reach most homes. **Not tested:** helpers that break down, wrong or false help requests, people refusing to leave.
 
 ## Full table (200 paired seeds unless noted)
 
@@ -43,10 +44,24 @@ Intervals are percentile bootstrap 95% intervals over runs (2,000 resamples). "V
 oxygen, dementia, medical device or vision impaired (single definition in `packages/contracts`). Rates count only
 households the fire reaches within 2 hours.
 
+## Lane A sensitivity variants (50 paired seeds per row)
+
+From `docs/status/lane-a.md` (#65, `engine/src/sim/sensitivityReport.ts`, real headless, preset base). Every non-default
+assumption is printed in `SimInit.assumptions` with a "SENSITIVITY" marker.
+
+| assumption set | alerts only | Last Mile | lift (pts) [95% CI] | all homes trapped (alerts -> LM) |
+|---|---|---|---|---|
+| headline (help known 1–3 min, 24 helpers at random nodes) | 44.2% | 74.2% | +30.0 [28.2, 31.8] | 30.4% -> 23.2% |
+| help requests known 5–10 min after warning | 44.2% | 71.9% | +27.7 [26.1, 29.3] | 30.4% -> 23.7% |
+| 12 helpers | 44.2% | 72.0% | +27.8 [26.4, 29.3] | 30.4% -> 23.7% |
+| 6 helpers | 44.2% | 65.6% | +21.4 [19.9, 23.0] | 30.4% -> 25.2% |
+| helpers start far from the fire (30% of nodes it reaches last) | 44.2% | 73.8% | +29.6 [28.1, 31.1] | 30.4% -> 23.3% |
+| HARSH: 5–10 min + 12 helpers + far start | 44.2% | 68.1% | +23.9 [22.3, 25.6] | 30.4% -> 24.7% |
+| HARSHEST: 5–10 min + 6 helpers + far start | 44.2% | 64.3% | +20.1 [18.7, 21.4] | 30.4% -> 25.6% |
+
 ## What would make the result weaker (to test next)
 
-- Slower help requests (for example 5 to 10 min instead of 1 to 3 min): needs an engine parameter (Lane A).
-- Helpers starting far from the fire, or arriving late: needs an engine parameter (Lane A / D).
+- Helpers that break down or arrive late, wrong or false help requests, people who refuse to leave.
 - A stronger baseline, such as more family pickups or earlier self-evacuation: see `docs/submission/BASELINE_REVIEW.md` once it exists.
 - Other towns (`paradise_like`, `synthetic_grid`): `--town` flag; road data quality differs.
 
