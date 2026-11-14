@@ -1,1 +1,1 @@
-export {};
+export { triage, fallbackTriage } from './triage';
