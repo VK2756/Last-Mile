@@ -16,6 +16,9 @@ importers:
       '@lastmile/contracts':
         specifier: workspace:*
         version: link:../packages/contracts
+      '@lastmile/data':
+        specifier: workspace:^
+        version: link:../packages/data
       fastify:
         specifier: ^5.0.0
         version: 5.12.8
