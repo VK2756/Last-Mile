@@ -25,11 +25,11 @@ export function AppShell({ children, right, fullBleed = false }: AppShellProps) 
   const path = usePathname();
   return (
     <div className={cn('flex flex-col', fullBleed ? 'h-dvh overflow-hidden' : 'min-h-dvh')}>
-      <header className="z-20 flex h-14 shrink-0 items-center gap-4 border-b border-line bg-bg/90 px-4 backdrop-blur">
+      <header className="z-20 flex h-14 shrink-0 items-center gap-2 border-b border-line bg-bg/90 px-3 backdrop-blur sm:gap-4 sm:px-4">
         <Link href="/" className="rounded focus-visible:outline-2 focus-visible:outline-accent" aria-label="Last Mile home">
           <Logo />
         </Link>
-        <nav aria-label="Main" className="flex items-center gap-1" data-dev-only>
+        <nav aria-label="Main" className="flex min-w-0 items-center overflow-x-auto sm:gap-1" data-dev-only>
           {NAV.map((n) => {
             const active = path === n.href || path?.startsWith(`${n.href}/`);
             return (
@@ -39,7 +39,7 @@ export function AppShell({ children, right, fullBleed = false }: AppShellProps) 
                 prefetch={n.prefetch}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'relative h-14 px-3 text-sm font-medium leading-[3.5rem] transition-colors',
+                  'relative h-14 shrink-0 px-2 text-sm font-medium leading-[3.5rem] transition-colors sm:px-3',
                   active ? 'text-fg' : 'text-fg-muted hover:text-fg',
                 )}
               >
@@ -49,7 +49,7 @@ export function AppShell({ children, right, fullBleed = false }: AppShellProps) 
             );
           })}
         </nav>
-        <div className="ml-auto flex min-w-0 items-center gap-3">{right}</div>
+        <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">{right}</div>
       </header>
       <main className={cn('flex-1', fullBleed && 'min-h-0')}>{children}</main>
     </div>
