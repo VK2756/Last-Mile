@@ -52,7 +52,7 @@ test('results show confidence intervals', async ({ page }) => {
 test('call screen renders and accepts a typed answer', async ({ page }) => {
   const errors = watchConsole(page);
   await openPageOrSkip(page, '/call?scenario=demo-1&household=h1');
-  await expect(page.getByText('SIMULATION', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('sim-badge').first()).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Household needs call' })).toBeVisible();
   await page.getByRole('textbox', { name: 'Your answer' }).fill('I need a ride and use a wheelchair.');
   await page.getByRole('button', { name: 'Send' }).click();
