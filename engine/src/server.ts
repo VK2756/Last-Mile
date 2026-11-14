@@ -1,11 +1,14 @@
 // OWNER: Lane A. HTTP + SSE surface (see ENGINE_ROUTES in @lastmile/contracts).
+import { execSync } from 'node:child_process';
 import type { ServerResponse } from 'node:http';
+import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import { z } from 'zod';
-import { ScenarioConfig, TriageResult, type DataSink } from '@lastmile/contracts';
+import { ScenarioConfig, TriageResult } from '@lastmile/contracts';
 import { Registry, type RunnerFactory } from './sim/registry';
-import { createSim } from './sim/engine';
+import { createSim, type EngineSink } from './sim/engine';
 import { loadSink } from './sim/sink';
 import { PRESETS } from './sim/presets';
 import { registerMonteCarlo } from './montecarlo';
@@ -13,7 +16,7 @@ import { registerMonteCarlo } from './montecarlo';
 const Control = z.object({ action: z.enum(['pause', 'resume', 'speed']), value: z.number().optional() });
 const Id = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/);
 
-export interface ServerOpts { factory?: RunnerFactory; corsOrigin?: string; ttlMs?: number; sink?: DataSink; ratePerMin?: number }
+export interface ServerOpts { factory?: RunnerFactory; corsOrigin?: string; ttlMs?: number; sink?: EngineSink; ratePerMin?: number }
 
 /** `*` or a comma-separated allow-list. Returns the value for Access-Control-Allow-Origin for a request origin, or null. */
 export function allowedOrigin(config: string, reqOrigin: string | undefined): string | null {
@@ -21,6 +24,17 @@ export function allowedOrigin(config: string, reqOrigin: string | undefined): st
   if (list.includes('*')) return '*';
   return reqOrigin && list.includes(reqOrigin) ? reqOrigin : null;
 }
+
+/** Short git commit of the running code: GIT_COMMIT env (set by the deploy), else `git rev-parse`, else "unknown". */
+export function gitCommit(): string {
+  if (process.env.GIT_COMMIT) return process.env.GIT_COMMIT.slice(0, 12);
+  try { return execSync('git rev-parse --short=12 HEAD', { stdio: ['ignore', 'pipe', 'ignore'], cwd: fileURLToPath(new URL('.', import.meta.url)) }).toString().trim() || 'unknown'; } catch { return 'unknown'; }
+}
+const COMMIT = gitCommit();
+
+/** Names (never values) of the env flags that are set; safe to log. */
+export const ENV_FLAGS = ['NODE_ENV', 'PORT', 'ENGINE_PORT', 'ENGINE_CORS_ORIGIN', 'ENGINE_RATE_LIMIT_PER_MIN', 'ENGINE_MAX_SCENARIOS', 'ENGINE_MC_WORKERS', 'DATA_SINK', 'LOG_LEVEL', 'GIT_COMMIT', 'MONGODB_URI', 'TIGER_DATABASE_URL', 'GEMINI_API_KEY'];
+export const envFlagsInUse = (env: NodeJS.ProcessEnv = process.env) => ENV_FLAGS.filter((k) => env[k] !== undefined && env[k] !== '');
 
 export async function buildServer(opts: ServerOpts = {}): Promise<FastifyInstance & { registry: Registry }> {
   const app = Fastify({
@@ -44,7 +58,7 @@ export async function buildServer(opts: ServerOpts = {}): Promise<FastifyInstanc
     return ++h.n > limit;
   };
 
-  app.get('/health', async () => ({ ok: true, service: 'lastmile-engine', scenarios: registry.size, uptimeS: Math.round(process.uptime()) }));
+  app.get('/health', async () => ({ ok: true, service: 'lastmile-engine', commit: COMMIT, env: process.env.NODE_ENV ?? 'development', scenarios: registry.size, uptimeS: Math.round(process.uptime()) }));
   app.get('/presets', async () => PRESETS);
 
   app.post('/scenarios', async (req, reply) => {
@@ -103,6 +117,8 @@ export async function buildServer(opts: ServerOpts = {}): Promise<FastifyInstanc
     s.lastTouched = Date.now();
     const out = s.runner.applyTriage(parsed.data);
     if (!out.ok) return reply.code(out.code === 'unknown_household' ? 404 : 409).send(out);
+    // persist the call (Atlas triage_calls) without ever failing or slowing the simulation
+    if (sink.onTriage) sink.onTriage(s.id, parsed.data).catch((e) => req.log.error({ err: String(e), scenarioId: s.id }, 'triage persistence failed'));
     return out;
   });
 
@@ -114,11 +130,13 @@ export async function buildServer(opts: ServerOpts = {}): Promise<FastifyInstanc
 
 process.on('unhandledRejection', (e) => console.error(JSON.stringify({ level: 'error', msg: 'unhandledRejection', err: String(e) })));
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+const isMain = process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url); // path compare works on Windows too
+if (isMain) {
   const port = Number(process.env.PORT ?? process.env.ENGINE_PORT ?? 8080);
   buildServer().then(async (app) => {
     const stop = (sig: string) => { app.log.info({ sig }, 'shutting down'); app.close().then(() => process.exit(0), () => process.exit(1)); setTimeout(() => process.exit(0), 5000).unref(); };
     process.on('SIGTERM', () => stop('SIGTERM')); process.on('SIGINT', () => stop('SIGINT'));
     await app.listen({ port, host: '0.0.0.0' });
+    app.log.info({ port, commit: COMMIT, nodeEnv: process.env.NODE_ENV ?? 'development', envFlags: envFlagsInUse(), dataSink: process.env.DATA_SINK === 'real' ? 'real' : 'memory' }, 'engine started');
   }).catch((e) => { console.error(e); process.exit(1); });
 }

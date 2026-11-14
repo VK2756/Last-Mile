@@ -36,6 +36,9 @@ REAL Amherst OSM roads, REAL router and Lane D's real dispatcher (#20, #23, #28+
 | slow-burn-few-helpers | last_mile | 381 | 328 (86.1%) | 53 (13.9%) | 74/95 (77.9%) |
 Caveat for the pitch: dispatch assumes help requests are known 1-3 min after a warning and that helpers are available at random road nodes; both are listed in the assumptions.
 
+## Production readiness (Vultr)
+`GET /health` -> {ok, service, commit, env, scenarios, uptimeS} (commit = GIT_COMMIT env or git). One `engine started` log line lists env flag NAMES in use (never values). Entrypoint check is path-based so it works on Windows (#41). With DATA_SINK=real a successful triage is persisted via `recordTriageCall` (#36), errors are logged and never affect the sim. Vercel: https://last-mile-seven.vercel.app (Root `web`, outside-root files on, Node 22.x), mock mode until NEXT_PUBLIC_ENGINE_URL is set.
+
 ## Next
 Vercel deploy, sensitivity table, full-stack click-through, Vultr readiness.
 

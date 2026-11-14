@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AddressInfo } from 'node:net';
-import { StreamEvent, type ScenarioConfig } from '@lastmile/contracts';
+import { StreamEvent, createMemorySink, type ScenarioConfig } from '@lastmile/contracts';
 import { sampleFrame, sampleInit } from '@lastmile/contracts/fixtures';
 import { buildServer } from '../src/server';
 import type { ScenarioRunner } from '../src/sim/registry';
@@ -95,5 +95,29 @@ describe('hardening', () => {
   it('a streamed frame is under 100 KB', () => {
     const sim = createSim({ ...PRESETS[0]!.config }, 'sz'); sim.advance(900);
     expect(JSON.stringify({ type: 'frame', frame: sim.frame() }).length).toBeLessThan(100_000);
+  });
+});
+
+import { envFlagsInUse, gitCommit } from '../src/server';
+describe('production readiness', () => {
+  it('health reports commit, env and uptime', async () => {
+    const app = await buildServer({ factory: fake }); const h = (await app.inject({ method: 'GET', url: '/health' })).json();
+    expect(h).toMatchObject({ ok: true, service: 'lastmile-engine' }); expect(typeof h.commit).toBe('string'); expect(typeof h.uptimeS).toBe('number'); await app.close();
+  });
+  it('env flag log lists names only, never values', () => {
+    const flags = envFlagsInUse({ DATA_SINK: 'real', MONGODB_URI: 'mongodb://secret', FOO: 'x' } as NodeJS.ProcessEnv);
+    expect(flags).toEqual(['DATA_SINK', 'MONGODB_URI']); expect(JSON.stringify(flags)).not.toContain('secret');
+    expect(gitCommit().length).toBeGreaterThan(0);
+  });
+  it('persists a successful triage through the sink hook and survives a failing hook', async () => {
+    const calls: unknown[][] = [];
+    const sink = { ...createMemorySink(), onTriage: async (...a: unknown[]) => { calls.push(a); } } as unknown as import('../src/sim/engine').EngineSink;
+    const app = await buildServer({ sink }); const { scenarioId } = (await app.inject({ method: 'POST', url: '/scenarios', payload: cfg })).json();
+    const hid = 'h1'; const body = { householdId: hid, needs: ['oxygen'], hasRide: false, canWalkToRoad: false, residents: 2, urgency: 5, reply: 'x', summary: 'y', done: true };
+    expect((await app.inject({ method: 'POST', url: `/scenarios/${scenarioId}/households/${hid}/needs`, payload: body })).statusCode).toBe(200);
+    expect(calls).toHaveLength(1); expect(calls[0]![0]).toBe(scenarioId); expect(calls[0]![1]).toMatchObject({ householdId: hid });
+    (sink as { onTriage: unknown }).onTriage = async () => { throw new Error('atlas down'); };
+    const r = await app.inject({ method: 'POST', url: `/scenarios/${scenarioId}/households/h2/needs`, payload: { ...body, householdId: 'h2' } });
+    expect([200, 409]).toContain(r.statusCode); await app.close();
   });
 });

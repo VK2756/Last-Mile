@@ -1,14 +1,15 @@
 // OWNER: Lane A. Picks the DataSink: DATA_SINK=real loads Lane C's @lastmile/data, anything else (or any failure) uses the in-memory sink.
-import { createMemorySink, type SimInit } from '@lastmile/contracts';
+import { createMemorySink, type SimInit, type TriageResult } from '@lastmile/contracts';
 import type { EngineSink } from './engine';
 
 export async function loadSink(): Promise<EngineSink> {
   if (process.env.DATA_SINK === 'real') {
     try {
       const spec = '@lastmile/data'; // variable specifier: not resolved at typecheck time, engine has no hard dependency on it
-      const mod = (await import(spec)) as { createDataSink: () => EngineSink; upsertWorld?: (init: SimInit) => Promise<void> };
+      const mod = (await import(spec)) as { createDataSink: () => EngineSink; upsertWorld?: (init: SimInit) => Promise<void>; recordTriageCall?: (scenarioId: string, result: TriageResult) => Promise<void> };
       const sink = mod.createDataSink();
       if (mod.upsertWorld) sink.onWorld = mod.upsertWorld; // persists the real run's households + helpers (issue #17)
+      if (mod.recordTriageCall) sink.onTriage = mod.recordTriageCall; // Atlas triage_calls (issue #36)
       return sink;
     } catch (e) { console.error('[sink] DATA_SINK=real but @lastmile/data failed to load; using memory sink:', e); }
   }
