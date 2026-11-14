@@ -39,6 +39,9 @@ Caveat for the pitch: dispatch assumes help requests are known 1-3 min after a w
 ## Production readiness (Vultr)
 `GET /health` -> {ok, service, commit, env, scenarios, uptimeS} (commit = GIT_COMMIT env or git). One `engine started` log line lists env flag NAMES in use (never values). Entrypoint check is path-based so it works on Windows (#41). With DATA_SINK=real a successful triage is persisted via `recordTriageCall` (#36), errors are logged and never affect the sim. Vercel: https://last-mile-seven.vercel.app (Root `web`, outside-root files on, Node 22.x), mock mode until NEXT_PUBLIC_ENGINE_URL is set.
 
+## Contract change (additive, PR `contract: ...`)
+ScenarioConfig gains OPTIONAL `helperMix`, `helperCapacityScale`, `baseline{familyPickupProb, prepDelayScale, alertIssueS, urgentFamilyPickup, neighborRideProb}` (issues #69-#73). Absent = today's behaviour, results do not move. Engine support lands knob by knob right after. Everyone: run scripts/postmerge.sh.
+
 ## Next
 Vercel deploy, sensitivity table, full-stack click-through, Vultr readiness.
 

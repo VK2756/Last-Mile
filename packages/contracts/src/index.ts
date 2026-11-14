@@ -48,6 +48,27 @@ export type Helper = z.infer<typeof Helper>;
 export const Policy = z.enum(['alerts_only', 'last_mile']);
 export type Policy = z.infer<typeof Policy>;
 
+/** Relative weights of helper kinds (missing kind = 0). Default fleet when absent: the engine's built-in mix. */
+export const HelperMix = z.object({
+  neighbor: z.number().min(0), volunteer: z.number().min(0), accessible_van: z.number().min(0), shuttle_bus: z.number().min(0),
+}).partial().refine((m) => Object.values(m).reduce((a, b) => a + (b ?? 0), 0) > 0, { message: 'helperMix needs at least one positive weight' });
+export type HelperMix = z.infer<typeof HelperMix>;
+
+/** Baseline-fairness knobs. All optional; absent = the documented default, so existing results do not move. Applied identically to BOTH policies. */
+export const BaselineKnobs = z.object({
+  /** share of vehicle-less households with a relative/friend who will pick them up (default 0.25) */
+  familyPickupProb: z.number().min(0).max(1).optional(),
+  /** multiplies the time residents with a vehicle need to get on the road after being warned (default 1) */
+  prepDelayScale: z.number().min(0.1).max(5).optional(),
+  /** seconds after ignition when the official alert goes out (default 300) */
+  alertIssueS: z.number().min(0).max(3600).optional(),
+  /** family pickups hurry when the fire is near: delay = min(drawn delay, max(120 s, 0.5 x time-to-impact at warning)) (default false) */
+  urgentFamilyPickup: z.boolean().optional(),
+  /** probability that a departing household with a car and a free seat takes the nearest vehicle-less neighbour within about 300 m, at most one stop (default 0) */
+  neighborRideProb: z.number().min(0).max(1).optional(),
+});
+export type BaselineKnobs = z.infer<typeof BaselineKnobs>;
+
 export const ScenarioConfig = z.object({
   seed: z.number().int(),
   town: z.enum(['amherst', 'paradise_like', 'synthetic_grid']).default('amherst'),
@@ -56,6 +77,11 @@ export const ScenarioConfig = z.object({
   ignition: LatLng,
   policy: Policy,
   speedMultiplier: z.number().min(0.25).max(60).default(8),
+  /** optional fleet knobs (default: built-in mix, capacities neighbor 3, volunteer 4, van 6, bus 12) */
+  helperMix: HelperMix.optional(),
+  helperCapacityScale: z.number().min(0.25).max(4).optional(),
+  /** optional baseline knobs, see BaselineKnobs */
+  baseline: BaselineKnobs.optional(),
 });
 export type ScenarioConfig = z.infer<typeof ScenarioConfig>;
 
