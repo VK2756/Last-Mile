@@ -1,5 +1,5 @@
 {
-  "seconds": 13.918502042,
+  "seconds": 16.787921583,
   "seeds": [
     1,
     200
@@ -67,5 +67,8 @@
     "Rates are per run (homes evacuated / homes); 95% intervals are percentile bootstrap intervals over runs (2000 resamples).",
     "Vulnerable lift is the mean per-seed difference (Last Mile minus alerts only) in the vulnerable evacuated rate, bootstrapped over seeds so each pair stays together.",
     "\"Vulnerable\" means no vehicle, or any of: no vehicle, wheelchair, oxygen, dementia, medical device, vision impaired."
-  ]
+  ],
+  "commit": "47c452c",
+  "source": "engine/scripts/montecarlo-cli.ts",
+  "generatedAt": "2026-11-14T20:41:35Z"
 }

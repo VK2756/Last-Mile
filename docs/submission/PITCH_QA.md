@@ -10,7 +10,7 @@ assumptions next to it. It is a prototype of decision support, not a deployed em
 
 **2. Why not just send better alerts?**
 Alerts solve "didn't know"; they don't solve "can't go". A household without a car or with a wheelchair needs a vehicle
-that can carry them before the fire arrives. In our model alerts alone evacuate [BASE_VUL] of vulnerable households;
+that can carry them before the fire arrives. In our model alerts alone evacuate 45.1% of vulnerable households;
 the gap is transport, not information.
 
 **3. How do you know the baseline isn't a strawman?**
@@ -19,18 +19,18 @@ The baseline is a strict subset of Last Mile: same people, same fire, same self-
 identical results (lift exactly 0.0), which is our sanity check. Code: `engine/src/policy/alertsOnly.ts` is used by both policies.
 
 **4. Did you tune the numbers?**
-No. The evaluator runs the same engine as `/live`, headless, deterministic by seed. The preset uses seeds 1–200; a fresh
-block (1001–1200) gives [FRESH_LIFT], within the same range. The "Run full comparison" button on `/results` reruns it live.
+No. The evaluator runs the same engine as `/live`, headless, deterministic by seed. The headline, +29.4 pts [28.6, 30.2], uses seeds 1–200; a fresh
+block (1001–1200) gives +29.6 pts [28.8, 30.4], within the same range. The "Run full comparison" button on `/results` reruns it live.
 
 **5. Which assumption is doing the work?**
-Helper count matters most: 6 helpers instead of 24 cuts the lift to [LIFT_6]. A faster fire plus 6 helpers gives
-[HARSH_LIFT]. Help-request delay matters less ([LIFT_SLOW] at 5–10 min instead of 1–3) because the fire takes about an
+Helper count matters most: 6 helpers instead of 24 cuts the lift to +20.1 pts [19.4, 20.8]. A faster fire plus 6 helpers gives
++15.0 pts [14.5, 15.6]. Help-request delay matters less (+26.6 pts [25.5, 27.7] at 5–10 min instead of 1–3) because the fire takes about an
 hour to reach most homes in this town. Full table: [`SENSITIVITY.md`](SENSITIVITY.md).
 
 **6. Where do the helpers come from?**
 In a real deployment: county paratransit and accessible vans, school buses, home-care agencies, vetted volunteer
 drivers (CERT-style), and neighbours who opt in. In the model they start at random road nodes and are always willing;
-that is an assumption we list and test (far-from-fire start: [LIFT_FAR]).
+that is an assumption we list and test (far-from-fire start: +28.5 pts [27.4, 29.6]).
 
 **7. How do you know who needs help?**
 Today: the voice call. A real deployment would add an opt-in registry run with a county partner. In the model, households without a vehicle make a help request 1–3 min after the warning. We do not scrape or

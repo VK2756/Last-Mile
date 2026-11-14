@@ -34,7 +34,7 @@ So the headline number comes from a **paired Monte Carlo evaluator**:
 1. For each random seed, build one synthetic town (600 households on real Amherst, MA streets from OpenStreetMap), one
    fire and one set of helpers. The population and fire depend only on the seed, never on the policy.
 2. Run it twice: alerts only, then Last Mile.
-3. Repeat for [RUNS] seeds and report the mean paired difference with a 95% bootstrap confidence interval.
+3. Repeat for 200 seeds and report the mean paired difference with a 95% bootstrap confidence interval.
 
 ## Don't build a strawman baseline
 
@@ -45,9 +45,9 @@ on top. A built-in sanity check: with zero helpers the two policies must be iden
 
 ## What we found (in simulation)
 
-Vulnerable households evacuated before the fire arrived: **[BASE_VUL] with alerts only vs [LM_VUL] with Last Mile**,
-a paired lift of **[LIFT]** (95% CI [LIFT_CI]) over [RUNS] seeds. A fresh block of seeds that the preset never used
-gives [FRESH_LIFT], so the number isn't an artifact of which seeds we picked.
+Vulnerable households evacuated before the fire arrived: **45.1% with alerts only vs 74.5% with Last Mile**,
+a paired lift of **+29.4 pts** (95% CI [28.6, 30.2]) over 200 seeds. A fresh block of seeds that the preset never used
+gives +29.6 pts [28.8, 30.4], so the number isn't an artifact of which seeds we picked.
 
 ## Then we tried to break it
 
@@ -55,11 +55,11 @@ A single number hides its assumptions, so we moved them, one at a time and toget
 
 | harsher assumption | lift |
 |---|---|
-| help requests arrive 5–10 min after the warning instead of 1–3 | [LIFT_SLOW] |
-| helpers start far from the fire | [LIFT_FAR] |
-| 6 helpers instead of 24 | [LIFT_6] |
-| a faster fire (35 mph wind) | [LIFT_FAST] |
-| faster fire **and** 6 helpers | [HARSH_LIFT] |
+| help requests arrive 5–10 min after the warning instead of 1–3 | +26.6 pts [25.5, 27.7] |
+| helpers start far from the fire | +28.5 pts [27.4, 29.6] |
+| 6 helpers instead of 24 | +20.1 pts [19.4, 20.8] |
+| a faster fire (35 mph wind) | +23.3 pts [22.6, 23.9] |
+| faster fire **and** 6 helpers | +15.0 pts [14.5, 15.6] |
 
 The lift roughly halves in the worst case but never reaches zero. The number of helpers matters most; how fast help
 requests arrive matters surprisingly little, because in this town the fire needs about an hour to reach most homes. That
@@ -86,4 +86,4 @@ where we would start with emergency managers, home-care agencies and disability 
 
 *Last Mile is a HackUMass XIV prototype, not an emergency service. In immediate danger, call 911.*
 
-Code: [REPO_URL] · Demo: [DEMO_URL] · Results with every assumption: [DEMO_URL]/results
+Code: https://github.com/VK2756/Last-Mile · Demo: [DEMO_URL] · Results with every assumption: [DEMO_URL]/results

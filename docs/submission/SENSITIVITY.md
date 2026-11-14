@@ -4,7 +4,8 @@ Everything here is a **simulation with synthetic people**. Numbers come only fro
 (`engine/src/montecarlo`, Lane D) running the real engine headless; nothing is hand-entered or tuned. Raw outputs are in
 `docs/submission/sensitivity/*.json` (each file also carries the full assumptions list).
 
-**Provenance:** main @ `e9080ee` (after #61: real Amherst OSM roads, re-plan cadence 6/20 s), run Sat 14 Nov 2026 on a 12-core Mac.
+**Provenance:** main @ `47c452c` (real Amherst OSM roads, after #61/#65/#66/#86; defaults unchanged), run Sat 14 Nov 2026 ~15:40 EST on a 12-core Mac.
+The 200-seed rows match the earlier run on `e9080ee` exactly. Generated summary: [`NUMBERS.md`](NUMBERS.md).
 Refresh (from `engine/`):
 
 ```
@@ -13,21 +14,21 @@ pnpm exec tsx scripts/montecarlo-cli.ts --json [--seed-start N] [--wind-mph X --
 
 ## On the results page
 
-Vulnerable households evacuated and the paired lift with its 95% CI. Real engine, real Amherst roads, preset scenario unless noted.
+Vulnerable households evacuated and the paired lift with its 95% CI. Real engine on real Amherst roads (main @ `47c452c`).
 
 | assumption changed | seeds | alerts only | Last Mile | lift |
 |---|---|---|---|---|
 | none (headline preset) | 200 | 45.1% | 74.5% | +29.4 pts [28.6, 30.2] |
 | none, fresh seeds 1001–1200 | 200 | 44.8% | 74.4% | +29.6 pts [28.8, 30.4] |
-| help requests known 5–10 min after warning (not 1–3) | 50 | 44.2% | 71.9% | +27.7 pts [26.1, 29.3] |
-| helpers start far from the fire | 50 | 44.2% | 73.8% | +29.6 pts [28.1, 31.1] |
+| help requests known 5–10 min after warning (not 1–3) | 100 | 45.0% | 71.6% | +26.6 pts [25.5, 27.7] |
+| helpers start far from the fire | 100 | 45.0% | 73.4% | +28.5 pts [27.4, 29.6] |
 | 6 helpers instead of 24 | 200 | 45.1% | 65.2% | +20.1 pts [19.4, 20.8] |
 | faster fire: 35 mph wind | 200 | 36.7% | 59.9% | +23.3 pts [22.6, 23.9] |
 | 35 mph wind and 6 helpers | 200 | 36.7% | 51.7% | +15.0 pts [14.5, 15.6] |
-| slow requests + 6 helpers + far start | 50 | 44.2% | 64.3% | +20.1 pts [18.7, 21.4] |
+| slow requests + 6 helpers + far start | 100 | 45.0% | 64.5% | +19.5 pts [18.6, 20.4] |
 | sanity: 0 helpers | 50 | 44.2% | 44.2% | +0.0 pts [0.0, 0.0] |
 
-Harsher assumptions cut the lift roughly in half in the worst case we ran (fast fire, few helpers) but never to zero; with no helpers the two policies are identical, as they should be. The number of helpers matters most; the request delay matters little because the fire needs about an hour to reach most homes. **Not tested:** helpers that break down, wrong or false help requests, people refusing to leave.
+Harsher assumptions cut the lift roughly in half in the worst case we ran (fast fire, few helpers) but never to zero; with no helpers the two policies are identical, as they should be. The number of helpers matters most; the request delay matters less because the fire needs about an hour to reach most homes. **Not tested:** helpers that break down, wrong or false help requests, people refusing to leave, neighbours giving rides (see BASELINE_REVIEW.md).
 
 ## Full table (200 paired seeds unless noted)
 
@@ -44,25 +45,27 @@ Intervals are percentile bootstrap 95% intervals over runs (2,000 resamples). "V
 oxygen, dementia, medical device or vision impaired (single definition in `packages/contracts`). Rates count only
 households the fire reaches within 2 hours.
 
-## Lane A sensitivity variants (50 paired seeds per row)
+## Lane A sensitivity variants (100 paired seeds per row, main @ `47c452c`)
 
-From `docs/status/lane-a.md` (#65, `engine/src/sim/sensitivityReport.ts`, real headless, preset base). Every non-default
-assumption is printed in `SimInit.assumptions` with a "SENSITIVITY" marker.
+`pnpm --filter @lastmile/engine exec tsx src/sim/sensitivityReport.ts 100` (Lane A, real headless, preset base). Raw output:
+[`sensitivity/lane-a-sensitivity-100.md`](sensitivity/lane-a-sensitivity-100.md). This script's interval is a normal
+approximation (mean ± 1.96 SE of the paired differences), not the bootstrap. Every non-default assumption is printed in
+`SimInit.assumptions` with a "SENSITIVITY" marker.
 
 | assumption set | alerts only | Last Mile | lift (pts) [95% CI] | all homes trapped (alerts -> LM) |
 |---|---|---|---|---|
-| headline (help known 1–3 min, 24 helpers at random nodes) | 44.2% | 74.2% | +30.0 [28.2, 31.8] | 30.4% -> 23.2% |
-| help requests known 5–10 min after warning | 44.2% | 71.9% | +27.7 [26.1, 29.3] | 30.4% -> 23.7% |
-| 12 helpers | 44.2% | 72.0% | +27.8 [26.4, 29.3] | 30.4% -> 23.7% |
-| 6 helpers | 44.2% | 65.6% | +21.4 [19.9, 23.0] | 30.4% -> 25.2% |
-| helpers start far from the fire (30% of nodes it reaches last) | 44.2% | 73.8% | +29.6 [28.1, 31.1] | 30.4% -> 23.3% |
-| HARSH: 5–10 min + 12 helpers + far start | 44.2% | 68.1% | +23.9 [22.3, 25.6] | 30.4% -> 24.7% |
-| HARSHEST: 5–10 min + 6 helpers + far start | 44.2% | 64.3% | +20.1 [18.7, 21.4] | 30.4% -> 25.6% |
+| headline (help known 1–3 min, 24 helpers at random nodes) | 45.0% | 74.3% | +29.3 [28.1, 30.5] | 30.3% -> 23.4% |
+| help requests known 5–10 min after warning | 45.0% | 71.6% | +26.6 [25.5, 27.7] | 30.3% -> 24.0% |
+| 12 helpers | 45.0% | 71.5% | +26.5 [25.4, 27.6] | 30.3% -> 24.0% |
+| 6 helpers | 45.0% | 66.0% | +21.0 [19.9, 22.0] | 30.3% -> 25.4% |
+| helpers start far from the fire (30% of nodes it reaches last) | 45.0% | 73.4% | +28.5 [27.4, 29.6] | 30.3% -> 23.6% |
+| HARSH: 5–10 min + 12 helpers + far start | 45.0% | 68.2% | +23.2 [22.2, 24.3] | 30.3% -> 24.8% |
+| HARSHEST: 5–10 min + 6 helpers + far start | 45.0% | 64.5% | +19.5 [18.6, 20.4] | 30.3% -> 25.7% |
 
 ## What would make the result weaker (to test next)
 
 - Helpers that break down or arrive late, wrong or false help requests, people who refuse to leave.
-- A stronger baseline, such as more family pickups or earlier self-evacuation: see `docs/submission/BASELINE_REVIEW.md` once it exists.
+- A stronger baseline (neighbours giving rides, more family pickups, earlier self-evacuation): Lane D's [`BASELINE_REVIEW.md`](BASELINE_REVIEW.md) stress-tests 20 public-knob configs (Last Mile wins in all, by only ~6 pts with a single helper) and lists the missing behaviours (#69, #71–#73). Its numbers were produced before #61's re-plan cadence change, so they run about 2 pts lower than this file; the conclusions are the same.
 - Other towns (`paradise_like`, `synthetic_grid`): `--town` flag; road data quality differs.
 
 ## Earlier numbers (for the record)
