@@ -5,10 +5,11 @@ import type {
   Metrics, RoadGraph, Router, ScenarioConfig, SimFrame, SimInit, TriageResult, WorldSnapshot,
 } from '@lastmile/contracts';
 import { isVulnerable } from '@lastmile/contracts';
-import { createFireModel, FIRE_ASSUMPTIONS } from './fire';
+import { FIRE_ASSUMPTIONS } from './fire';
+import { sharedWorld } from './cache';
 import { distMeters } from './geo';
-import { loadGraph, makeDispatcher, makeRouter, routerAssumptions } from './deps';
-import { generatePopulation, ALERT_ISSUE_S, type Behavior, type SafeZone } from '../world/population';
+import { makeDispatcher, makeRouter, routerAssumptions } from './deps';
+import { ALERT_ISSUE_S, type Behavior, type SafeZone } from '../world/population';
 import { ALERTS_ONLY_ASSUMPTIONS, selfEvacDepartTime } from '../policy/alertsOnly';
 import { helpRequestTime, LAST_MILE_ASSUMPTIONS } from '../policy/lastMile';
 
@@ -16,11 +17,10 @@ import { helpRequestTime, LAST_MILE_ASSUMPTIONS } from '../policy/lastMile';
 export const HORIZON_S = 7200;
 export const HARD_CAP_S = 4 * 3600;
 export const ROAD_CONGESTION = 1.3;
-export const PICKUP_RADIUS_M = 40;
 const UNLOAD_RADIUS_M = 60;
 /** re-plan at most once per REPLAN_MIN_S after an event, and at least every REPLAN_EVERY_S while anyone needs help */
-const REPLAN_MIN_S = 3;
-const REPLAN_EVERY_S = 10;
+const REPLAN_MIN_S = 6;
+const REPLAN_EVERY_S = 20;
 const RISK_EVERY_S = 30;
 const TTI_REPORT_MAX_S = 5400;
 
@@ -53,8 +53,10 @@ interface HS {
 }
 interface HP {
   h: Helper; pos: LatLng; status: HelperState['status']; asg: Assignment | null; targets: string[]; loaded: string[]; load: number;
-  path: LatLng[]; pi: number; segLeft: number; segTotal: number; segFrom: LatLng;
+  leg: Leg | null; waitUntil: number;
 }
+/** One drive from the helper's position to a pickup (or the safe zone), timed by the router's own travel time. */
+interface Leg { verts: LatLng[]; cum: number[]; clock: number; idx: number; dest: LatLng; forTarget: string | null }
 
 const lerp = (a: LatLng, b: LatLng, f: number): LatLng => ({ lat: a.lat + (b.lat - a.lat) * f, lng: a.lng + (b.lng - a.lng) * f });
 
@@ -68,11 +70,12 @@ function pointAlong(route: LatLng[], f: number): LatLng {
 }
 
 export function createSim(config: ScenarioConfig, scenarioId: string, opts: SimOptions = {}): Sim {
-  const graph = opts.graph ?? loadGraph(config);
-  const fire: FireModel = createFireModel(config);
+  const shared = sharedWorld(config);
+  const graph = opts.graph ?? shared.graph;
+  const fire: FireModel = shared.fire;
+  const pop = shared.pop;
   const router = opts.router ?? makeRouter(graph, fire);
   const dispatcher = opts.dispatcher ?? makeDispatcher();
-  const pop = generatePopulation(config, graph, fire);
   const lastMile = config.policy === 'last_mile';
   const sink = opts.sink;
   const swallow = (p: Promise<void>) => p.catch((e) => console.error('[sink]', e));
@@ -88,7 +91,7 @@ export function createSim(config: ScenarioConfig, scenarioId: string, opts: SimO
     };
   });
   const byId = new Map(hs.map((s) => [s.h.id, s]));
-  const hp: HP[] = pop.helpers.map((h) => ({ h, pos: h.position, status: 'idle', asg: null, targets: [], loaded: [], load: 0, path: [], pi: 0, segLeft: -1, segTotal: 0, segFrom: h.position }));
+  const hp: HP[] = pop.helpers.map((h) => ({ h, pos: h.position, status: 'idle', asg: null, targets: [], loaded: [], load: 0, leg: null, waitUntil: 0 }));
   const hpById = new Map(hp.map((p, i) => [p.h.id, i]));
 
   let t = 0, acc = 0, dirty = false, lastPlan = -Infinity, outcomeSent = false, hardDone = false;
@@ -140,48 +143,58 @@ export function createSim(config: ScenarioConfig, scenarioId: string, opts: SimO
   function releaseTargets(p: HP, idx: number) {
     for (const id of p.targets) { const s = byId.get(id)!; if (s.status === 'assigned' && s.owner === idx) { s.status = 'needs_help'; s.owner = -1; } }
     p.targets = [];
+    if (p.leg?.forTarget) p.leg = null;
   }
 
-  function moveHelper(p: HP) {
-    let budget = 1;
-    while (budget > 0 && p.pi < p.path.length) {
-      const nxt = p.path[p.pi]!;
-      if (p.segLeft < 0) {
-        const sec = router.travelSeconds(p.pos, nxt, t) * ROAD_CONGESTION;
-        if (!Number.isFinite(sec)) return; // blocked: wait
-        if (sec < 0.001) { p.pos = nxt; p.pi++; continue; }
-        p.segLeft = sec; p.segTotal = sec; p.segFrom = p.pos;
-      }
-      if (p.segLeft <= budget) { budget -= p.segLeft; p.pos = nxt; p.pi++; p.segLeft = -1; }
-      else { p.segLeft -= budget; budget = 0; p.pos = lerp(p.segFrom, nxt, 1 - p.segLeft / p.segTotal); }
-    }
+  /**
+   * Start a leg to `dest`. Timing: remaining router time from every route vertex to the SAME destination (one cached shortest-path
+   * tree), so the helper arrives exactly when the router says it should, at ~1 tree build per leg instead of one per road segment.
+   */
+  function startLeg(p: HP, dest: LatLng, forTarget: string | null): void {
+    const route = routeTo(p.pos, dest);
+    const rem = route.map((v) => router.travelSeconds(v, dest, t) * ROAD_CONGESTION);
+    if (!Number.isFinite(rem[0]!)) { p.waitUntil = t + 10; return; } // blocked right now: wait and retry
+    const cum: number[] = []; let prev = 0;
+    for (let i = 0; i < route.length; i++) { prev = Number.isFinite(rem[i]!) ? Math.max(prev, rem[0]! - rem[i]!) : rem[0]!; cum.push(prev); }
+    p.leg = { verts: route, cum, clock: 0, idx: 0, dest, forTarget };
+  }
+
+  /** advance one second along the current leg; true when the leg is finished */
+  function advanceLeg(p: HP): boolean {
+    const L = p.leg!; L.clock += 1;
+    if (L.clock >= L.cum[L.cum.length - 1]!) { p.pos = L.dest; return true; }
+    while (L.idx + 1 < L.verts.length - 1 && L.cum[L.idx + 1]! <= L.clock) L.idx++;
+    const c0 = L.cum[L.idx]!, c1 = L.cum[L.idx + 1]!;
+    p.pos = lerp(L.verts[L.idx]!, L.verts[L.idx + 1]!, c1 > c0 ? (L.clock - c0) / (c1 - c0) : 1);
+    return false;
   }
 
   function tickHelper(p: HP, idx: number) {
     if (p.status === 'done') return;
     if (fire.isBurning(p.pos, t)) {
       for (const id of p.loaded) resolve(byId.get(id)!, 'trapped');
-      releaseTargets(p, idx); p.loaded = []; p.load = 0; p.asg = null; p.status = 'done'; dirty = true; return;
+      releaseTargets(p, idx); p.loaded = []; p.load = 0; p.asg = null; p.leg = null; p.status = 'done'; dirty = true; return;
     }
     if (!p.asg && !p.loaded.length) return;
-    moveHelper(p);
-    for (const id of [...p.targets]) {
-      const s = byId.get(id)!;
-      if (s.status !== 'assigned' || s.owner !== idx) { p.targets = p.targets.filter((x) => x !== id); continue; }
-      if (distMeters(p.pos, s.h.position) <= PICKUP_RADIUS_M) {
-        p.targets = p.targets.filter((x) => x !== id); p.loaded.push(id); p.load += s.h.residents; s.status = 'enroute'; dirty = true;
-      }
-    }
-    if (p.pi >= p.path.length) {
-      if (p.targets.length) {
-        const next = byId.get(p.targets[0]!)!; p.path = routeTo(p.pos, next.h.position); p.pi = 0; p.segLeft = -1;
-      } else if (p.loaded.length) {
+    p.targets = p.targets.filter((id) => { const s = byId.get(id)!; return s.status === 'assigned' && s.owner === idx; }); // e.g. a family got there first
+    if (p.leg?.forTarget && !p.targets.includes(p.leg.forTarget)) p.leg = null;
+    if (!p.leg) {
+      if (p.targets.length) { if (t >= p.waitUntil) startLeg(p, byId.get(p.targets[0]!)!.h.position, p.targets[0]!); }
+      else if (p.loaded.length) {
         const z = nearestZone(p.pos);
         if (distMeters(p.pos, z.position) <= UNLOAD_RADIUS_M) {
           for (const id of p.loaded) resolve(byId.get(id)!, 'evacuated');
-          p.loaded = []; p.load = 0; p.asg = null; p.path = []; p.pi = 0; dirty = true;
-        } else { p.path = routeTo(p.pos, z.position); p.pi = 0; p.segLeft = -1; }
-      } else { p.asg = null; p.path = []; p.pi = 0; dirty = true; }
+          p.loaded = []; p.load = 0; p.asg = null; dirty = true;
+        } else if (t >= p.waitUntil) startLeg(p, z.position, null);
+      } else { p.asg = null; dirty = true; }
+    }
+    if (p.leg && advanceLeg(p)) {
+      const target = p.leg.forTarget; p.leg = null;
+      if (target) {
+        const s = byId.get(target)!; p.targets = p.targets.filter((x) => x !== target);
+        if (p.load + s.h.residents <= p.h.capacity) { p.loaded.push(target); p.load += s.h.residents; s.status = 'enroute'; dirty = true; }
+        else { s.status = 'needs_help'; s.owner = -1; stats.rejectedCapacity++; dirty = true; }
+      }
     }
     p.status = p.loaded.length ? 'loaded' : p.asg ? 'enroute' : 'idle';
   }
@@ -210,15 +223,14 @@ export function createSim(config: ScenarioConfig, scenarioId: string, opts: SimO
       p.targets = targets;
       for (const id of targets) { const s = byId.get(id)!; s.status = 'assigned'; s.owner = idx; }
       p.asg = { ...a, householdIds: [...p.loaded, ...targets] };
-      const route = a.route.length >= 2 ? a.route : routeTo(p.pos, byId.get(targets[0]!)!.h.position);
-      p.path = route.filter((q, i) => !(i === 0 && distMeters(q, p.pos) < 5)); p.pi = 0; p.segLeft = -1;
+      p.leg = null; p.waitUntil = 0; // the helper re-drives from where it is now, visiting `householdIds` in the dispatcher's order
       p.status = p.loaded.length ? 'loaded' : 'enroute';
       if (sink) swallow(sink.recordDispatch({ scenarioId, policy: config.policy, t, assignmentId: a.id, helperId: a.helperId, householdIds: targets, etaSeconds: a.etaSeconds, reason: a.reason }));
     }
     hp.forEach((p, idx) => {
       if (seen.has(p.h.id) || !p.targets.length) return;
       releaseTargets(p, idx);
-      if (!p.loaded.length) { p.asg = null; p.path = []; p.pi = 0; p.status = p.status === 'done' ? 'done' : 'idle'; }
+      if (!p.loaded.length) { p.asg = null; p.leg = null; p.status = p.status === 'done' ? 'done' : 'idle'; }
     });
   }
 
@@ -263,7 +275,13 @@ export function createSim(config: ScenarioConfig, scenarioId: string, opts: SimO
 
   function frame(): SimFrame {
     const assignments: Assignment[] = [];
-    for (const p of hp) if (p.asg) assignments.push({ ...p.asg, route: [p.pos, ...p.path.slice(p.pi)] });
+    for (const p of hp) {
+      if (!p.asg) continue;
+      const pts: LatLng[] = [p.pos]; if (p.leg) pts.push(...p.leg.verts.slice(p.leg.idx + 1));
+      for (const id of p.targets) if (id !== p.leg?.forTarget) pts.push(byId.get(id)!.h.position);
+      pts.push(nearestZone(pts[pts.length - 1]!).position);
+      assignments.push({ ...p.asg, route: pts });
+    }
     return {
       scenarioId, policy: config.policy, t,
       fire: { rings: fire.rings(t), burnedFraction: fire.burnedFraction(t) },
