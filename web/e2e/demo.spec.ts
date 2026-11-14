@@ -43,15 +43,24 @@ test('real live view updates scoreboards', async ({ page }) => {
 test('results show confidence intervals', async ({ page }) => {
   const errors = watchConsole(page);
   await openPageOrSkip(page, '/results');
-  test.skip(await page.getByText('Results are being computed').isVisible(), '/results still has the M3 placeholder; Lane E owns the CI view');
   await expect(page.getByTestId('sim-badge').first()).toBeVisible();
   await expect(page.getByTestId('confidence-intervals')).toBeVisible();
+  if (process.env.E2E_REAL_ENGINE === '1') {
+    await expect(page.getByText('Monte Carlo engine', { exact: true })).toBeVisible();
+  }
   expect(errors).toEqual([]);
 });
 
-test('call screen renders and accepts a typed answer', async ({ page }) => {
+test('call screen renders and accepts a typed answer', async ({ page, request }) => {
   const errors = watchConsole(page);
-  await openPageOrSkip(page, '/call?scenario=demo-1&household=h1');
+  let scenarioId = 'demo-1';
+  if (process.env.E2E_REAL_ENGINE === '1') {
+    const engine = process.env.E2E_ENGINE_URL || 'http://127.0.0.1:8080';
+    const created = await request.post(`${engine}/scenarios`, { data: sampleInit.config });
+    expect(created.ok()).toBe(true);
+    scenarioId = (await created.json() as { scenarioId: string }).scenarioId;
+  }
+  await openPageOrSkip(page, `/call?scenario=${encodeURIComponent(scenarioId)}&household=h1`);
   await expect(page.getByTestId('sim-badge').first()).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Household needs call' })).toBeVisible();
   await page.getByRole('textbox', { name: 'Your answer' }).fill('I need a ride and use a wheelchair.');

@@ -1,15 +1,13 @@
-# Lane C status — 2026-11-14 14:50 EST
+# Lane C status — 2026-11-14 15:05 EST
 
-## Done / in review
-- Merged: data/deploy #5 and #22, Gemini/triage #10, QA skeleton #15, submission drafts #18, status #30. Main advanced to `e1ca86b` (E call screen); Linux CI passed. Required postmerge command still fails on Windows CRLF (#4).
-- This branch adds repeatable Atlas/Tiger evidence (`pnpm --filter @lastmile/data evidence`), `/api/risk-series`, a Vultr runbook using ignored `engine/.env`, and a freeze audit. Evidence command with no credentials: Atlas/Tiger/compression all `not configured` (PASS behavior).
-- **Prince (Lane E):** `/api/triage` is already on main and returned HTTP 200 without a key. `/api/risk-series?scenarioId=demo` returns HTTP 200 with `points: []`, `source: not configured` without Tiger credentials; this route is in the current Lane C branch. With credentials, it queries Tiger `risk_samples`. Lane E owns `/call` and `/results` UI; existing C call UI PR #39 will need coordination under the new split.
-- Playwright against local web: mock `/live` and `/call` 2 passed, real-engine `/live` and placeholder `/results` 2 skipped with clear reasons. With local engine + web, real `/live` and completed `/call` both passed (2/2; POST needs 200). After E's new call page merged, call UI and completed real call both passed again (1/1 each). Zero console errors in passing tests.
+## Merged and verified
+- Data, Atlas/Tiger migration and seed, memory/real sink, Gemini triage API/fallback, risk-series API, Vultr scripts/runbook, evidence generator, and Playwright suite are on main via #5, #10, #15, #18, #22, #51. Latest observed main `15e6f35` (#57); CI passed. Required `bash scripts/postmerge.sh` was run after the merge but fails in this Windows checkout because Git gives it CRLF (#4). Full `pnpm verify` passed in clean worktree at #51 (79 engine tests, web build).
+- `pnpm --filter @lastmile/data evidence` without credentials passed and wrote `not configured` for Atlas, Tiger, and compression. `.env` is ignored but absent locally; Anant said he will provide it later. Live migrate/seed/counts, real sink persistence, and Gemini-key path remain unverified.
+- **Prince (Lane E):** `/api/triage` returned HTTP 200 without Gemini key. `/api/risk-series?scenarioId=demo` returned HTTP 200 with `points: []`, `source: not configured` without Tiger. Both routes are on main. `/call` UI is Lane E-owned.
+- Local Playwright with engine: mock `/live`, real `/live`, completed `/call` passed; typed `/call` passed after creating a real scenario. Zero console errors in those checks. The connected `/results` test correctly fails: `POST /montecarlo` returns 404 and the page shows labelled browser sample. Added exact repro to A issue #29; this blocks real results and full e2e green.
+- Freeze audit now passes all five source checks: no stub markers, SIMULATION badge on live/results/call, no hard-coded outcome percentage, no rescue promise, no tracked credential pattern. QA audit fix is in this branch. D's Windows worker fix #47 retested: 79/79 engine tests passed; closed #33.
 
-## Blockers / next checks
-- Root `.env` is ignored (`git check-ignore` PASS) but absent in this checkout. Migration, seed, live Atlas/Tiger counts, Gemini-key path, and real evidence are pending that file; Anant has been asked to place it locally without sending values.
-- Engine `DATA_SINK=real` loader exists in `engine/src/sim/sink.ts`; needs both `MONGODB_URI` and `TIGER_DATABASE_URL` to use real buffered sink. Real-run persistence must be checked after credentials arrive. Triage-call persistence still needs A #36.
-- Freeze audit: 4 STUB markers (D road graph #45, E landing/results #46), SIMULATION badge PASS, static outcome scan PASS, voice-promise scan PASS, tracked-secret pattern scan PASS. No public engine URL, so `/health` fails this gate. Main `e1ca86b` CI passed.
-- Local `pnpm verify` in clean Windows worktree: 70 engine tests pass, 1 D worker test fails loading `worker.ts` (#33). `bash scripts/postmerge.sh` fails on Windows CRLF (#4); exact command still run after merges. Main Linux CI green.
-- Other integration bugs: A Monte Carlo route unmounted #29, A triage collection unwritten #36, A Windows engine start #41. Shared root deploy script #7 remains open. No domain/VM/Vercel production URL yet.
-- PR #51 carries data evidence/runbook/API/QA and the real-engine call test; CI pending. Prior #34 was superseded by #51. Prior #39 closed after `/call` UI ownership moved to E; Prince can review/cherry-pick its call-page diff (#46 comment). Recheck CI and production after every merge and at least every 25 minutes.
+## Next / blockers
+- Run live `migrate`, `seed`, evidence and with-key API checks when ignored root `.env` arrives. User has already been asked; do not request it again.
+- A: mount Monte Carlo endpoint #29 and persist triage calls #36. A Windows engine start #41 remains open. Shared script CRLF #4 and root deploy script #7 remain open.
+- Public engine URL, Vultr VM IP, and Vercel URL are not available; production `/health`, CORS, full freeze gate, and production e2e are pending deployment. Runbook gives the exact SSH blocks.
