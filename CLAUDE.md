@@ -22,12 +22,13 @@ Everything is TypeScript, pnpm workspaces. Shared types live in `packages/contra
 | Lane | Name | Person / Agent | Owns |
 |---|---|---|---|
 | **A** | SIM + SERVER | Vidhaan, Claude Code | `engine/src/server*`, `engine/src/sim/**`, `engine/src/world/population*`, `engine/src/policy/**` |
-| **B** | WEB | Shrish, Claude Code | `web/**` EXCEPT Lane C's paths below (so `/`, `/live`, `/results`, `web/components/ui/**`, `web/lib/**`) |
-| **C** | DATA / VOICE / DEPLOY / QA / SUBMIT | Anant, Codex | `packages/data/**`, `packages/ai/**`, `web/app/call/**`, `web/app/api/**`, `web/e2e/**`, `web/playwright.config.ts`, `deploy/vultr/**`, `docs/submission/**` |
+| **B** | WEB SHELL + LIVE | Shrish, Claude Code | `web/app/layout.tsx`, `web/app/globals.css`, nav, `web/components/ui/**`, `web/components/live/**`, `web/lib/**`, `web/app/live/**`, split-screen, operator panel, Vercel; any `web/**` path not owned by C or E |
+| **C** | DATA / VOICE API / DEPLOY / QA | Anant, Codex | `packages/data/**`, `packages/ai/**`, `web/app/api/**`, `web/e2e/**`, `web/playwright.config.ts`, `deploy/vultr/**`, `docs/submission/evidence/**` |
 | **D** | ROUTING / DISPATCH / MONTE CARLO | Rishabh, Claude Code | `engine/src/routing/**`, `engine/src/dispatch/**`, `engine/src/world/town*`, `engine/src/montecarlo/**`, `engine/scripts/**`, `engine/data/**` |
+| **E** | STORY PAGES + SUBMISSION | Prince, Claude Code | `web/app/page.tsx` (landing), `web/app/results/**`, `web/app/dashboard/**`, `web/app/how-it-works/**`, `web/app/call/**` (UI only; C owns the API), `web/components/story/**`, `docs/submission/**` EXCEPT `docs/submission/evidence/**` |
 | Shared | Manager (the humans + the manager chat) | | `packages/contracts/**`, `CLAUDE.md`, `AGENTS.md`, `scripts/**`, `.github/**`, `docs/*.md`, `docs/lanes/**` |
 
-Lanes A and D share the `engine/` package but edit only their own directories; they meet only through `packages/contracts/src/engine.ts` (FireModel, Router, Dispatcher, WorldSnapshot, HeadlessRunner). Branch prefix = your lane letter (`a/…`, `b/…`, `c/…`, `d/…`). Labels: `lane:a`, `lane:b`, `lane:c`, `lane:d`. Your lane brief: `docs/lanes/LANE_A_ENGINE.md` (Lane D uses it too: items 5, 6, 11, 13), `LANE_B_WEB.md` or `LANE_C_DATA_QA.md`. Read it right after this file. Status file: `docs/status/lane-<letter>.md`.
+Lanes A and D share the `engine/` package but edit only their own directories; they meet only through `packages/contracts/src/engine.ts` (FireModel, Router, Dispatcher, WorldSnapshot, HeadlessRunner). Branch prefix = your lane letter (`a/…`, `b/…`, `c/…`, `d/…`, `e/…`). Labels: `lane:a`, `lane:b`, `lane:c`, `lane:d`, `lane:e`. Your lane brief: `docs/lanes/LANE_A_ENGINE.md` (Lane D uses it too: items 5, 6, 11, 13), `LANE_B_WEB.md`, `LANE_C_DATA_QA.md` or `LANE_E_STORY.md`. Read it right after this file. Status file: `docs/status/lane-<letter>.md`.
 
 ## STUB rule
 Some files start as stubs so lanes can build in parallel. Every stub is marked with a `STUB:` comment. The owner replaces it with the real thing. Lane C greps for `STUB:` before the freeze and **main must contain zero STUB markers at freeze**.
@@ -40,11 +41,12 @@ Heavy deps are pre-declared in each package. If you need another: `pnpm add <pkg
 - Breaking changes need the manager's OK (the human will relay). If blocked on a contract question, build against the fixtures in `packages/contracts/src/fixtures.ts` and keep going.
 
 ## Git workflow (trunk-based, small and fast)
-1. `git checkout main && git pull --ff-only` then branch: `a/<topic>`, `b/<topic>`, `c/<topic>` or `d/<topic>` (prefix = your lane letter).
+1. `git checkout main && git pull --ff-only` then branch: `a/<topic>`, `b/<topic>`, `c/<topic>`, `d/<topic>` or `e/<topic>` (prefix = your lane letter).
 2. Commit small and often. Open a PR early: `gh pr create --fill`. Keep PRs under about 300 lines when possible.
 3. **Before merging: `pnpm verify` must pass locally AND CI must be green** (`gh pr checks --watch`).
 4. Merge yourself: `gh pr merge --squash --delete-branch`. Do not wait for review; the verification protocol is the review.
-5. Never force-push `main`. Never commit secrets. Never edit another lane's files (open an issue instead, see below).
+5. Commits and PRs carry no AI attribution (no Co-Authored-By, no "Generated with" lines); `.claude/settings.json` disables them for Claude Code. Plain messages like `web: results page`.
+6. Never force-push `main`. Never commit secrets. Never edit another lane's files (open an issue instead, see below).
 
 ## Verification protocol (every agent runs this; it is how we avoid a broken demo)
 **After EVERY merge to main (yours or anyone else's) and at the start of every work session:**

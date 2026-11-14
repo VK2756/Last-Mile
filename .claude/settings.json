@@ -20,5 +20,9 @@
       "Read(./engine/.env)",
       "Read(./web/.env.local)"
     ]
+  },
+  "attribution": {
+    "commit": "",
+    "pr": ""
   }
 }
