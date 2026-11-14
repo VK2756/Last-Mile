@@ -19,6 +19,12 @@ It answers "is alerts-only a strawman?": 20 harsher configs from the public knob
 ## Monte Carlo on real Amherst roads (preset, 200 paired seeds)
 Vulnerable evacuated 45.1% -> 72.5%, lift +27.4 pts [26.6, 28.2]; all homes 69.7% -> 76.2%. Full stress table in BASELINE_REVIEW.md.
 
+## Scenario stories on real roads (`scripts/find-stories.ts`; exact configs in #81 for presets)
+These came out of searching 36 ignition x wind settings x 4 seeds. Each seed is the median-lift seed of 10, not the best. All use 24 helpers and 20 mph wind.
+1. **south-fire-cut-off** (seed 4, ignition 42.36242,-72.5199, wind toward 180): burning roads cut homes off (~7 per run flagged "fire has cut off the roads", the most of any setting). Vulnerable 8/21 -> 11/21 (+14; +8 to +31 over 10 seeds). This is where Last Mile struggles, and the demo should say so.
+2. **southeast-big-lift** (seed 10, ignition 42.36242,-72.505309, wind toward 180): vulnerable 9/18 -> 17/18 (+44; +14 to +60), trapped 15 -> 7.
+3. **downtown-north-wheelchair** (seed 7, ignition 42.3732,-72.5199, wind toward 0): vulnerable 44/98 -> 76/98 (+33), trapped 124 -> 92, but ~5.5 wheelchair homes per run are still trapped without a capable vehicle (waits up to ~12 min).
+
 ## Next
-Scenario stories on real roads (lane:a preset issue), then the map alignment check with Lane B.
+Map alignment check with Lane B.
 **Blockers:** main red (#68).
