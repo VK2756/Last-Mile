@@ -71,6 +71,19 @@ function baseStyle(tiles: boolean): StyleSpecification {
   };
 }
 
+/** UI scale from the root font size (16px = 1). Map icons follow it so 4K screens aren't specks. */
+const uiScale = () => (typeof window === 'undefined' ? 1 : parseFloat(getComputedStyle(document.documentElement).fontSize) / 16 || 1);
+const zoomSize = (stops: [number, number][], k: number) => ['interpolate', ['linear'], ['zoom'], ...stops.flatMap(([z, v]) => [z, v * k])] as unknown as number;
+
+function applyScale(map: MLMap, k: number) {
+  if (!map.getLayer('households')) return;
+  map.setLayoutProperty('households', 'icon-size', zoomSize([[11, 0.6], [14, 0.95], [17, 1.4]], k));
+  map.setLayoutProperty('helpers', 'icon-size', zoomSize([[11, 0.7], [15, 1.05]], k));
+  map.setLayoutProperty('zones', 'icon-size', 1.1 * k);
+  map.setPaintProperty('ignition', 'circle-radius', 5 * k);
+  map.setPaintProperty('hh-halo', 'circle-radius', 15 * k);
+}
+
 const prefersReducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 export function LiveMap({ init, frame, selectedId = null, onSelect, tiles = true, accent = '#2ee6c5', className, label, onMove, view, onPick = null, pendingIgnition = null, ...rest }: LiveMapProps) {
@@ -84,6 +97,14 @@ export function LiveMap({ init, frame, selectedId = null, onSelect, tiles = true
   const onMoveRef = useRef(onMove);
   onMoveRef.current = onMove;
   const syncing = useRef(false);
+  /** bounds of the last automatic camera fit; refit on resize until the user moves the map */
+  const fitRef = useRef<[[number, number], [number, number]] | null>(null);
+  const userMoved = useRef(false);
+  const refit = (map: MLMap) => {
+    if (!fitRef.current) return;
+    const k = uiScale();
+    map.fitBounds(fitRef.current, { padding: { top: 160 * k, bottom: 40 * k, left: 40 * k, right: 40 * k }, duration: 0, maxZoom: 16 });
+  };
 
   // ---- create the map once ----
   useEffect(() => {
@@ -106,7 +127,14 @@ export function LiveMap({ init, frame, selectedId = null, onSelect, tiles = true
       map.addControl(new maplibre.NavigationControl({ showCompass: false }), 'bottom-right');
       mapRef.current = map;
       // keep the canvas sized to its box (layout settles after mount; split screen resizes)
-      ro = new ResizeObserver(() => map.resize());
+      ro = new ResizeObserver(() => {
+        map.resize();
+        applyScale(map, uiScale());
+        if (!userMoved.current) refit(map);
+      });
+      const markUser = (e: { originalEvent?: unknown }) => { if (e.originalEvent) userMoved.current = true; };
+      map.on('dragstart', markUser);
+      map.on('zoomstart', markUser);
       ro.observe(el.current);
       map.on('error', (e) => {
         // tile failures are expected offline; the grid basemap stays visible underneath
@@ -142,6 +170,7 @@ export function LiveMap({ init, frame, selectedId = null, onSelect, tiles = true
           id: 'helpers', type: 'symbol', source: 'helpers',
           layout: { 'icon-image': ['get', 'icon'], 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'icon-size': ['interpolate', ['linear'], ['zoom'], 11, 0.7, 15, 1.05] },
         });
+        applyScale(map, uiScale());
 
         map.on('click', 'households', (e) => {
           if (onPickRef.current) return;
@@ -211,7 +240,9 @@ export function LiveMap({ init, frame, selectedId = null, onSelect, tiles = true
       sw = { lat: Math.min(...lats), lng: Math.min(...lngs) };
       ne = { lat: Math.max(...lats), lng: Math.max(...lngs) };
     }
-    if (!view) map.fitBounds([[sw.lng, sw.lat], [ne.lng, ne.lat]], { padding: { top: 160, bottom: 40, left: 40, right: 40 }, duration: 0, maxZoom: 16 });
+    fitRef.current = [[sw.lng, sw.lat], [ne.lng, ne.lat]];
+    userMoved.current = false;
+    if (!view) refit(map);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, initId]);
 
@@ -256,7 +287,14 @@ export function LiveMap({ init, frame, selectedId = null, onSelect, tiles = true
     <div className={cn('overflow-hidden bg-[#080b10]', className ?? 'relative h-full w-full')} data-testid={rest['data-testid']} aria-label={label ?? 'Simulation map'} role="region">
       {/* inline style: maplibre's own CSS sets .maplibregl-map { position: relative } */}
       <div ref={el} style={{ position: 'absolute', inset: 0 }} />
-      {!ready && <div className="ops-grid absolute inset-0 grid place-items-center font-mono text-xs uppercase tracking-[0.2em] text-fg-dim">Loading map…</div>}
+      {!ready && (
+        <div className="ops-grid absolute inset-0 grid place-items-center" role="status" aria-label="Loading map">
+          <div className="flex flex-col items-center gap-3">
+            <div className="skeleton size-10 rounded-full" />
+            <span className="font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-fg-dim">Loading map</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

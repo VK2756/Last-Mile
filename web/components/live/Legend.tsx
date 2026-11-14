@@ -10,7 +10,7 @@ export function Legend() {
   return (
     <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
       <div>
-        <div className="mb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-fg-dim">Shape · status</div>
+        <div className="mb-1.5 font-mono text-[0.625rem] uppercase tracking-[0.14em] text-fg-dim">Shape · status</div>
         <ul className="space-y-1">
           {STATUSES.map((s) => (
             <li key={s} className="flex items-center gap-2 text-fg-muted">
@@ -21,7 +21,7 @@ export function Legend() {
         </ul>
       </div>
       <div>
-        <div className="mb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-fg-dim">Colour · time to fire</div>
+        <div className="mb-1.5 font-mono text-[0.625rem] uppercase tracking-[0.14em] text-fg-dim">Colour · time to fire</div>
         <ul className="space-y-1">
           {URG.map((u) => (
             <li key={u} className="flex items-center gap-2 text-fg-muted">

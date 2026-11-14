@@ -41,7 +41,7 @@ export function Drawer({ open, onClose, title, eyebrow, children, side = 'right'
       >
         <header className="flex items-start justify-between gap-3 border-b border-line px-5 py-4">
           <div>
-            {eyebrow && <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-fg-dim">{eyebrow}</div>}
+            {eyebrow && <div className="font-mono text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-fg-dim">{eyebrow}</div>}
             <h2 className="text-lg font-semibold">{title}</h2>
           </div>
           <button type="button" onClick={onClose} className="rounded p-1 text-fg-muted hover:bg-surface-2 hover:text-fg" aria-label="Close">

@@ -25,7 +25,7 @@ export function Badge({ tone = 'neutral', size = 'sm', className, ...rest }: Bad
     <span
       className={cn(
         'inline-flex items-center gap-1 rounded border font-mono font-semibold uppercase tracking-[0.08em] whitespace-nowrap',
-        size === 'sm' ? 'h-5 px-1.5 text-[10px]' : 'h-6 px-2 text-xs',
+        size === 'sm' ? 'h-5 px-1.5 text-[0.625rem]' : 'h-6 px-2 text-xs',
         TONE_CLASSES[tone],
         className,
       )}

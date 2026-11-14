@@ -79,7 +79,7 @@ export function ScenarioPicker({
         </div>
         <div className="flex items-center gap-2">
           <span className="flex w-24 shrink-0 items-center gap-1.5 text-xs font-semibold text-fg-muted"><Flame aria-hidden className="size-3.5" />Ignition</span>
-          <span className="tabular min-w-0 flex-1 truncate font-mono text-[11px] text-fg-muted">{draft.ignition.lat.toFixed(4)}, {draft.ignition.lng.toFixed(4)}</span>
+          <span className="tabular min-w-0 flex-1 truncate font-mono text-[0.6875rem] text-fg-muted">{draft.ignition.lat.toFixed(4)}, {draft.ignition.lng.toFixed(4)}</span>
           <Button size="sm" variant={picking ? 'primary' : 'secondary'} onClick={onTogglePick} aria-pressed={picking} data-testid="pick-ignition">
             <Crosshair aria-hidden className="size-3.5" />{picking ? 'Click a map' : 'Set on map'}
           </Button>

@@ -17,10 +17,10 @@ const LANG: Record<string, string> = { en: 'English', es: 'Spanish', pt: 'Portug
 export function HouseholdCard({ household, state, assignment, helper, onClose }: { household: Household; state: HouseholdState | undefined; assignment: Assignment | undefined; helper: Helper | undefined; onClose: () => void }) {
   const status = state?.status ?? 'unaware';
   return (
-    <div className="rounded-lg border border-line-strong bg-surface p-4 shadow-xl" data-testid="household-card">
+    <div className="glass rounded-xl p-4" data-testid="household-card">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
-          <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-fg-dim">Household {household.id}</div>
+          <div className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-fg-dim">Household {household.id}</div>
           <div className="text-base font-semibold">{household.name ?? STATUS_META[status].label}</div>
         </div>
         <div className="flex items-center gap-2">
@@ -40,7 +40,7 @@ export function HouseholdCard({ household, state, assignment, helper, onClose }:
       </dl>
       {assignment ? (
         <div className="rounded-md border border-accent/30 bg-accent/[0.06] p-3" data-testid="why-helper">
-          <div className="mb-1 flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-accent"><Route aria-hidden className="size-3.5" />Why this helper?</div>
+          <div className="mb-1 flex items-center gap-1.5 font-mono text-[0.625rem] font-bold uppercase tracking-[0.14em] text-accent"><Route aria-hidden className="size-3.5" />Why this helper?</div>
           <p className="text-sm leading-relaxed">{assignment.reason}</p>
           <div className="tabular mt-2 flex gap-4 font-mono text-xs text-fg-muted">
             <span>Helper <span className="text-fg">{helper?.id ?? assignment.helperId}</span></span>

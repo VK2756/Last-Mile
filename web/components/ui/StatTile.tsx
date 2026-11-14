@@ -29,7 +29,7 @@ export interface StatTileProps {
 export function StatTile({ label, value, sub, icon, tone = 'neutral', size = 'md', className, ...rest }: StatTileProps) {
   return (
     <div className={cn('flex min-w-0 flex-col gap-1', className)} data-testid={rest['data-testid']}>
-      <div className="flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-fg-dim">
+      <div className="flex items-center gap-1.5 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-fg-dim">
         {icon}
         <span className="truncate">{label}</span>
       </div>

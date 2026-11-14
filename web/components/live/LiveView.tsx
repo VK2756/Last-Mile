@@ -11,11 +11,13 @@ import { FALLBACK_PRESETS, fetchPresets, presetBase, randomBase, sameBase, type 
 import { withPolicy, type BaseConfig } from '@/lib/scenario';
 import { useScenarioStream } from '@/lib/stream';
 import { combinedStatus } from '@/lib/sync';
+import { verdict } from '@/lib/verdict';
 import { AssumptionsDrawer } from './AssumptionsDrawer';
 import { Legend } from './Legend';
 import { MapPane, type MapView } from './MapPane';
 import { OperatorPanel } from './OperatorPanel';
 import { ReplayBar } from './ReplayBar';
+import { RunVerdict } from './RunVerdict';
 import { ScenarioPicker } from './ScenarioPicker';
 import { ShortcutsOverlay } from './ShortcutsOverlay';
 import { StreamStatusPill } from './StreamStatusPill';
@@ -49,6 +51,7 @@ export function LiveView() {
   const [assumptionsOpen, setAssumptionsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [replayT, setReplayT] = useState<number | null>(null);
+  const [verdictDismissed, setVerdictDismissed] = useState(false);
   /** pitch mode opens on the first frame, paused: the presenter presses Space to start */
   const [holdAtStart, setHoldAtStart] = useState(pitch);
 
@@ -60,6 +63,8 @@ export function LiveView() {
   const status = combinedStatus(left.status, right.status);
   const live = left.status === 'live' || right.status === 'live';
   const paused = left.paused && right.paused;
+  // end-of-run verdict from the two runs' real final metrics
+  const result = useMemo(() => (left.final && right.final ? verdict(left.final, right.final) : null), [left.final, right.final]);
 
   useEffect(() => {
     document.documentElement.dataset.pitch = pitch ? '1' : '0';
@@ -80,7 +85,7 @@ export function LiveView() {
   /** Run = apply the draft (if edited) and restart both sides from t=0. */
   const run = useCallback((next?: BaseConfig) => {
     const cfg = next ?? draft;
-    setSelected(null); setView(null); setPicking(false); setHoldAtStart(false); setReplayT(null);
+    setSelected(null); setView(null); setPicking(false); setHoldAtStart(false); setReplayT(null); setVerdictDismissed(false);
     setDraft(cfg);
     setBase({ ...cfg, speedMultiplier: right.speed });
     setRunKey((k) => k + 1);
@@ -145,7 +150,7 @@ export function LiveView() {
       fullBleed
       right={
         <>
-          {replayT !== null && <span className="rounded border border-info/50 bg-info/10 px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-info" data-testid="replay-badge">Replay</span>}
+          {replayT !== null && <span className="rounded border border-info/50 bg-info/10 px-1.5 py-0.5 font-mono text-[0.625rem] font-bold uppercase tracking-[0.14em] text-info" data-testid="replay-badge">Replay</span>}
           <span className="tabular font-mono text-base font-bold text-fg md:text-lg" aria-label="Shared simulated time since ignition" data-testid="frame-counter">
             {formatSimClock(synced.t ?? 0)}
           </span>
@@ -154,20 +159,20 @@ export function LiveView() {
         </>
       }
     >
-      <div className={mapsOnly ? 'grid h-full grid-cols-1' : 'grid h-full grid-cols-1 lg:grid-cols-[1fr_340px]'} data-maps-only={mapsOnly ? '1' : undefined}>
+      <div className={mapsOnly ? 'grid h-full grid-cols-1' : 'grid h-full grid-cols-1 lg:grid-cols-[1fr_21.25rem]'} data-maps-only={mapsOnly ? '1' : undefined}>
         <div className="flex min-h-[70vh] flex-col lg:min-h-0">
         <div className="relative grid min-h-0 flex-1 grid-rows-2 gap-px bg-line md:grid-cols-2 md:grid-rows-1">
           <MapPane
             side="left" policy="alerts_only" init={left.init} frame={synced.left} tiles={tiles}
-            selectedId={selected?.id ?? null} showCard={selected?.policy === 'alerts_only'} onSelect={select('alerts_only')}
+            selectedId={selected?.id ?? null} showCard={selected?.policy === 'alerts_only'} onSelect={select('alerts_only')} winner={replayT === null && result?.winner === 'alerts_only'}
             view={view} onMove={setView} onPick={picking ? pickIgnition : null} pendingIgnition={pendingIgnition}
           />
           <MapPane
             side="right" policy="last_mile" init={right.init} frame={synced.right} tiles={tiles}
-            selectedId={selected?.id ?? null} showCard={selected?.policy === 'last_mile'} onSelect={select('last_mile')}
+            selectedId={selected?.id ?? null} showCard={selected?.policy === 'last_mile'} onSelect={select('last_mile')} winner={replayT === null && result?.winner === 'last_mile'}
             view={view} onMove={setView} onPick={picking ? pickIgnition : null} pendingIgnition={pendingIgnition}
           />
-          <div className="pointer-events-none absolute inset-x-3 top-14 z-10 mx-auto flex max-w-xl flex-col gap-2">
+          <div className="pointer-events-none absolute inset-x-3 bottom-3 z-20 mx-auto flex max-w-xl flex-col items-stretch gap-2">
             {engineError && (
               <Banner tone="danger" title="Live engine offline." className="pointer-events-auto bg-surface/95" action={<div className="flex gap-2"><Button size="sm" onClick={restart}>Retry</Button><Button size="sm" variant="primary" onClick={switchToMock}>Switch to mock mode</Button></div>}>
                 {engineError}
@@ -179,10 +184,11 @@ export function LiveView() {
               </Banner>
             )}
             {holdAtStart && left.init && right.init && (
-              <div className="mx-auto mt-24 flex items-center gap-2 rounded-full border border-accent/40 bg-surface/95 px-4 py-2 text-sm font-semibold shadow-xl" data-testid="press-space">
+              <div className="glass mx-auto flex items-center gap-2 rounded-full border-accent/40 px-4 py-2 text-sm font-semibold shadow-xl" data-testid="press-space">
                 Press <Kbd>Space</Kbd> to start the fire
               </div>
             )}
+            {result && !verdictDismissed && replayT === null && <RunVerdict v={result} mock={mock} onClose={() => setVerdictDismissed(true)} className="mx-auto w-full" />}
             {status === 'reconnecting' && <Banner tone="warn" title="Reconnecting to the engine…" className="pointer-events-auto bg-surface/95" />}
           </div>
         </div>

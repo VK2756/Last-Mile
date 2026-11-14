@@ -1,4 +1,5 @@
 // Last Mile shared UI kit. Owner: Lane B. Lane C (/call) imports from '@/components/ui'.
+export { AnimatedNumber, useCountUp } from './AnimatedNumber';
 export { AppShell, type AppShellProps } from './AppShell';
 export { Badge, TONE_CLASSES, type Tone, type BadgeProps } from './Badge';
 export { Banner, type BannerProps } from './Banner';

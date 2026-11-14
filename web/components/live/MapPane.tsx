@@ -15,7 +15,7 @@ const TESTIDS = {
 
 /** One half of the split screen: map + live scoreboard (carries the policy label) + selected-household card. */
 export function MapPane({
-  side, policy, init, frame, tiles, selectedId, showCard, onSelect, view, onMove, onPick = null, pendingIgnition = null,
+  side, policy, init, frame, tiles, selectedId, showCard, onSelect, view, onMove, onPick = null, pendingIgnition = null, winner = false,
 }: {
   side: 'left' | 'right';
   policy: Policy;
@@ -29,6 +29,8 @@ export function MapPane({
   onMove: (v: MapView) => void;
   onPick?: ((p: LatLng) => void) | null;
   pendingIgnition?: LatLng | null;
+  /** set from the real final metrics only */
+  winner?: boolean;
 }) {
   const ids = TESTIDS[side];
   const isLM = policy === 'last_mile';
@@ -50,11 +52,11 @@ export function MapPane({
         tiles={tiles} accent={isLM ? '#2ee6c5' : '#c9a227'} view={view} onMove={onMove} onPick={onPick} pendingIgnition={pendingIgnition}
         data-testid={ids.map} label={`${POLICY_LABEL[policy]} map`}
       />
-      <div className="absolute left-3 top-3 w-[min(300px,calc(100%-1.5rem))]" data-testid={ids.scoreAlias}>
-        <Scoreboard policy={policy} metrics={frame?.metrics ?? null} compact data-testid={ids.score} />
+      <div className="absolute left-3 top-3 w-[min(18.75rem,calc(100%-1.5rem))]" data-testid={ids.scoreAlias}>
+        <Scoreboard policy={policy} metrics={frame?.metrics ?? null} compact winner={winner} data-testid={ids.score} />
       </div>
       {card && (
-        <div className="absolute bottom-3 left-3 z-10 w-[min(420px,calc(100%-1.5rem))]">
+        <div className="absolute bottom-3 left-3 z-10 w-[min(26rem,calc(100%-1.5rem))]">
           <HouseholdCard {...card} onClose={() => onSelect(null)} />
         </div>
       )}
