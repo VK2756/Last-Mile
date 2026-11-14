@@ -1,6 +1,6 @@
 # Lane C status
 
-Branch: `c/migration-hardening`. Data/deploy #5, voice #10, QA #15, submission #18 merged. Main CI after Lane B M1 #19 is green. Local Windows `pnpm verify` is red in Next `/404` prerender (#21); typecheck, lint, tests pass. Required `bash scripts/postmerge.sh` fails on CRLF checkout (#4).
+Branch: `c/migration-hardening` (PR #22). Data/deploy #5, voice #10, QA #15, submission #18 merged. Latest main CI is green. `pnpm verify` passed in clean local worktree `C:\LastMileLaneCVerify` (including build); original Windows checkout still fails in Next `/404` from path casing (#21). Required `bash scripts/postmerge.sh` fails on CRLF checkout (#4).
 
 ## Task list
 - [x] Data sink with memory fallback, buffered Atlas/Tiger writes, query helpers, unit tests
@@ -14,5 +14,5 @@ Branch: `c/migration-hardening`. Data/deploy #5, voice #10, QA #15, submission #
 - `pnpm --filter @lastmile/data typecheck` passed; `pnpm --filter @lastmile/data test` passed 2/2. Migration policies now use `if_not_exists`; no Tiger connection yet.
 - Live `POST /api/triage` returned a valid fallback result. `pnpm exec playwright test -g 'call screen' --reporter=line` passed 1/1 in Chromium with zero console errors.
 - Full Playwright: 1 passed, 1 skipped (real engine), 2 failed. `/live?mock=1` lacks `map-alerts` (#13); `/results` lacks `confidence-intervals` (Lane B M1 stub). Badge selector corrected after first run.
-- Lane A real scenarios still do not populate Atlas households/helpers (#17); shared deploy script #7 and unverified demo claims #16 remain open. No Lane C issues open.
+- Lane A added the `upsertWorld` hook in #24 and closed #17 (live Atlas verification pending). Shared deploy script #7 and unverified demo claims #16 remain open. No Lane C issues open.
 - No DB credentials, production URL, Vultr host, or domain yet; cannot verify live Atlas/Tiger, production health, or hostnames. User will provide DB credentials when available.
