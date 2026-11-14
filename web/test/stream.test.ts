@@ -110,3 +110,15 @@ describe('geo + format helpers', () => {
     expect(formatTti(500)).toBe('8m 20s');
   });
 });
+
+describe('embers', () => {
+  it('are deterministic per frame time and sit outside the ring', async () => {
+    const { embersFC } = await import('../lib/geo');
+    const { sampleFrame } = await import('@lastmile/contracts/fixtures');
+    const a = embersFC(sampleFrame);
+    const b = embersFC({ ...sampleFrame });
+    expect(a.features.length).toBeGreaterThan(0);
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    expect(embersFC(null).features).toHaveLength(0);
+  });
+});
