@@ -8,6 +8,7 @@ import { Registry, type RunnerFactory } from './sim/registry';
 import { createSim } from './sim/engine';
 import { loadSink } from './sim/sink';
 import { PRESETS } from './sim/presets';
+import { registerMonteCarlo } from './montecarlo';
 
 const Control = z.object({ action: z.enum(['pause', 'resume', 'speed']), value: z.number().optional() });
 const Id = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/);
@@ -104,6 +105,9 @@ export async function buildServer(opts: ServerOpts = {}): Promise<FastifyInstanc
     if (!out.ok) return reply.code(out.code === 'unknown_household' ? 404 : 409).send(out);
     return out;
   });
+
+  const mcWorkers = process.env.ENGINE_MC_WORKERS ? Number(process.env.ENGINE_MC_WORKERS) : undefined;
+  registerMonteCarlo(app, { warmPreset: process.env.NODE_ENV !== 'test', ...(mcWorkers !== undefined ? { workers: mcWorkers } : {}) });
 
   return app as unknown as FastifyInstance & { registry: Registry };
 }

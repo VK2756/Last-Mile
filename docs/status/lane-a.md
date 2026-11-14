@@ -7,25 +7,29 @@
 
 - Needs endpoint merged in the next PR: `POST /scenarios/:id/households/:hid/needs` body TriageResult -> 200 {ok,status,flipped}; 404 unknown scenario/household; 400 bad body or householdId mismatch; 409 if already resolved/leaving. hasRide=false / canWalkToRoad=false / urgency>=4 flips the household to needs_help and drops its own car.
 
+## Monte Carlo timing (mounted: POST /montecarlo, GET /montecarlo/preset; ENGINE_MC_WORKERS sets the worker count)
+Real HTTP, N=200 (400 real runs, real Amherst roads), 2 workers, 12-core Mac with background load: **39.8 s** (was 56.3 s before the changes below). Cached preset: 3 ms. Result: vulnerable evacuated 45.1% -> 74.5%, paired lift +29.4 pts [28.6, 30.2].
+Cost cuts (determinism kept; same seed same metrics): (1) fire model / population / graph built once per seed and shared by both policies (`sim/cache.ts`); (2) helpers are driven leg by leg timed from ONE router tree per leg instead of one query per road segment (engine router tree builds per run 2,653 -> 69); (3) re-plan cadence 3/10 s -> 6/20 s. Remaining cost is ~60% inside the dispatcher's router queries (Lane D). CPU per paired run: 587 ms -> 361 ms.
+
 ## Preset results (real `runHeadless`, `engine/src/sim/presetsReport.ts`, nothing tuned)
-REAL router and Lane D's real dispatcher (#20, #23). Engine re-plans at most every 3 sim s after an event / every 10 s (cadence chosen for speed: ~430 ms per last_mile run, ~70 ms per alerts_only run, 0 rejected plans, max tick 6.5 ms). Single seed per preset, so no CIs here; /montecarlo gives those.
+REAL Amherst OSM roads, REAL router and Lane D's real dispatcher (#20, #23, #28+). Engine re-plans at most every 6 sim s after an event / every 20 s (cadence chosen for speed: ~430 ms per last_mile run, ~70 ms per alerts_only run, 0 rejected plans, max tick 6.5 ms). Single seed per preset, so no CIs here; /montecarlo gives those.
 | preset | policy | at-risk | evacuated | trapped | vulnerable evacuated |
 |---|---|---|---|---|---|
-| wind-driven-run | alerts_only | 545 | 426 (78.2%) | 119 (21.8%) | 49/117 (41.9%) |
-| wind-driven-run | last_mile | 545 | 471 (86.4%) | 74 (13.6%) | 94/117 (80.3%) |
-| crosswind-flank | alerts_only | 539 | 444 (82.4%) | 95 (17.6%) | 59/120 (49.2%) |
-| crosswind-flank | last_mile | 539 | 492 (91.3%) | 47 (8.7%) | 107/120 (89.2%) |
-| slow-burn-few-helpers | alerts_only | 514 | 445 (86.6%) | 69 (13.4%) | 70/125 (56.0%) |
-| slow-burn-few-helpers | last_mile | 514 | 496 (96.5%) | 18 (3.5%) | 121/125 (96.8%) |
+| wind-driven-run | alerts_only | 434 | 316 (72.8%) | 118 (27.2%) | 42/98 (42.9%) |
+| wind-driven-run | last_mile | 434 | 346 (79.7%) | 88 (20.3%) | 72/98 (73.5%) |
+| crosswind-flank | alerts_only | 465 | 411 (88.4%) | 54 (11.6%) | 51/98 (52.0%) |
+| crosswind-flank | last_mile | 465 | 454 (97.6%) | 11 (2.4%) | 94/98 (95.9%) |
+| slow-burn-few-helpers | alerts_only | 381 | 304 (79.8%) | 77 (20.2%) | 50/95 (52.6%) |
+| slow-burn-few-helpers | last_mile | 381 | 328 (86.1%) | 53 (13.9%) | 74/95 (77.9%) |
 Caveat for the pitch: dispatch assumes help requests are known 1-3 min after a warning and that helpers are available at random road nodes; both are listed in the assumptions.
 
 ## Next
-Mount registerMonteCarlo(app) when Lane D ships it (time N=200), Vercel deploy.
+Vercel deploy, sensitivity table, full-stack click-through, Vultr readiness.
 
 ## For Lane D (Rishabh): contracts between our code (all adapters live in engine/src/sim/deps.ts)
 - Router (#20) is wired: `createRouter(graph, fire)` and `routingAssumptions()` go into SimInit.assumptions. Still expecting the real `createDispatcher()` and `loadTown(town)`; adapters in `engine/src/sim/deps.ts`.
 - Engine calls `dispatcher.plan(snapshot)` when something changed or every 5 sim s (not every tick), only if some household is `needs_help`/`assigned`. Treat the returned list as the COMPLETE plan: helpers missing from it have their not-yet-picked-up targets released.
-- Assignment semantics I execute: `route` is followed from the helper's current position; pickup happens within 40 m of a household; after the last pickup the helper goes to the nearest safe zone if the route did not end there. Assignments with over-capacity (people, `residents`) or a wheelchair household on a non-capable helper are REJECTED (counted in sim.stats). `householdIds` may only contain `needs_help` households (or ones already assigned to that helper). Helpers that are `loaded` may be given more pickups.
+- Assignment semantics I execute: `route` is followed from the helper's current position; the helper drives leg by leg to each household in the order of `householdIds`, timed by the router's own travel time (it ignores the polyline geometry except for display); after the last pickup the helper goes to the nearest safe zone if the route did not end there. Assignments with over-capacity (people, `residents`) or a wheelchair household on a non-capable helper are REJECTED (counted in sim.stats). `householdIds` may only contain `needs_help` households (or ones already assigned to that helper). Helpers that are `loaded` may be given more pickups.
 - `Metrics.total` counts only households the fire reaches within 2 h ("at risk"), same for both policies.
 - Household status meaning: `assigned` = a helper is dispatched to it; `enroute` = picked up, riding to the safe zone.
 - Headless: `import { runHeadless, runHeadlessWith } from '../sim/headless'` (no stream, no sink, ~100 ms/run). `runHeadlessWith(config, { dispatcher, router })` lets you inject yours in tests.
