@@ -92,3 +92,17 @@ describe('triage', () => {
     expect(sim.applyTriage(triage(done.id))).toMatchObject({ ok: false, code: 'already_resolved' });
   });
 });
+
+describe('sensitivity variants', () => {
+  it('every non-default assumption is listed in SimInit.assumptions, defaults are not flagged', () => {
+    const base = createSim(mk(1, 'last_mile'), 'v0').init.assumptions.join('\n');
+    expect(base).not.toContain('SENSITIVITY'); expect(base).toMatch(/1 to 3 min after that household is warned/);
+    const harsh = createSim(mk(1, 'last_mile'), 'v1', { variant: { helpDelayS: [300, 600], helperPlacement: 'far_from_fire' } }).init.assumptions.join('\n');
+    expect(harsh).toMatch(/5 to 10 min after that household is warned \(SENSITIVITY/); expect(harsh).toMatch(/SENSITIVITY: helpers .* far from the fire/);
+  });
+  it('variants are deterministic and slower help never beats instant help by construction of the same people', () => {
+    const v = { helpDelayS: [300, 600] as [number, number] };
+    expect(runHeadlessWith(mk(4, 'last_mile'), { variant: v })).toEqual(runHeadlessWith(mk(4, 'last_mile'), { variant: v }));
+    expect(runHeadlessWith(mk(4, 'alerts_only'), { variant: v })).toEqual(runHeadlessWith(mk(4, 'alerts_only')));
+  });
+});

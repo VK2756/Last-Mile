@@ -11,6 +11,19 @@
 Real HTTP, N=200 (400 real runs, real Amherst roads), 2 workers, 12-core Mac with background load: **39.8 s** (was 56.3 s before the changes below). Cached preset: 3 ms. Result: vulnerable evacuated 45.1% -> 74.5%, paired lift +29.4 pts [28.6, 30.2].
 Cost cuts (determinism kept; same seed same metrics): (1) fire model / population / graph built once per seed and shared by both policies (`sim/cache.ts`); (2) helpers are driven leg by leg timed from ONE router tree per leg instead of one query per road segment (engine router tree builds per run 2,653 -> 69); (3) re-plan cadence 3/10 s -> 6/20 s. Remaining cost is ~60% inside the dispatcher's router queries (Lane D). CPU per paired run: 587 ms -> 361 ms.
 
+## Sensitivity: how much does the lift depend on our assumptions? (real headless, `engine/src/sim/sensitivityReport.ts`, 50 paired seeds per row)
+Vulnerable households evacuated, preset base (wind 20 mph, real Amherst roads). The alerts-only column never changes: same fire, same people. Every non-default assumption is printed in SimInit.assumptions ("SENSITIVITY").
+| assumption set | alerts only | Last Mile | paired lift (pts) [95% CI] | all-homes trapped (alerts -> LM) |
+|---|---|---|---|---|
+| headline assumptions (help known 1-3 min, 24 helpers at random nodes) | 44.2% | 74.2% | 30.0 [28.2, 31.8] | 30.4% -> 23.2% |
+| help requests known 5-10 min after warning | 44.2% | 71.9% | 27.7 [26.1, 29.3] | 30.4% -> 23.7% |
+| 12 helpers | 44.2% | 72.0% | 27.8 [26.4, 29.3] | 30.4% -> 23.7% |
+| 6 helpers | 44.2% | 65.6% | 21.4 [19.9, 23.0] | 30.4% -> 25.2% |
+| helpers start far from the fire (30% of nodes it reaches last) | 44.2% | 73.8% | 29.6 [28.1, 31.1] | 30.4% -> 23.3% |
+| HARSH: 5-10 min + 12 helpers + far start | 44.2% | 68.1% | 23.9 [22.3, 25.6] | 30.4% -> 24.7% |
+| HARSHEST: 5-10 min + 6 helpers + far start | 44.2% | 64.3% | 20.1 [18.7, 21.4] | 30.4% -> 25.6% |
+Read: harsher assumptions cut the lift from +30 to about +20 points (6 helpers, 5-10 min request delay, far start) but never to zero, and homes trapped still fall (30.4% -> 25.6%). The request delay matters little because the fire needs about an hour to reach most homes; the number of helpers matters most. Not tested: a much faster fire, helpers that break down, wrong help requests.
+
 ## Preset results (real `runHeadless`, `engine/src/sim/presetsReport.ts`, nothing tuned)
 REAL Amherst OSM roads, REAL router and Lane D's real dispatcher (#20, #23, #28+). Engine re-plans at most every 6 sim s after an event / every 20 s (cadence chosen for speed: ~430 ms per last_mile run, ~70 ms per alerts_only run, 0 rejected plans, max tick 6.5 ms). Single seed per preset, so no CIs here; /montecarlo gives those.
 | preset | policy | at-risk | evacuated | trapped | vulnerable evacuated |

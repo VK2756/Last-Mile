@@ -9,7 +9,7 @@ import { FIRE_ASSUMPTIONS } from './fire';
 import { sharedWorld } from './cache';
 import { distMeters } from './geo';
 import { makeDispatcher, makeRouter, routerAssumptions } from './deps';
-import { ALERT_ISSUE_S, type Behavior, type SafeZone } from '../world/population';
+import { ALERT_ISSUE_S, type Variant, type Behavior, type SafeZone } from '../world/population';
 import { ALERTS_ONLY_ASSUMPTIONS, selfEvacDepartTime } from '../policy/alertsOnly';
 import { helpRequestTime, LAST_MILE_ASSUMPTIONS } from '../policy/lastMile';
 
@@ -26,7 +26,7 @@ const TTI_REPORT_MAX_S = 5400;
 
 /** a sink may optionally persist the initial world (households/helpers) once per scenario */
 export type EngineSink = DataSink & { onWorld?(init: SimInit): Promise<void> };
-export interface SimOptions { graph?: RoadGraph; router?: Router; dispatcher?: Dispatcher; sink?: EngineSink }
+export interface SimOptions { variant?: Variant; graph?: RoadGraph; router?: Router; dispatcher?: Dispatcher; sink?: EngineSink }
 
 export type TriageOutcome =
   | { ok: true; status: HouseholdStatus; flipped: boolean }
@@ -70,7 +70,7 @@ function pointAlong(route: LatLng[], f: number): LatLng {
 }
 
 export function createSim(config: ScenarioConfig, scenarioId: string, opts: SimOptions = {}): Sim {
-  const shared = sharedWorld(config);
+  const shared = sharedWorld(config, opts.variant);
   const graph = opts.graph ?? shared.graph;
   const fire: FireModel = shared.fire;
   const pop = shared.pop;

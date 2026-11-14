@@ -4,20 +4,20 @@
 import type { FireModel, RoadGraph, ScenarioConfig } from '@lastmile/contracts';
 import { createFireModel } from './fire';
 import { loadGraph } from './deps';
-import { generatePopulation, type Population } from '../world/population';
+import { generatePopulation, type Population, type Variant } from '../world/population';
 
 interface Entry { graph: RoadGraph; fire: FireModel; pop: Population }
 const MAX = 6;
 const cache = new Map<string, Entry>();
 const graphs = new Map<string, RoadGraph>();
 
-export function sharedWorld(config: ScenarioConfig): Entry {
-  const key = JSON.stringify([config.seed, config.town, config.helperCount, config.wind, config.ignition]);
+export function sharedWorld(config: ScenarioConfig, variant: Variant = {}): Entry {
+  const key = JSON.stringify([config.seed, config.town, config.helperCount, config.wind, config.ignition, variant]);
   const hit = cache.get(key);
   if (hit) { cache.delete(key); cache.set(key, hit); return hit; }
   let graph = graphs.get(config.town); if (!graph) { graph = loadGraph(config); graphs.set(config.town, graph); }
   const fire = createFireModel(config);
-  const entry = { graph, fire, pop: generatePopulation(config, graph, fire) };
+  const entry = { graph, fire, pop: generatePopulation(config, graph, fire, variant) };
   cache.set(key, entry); if (cache.size > MAX) cache.delete(cache.keys().next().value!);
   return entry;
 }
