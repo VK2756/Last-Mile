@@ -14,6 +14,7 @@ import { combinedStatus } from '@/lib/sync';
 import { verdict } from '@/lib/verdict';
 import { autoAction, nextPresetIndex } from '@/lib/auto';
 import { AssumptionsDrawer } from './AssumptionsDrawer';
+import { CopyDemoLink, DemoQr } from './DemoLink';
 import { Legend } from './Legend';
 import { MapPane, type MapView } from './MapPane';
 import { OperatorPanel } from './OperatorPanel';
@@ -274,7 +275,8 @@ export function LiveView() {
                 options={SPEEDS.map((x) => ({ value: String(x), label: `${x}×` }))}
               />
             </div>
-            <div className="mt-3 flex items-center justify-end">
+            <div className="mt-3 flex flex-wrap items-center justify-end gap-1">
+              <CopyDemoLink />
               <Button size="sm" variant="ghost" onClick={() => setHelpOpen(true)} aria-label="Keyboard shortcuts" data-dev-only>
                 <Keyboard aria-hidden className="size-3.5" />
               </Button>
@@ -283,6 +285,7 @@ export function LiveView() {
               </Button>
             </div>
           </Panel>
+          {pitch && <DemoQr />}
           <OperatorPanel init={right.init} frame={synced.right} selectedId={selected?.policy === 'last_mile' ? selected.id : null} onSelect={(id) => setSelected({ id, policy: 'last_mile' })} />
           <ScenarioPicker
             draft={draft} onChange={editDraft} presets={presets} presetSource={presetSource} activePresetId={activePresetId}
