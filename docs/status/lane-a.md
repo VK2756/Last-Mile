@@ -48,6 +48,9 @@ Stress (40 paired seeds, preset base, vulnerable evacuated): default fleet lift 
 ## Knob #71 (baseline rates) merged
 30 paired seeds, vulnerable evacuated, lift [95% CI]: familyPickupProb 0.25 (default) +30.9; 0.5 -> alerts 49.6%, LM 75.0%, lift +25.4 [22.9, 27.8]; 0.75 -> alerts 56.0%, LM 75.0%, lift +19.0 [17.0, 21.1]. prepDelayScale 0.5 -> +31.8 [29.3, 34.4]; 1.5 -> +31.8 [29.3, 34.4] (prep speed barely matters for the lift because the people Last Mile helps have no car).
 
+## Knob #72 (urgent family pickup) merged
+30 paired seeds, vulnerable evacuated: urgentFamilyPickup alone -> alerts 47.2%, LM 76.1%, lift +28.8 [26.2, 31.4]; urgent + familyPickupProb 0.5 -> alerts 58.1%, LM 77.0%, lift +18.9 [16.5, 21.3].
+
 ## Next
 Vercel deploy, sensitivity table, full-stack click-through, Vultr readiness.
 

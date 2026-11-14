@@ -126,3 +126,27 @@ describe('baseline rate knobs (#71)', () => {
     expect(createSim(mk(8, 'alerts_only'), 'k0').init.assumptions.join('\n')).not.toContain('SENSITIVITY');
   });
 });
+
+describe('urgent family pickup (#72)', () => {
+  const run = (baseline: ScenarioConfig['baseline']) => runHeadlessWith({ ...mk(8, 'alerts_only'), baseline });
+  it('off (absent or false) changes nothing; on helps the baseline and is announced', () => {
+    expect(run({ urgentFamilyPickup: false })).toEqual(run(undefined));
+    const base = run(undefined), urgent = run({ urgentFamilyPickup: true });
+    expect(urgent.vulnerableEvacuated).toBeGreaterThanOrEqual(base.vulnerableEvacuated); expect(urgent.evacuated).toBeGreaterThan(base.evacuated);
+    expect(createSim({ ...mk(8, 'alerts_only'), baseline: { urgentFamilyPickup: true } }, 'u').init.assumptions.join('\n')).toMatch(/SENSITIVITY: family pickups hurry/);
+    expect(createSim(mk(8, 'alerts_only'), 'u0').init.assumptions.join('\n')).not.toMatch(/hurry/);
+  });
+  it('the delay formula: shrinks with time-to-impact, never below 120 s, never above the drawn delay', async () => {
+    const { selfEvacDepartTime } = await import('../src/policy/alertsOnly');
+    const b = { alertDelayS: 0, prepS: 0, familyPickup: true, pickupDelayS: 2000, helpRequestDelayS: 0 };
+    expect(selfEvacDepartTime({ hasVehicle: false }, b, 1000, { ign: 2000 })).toBe(1000 + 500);
+    expect(selfEvacDepartTime({ hasVehicle: false }, b, 1000, { ign: 1100 })).toBe(1000 + 120);
+    expect(selfEvacDepartTime({ hasVehicle: false }, b, 1000, { ign: 20000 })).toBe(1000 + 2000);
+    expect(selfEvacDepartTime({ hasVehicle: false }, b, 1000)).toBe(3000);
+    expect(selfEvacDepartTime({ hasVehicle: false }, { ...b, familyPickup: false }, 1000, { ign: 2000 })).toBe(Infinity);
+  });
+  it('deterministic and applied to both policies', () => {
+    const k = { urgentFamilyPickup: true };
+    expect(runHeadlessWith({ ...mk(8, 'last_mile'), baseline: k })).toEqual(runHeadlessWith({ ...mk(8, 'last_mile'), baseline: k }));
+  });
+});

@@ -86,7 +86,7 @@ export function createSim(config: ScenarioConfig, scenarioId: string, opts: SimO
     const b = pop.behavior[h.id]!; const ign = fire.ignitionTime(h.position); const warnedAt = (config.baseline?.alertIssueS ?? ALERT_ISSUE_S) + b.alertDelayS;
     return {
       h, b, status: 'unaware', ign, atRisk: ign <= HORIZON_S, vulnerable: isVulnerable(h), zone: nearestZone(h.position), warnedAt,
-      departAt: selfEvacDepartTime(h, b, warnedAt), requestAt: lastMile ? helpRequestTime(h, b, warnedAt) : Infinity,
+      departAt: selfEvacDepartTime(h, b, warnedAt, config.baseline?.urgentFamilyPickup ? { ign } : undefined), requestAt: lastMile ? helpRequestTime(h, b, warnedAt) : Infinity,
       nextTry: 0, endAt: Infinity, endStatus: 'evacuated', owner: -1,
     };
   });
@@ -305,7 +305,7 @@ export function createSim(config: ScenarioConfig, scenarioId: string, opts: SimO
     const noRide = r.hasRide === false;
     if (noRide && s.h.hasVehicle) {
       s.h.hasVehicle = false; if (!s.h.needs.includes('no_vehicle')) s.h.needs.push('no_vehicle');
-      s.departAt = s.b.familyPickup ? s.warnedAt + s.b.pickupDelayS : Infinity;
+      s.departAt = selfEvacDepartTime(s.h, s.b, s.warnedAt, config.baseline?.urgentFamilyPickup ? { ign: s.ign } : undefined);
     }
     const flip = noRide || r.canWalkToRoad === false || r.urgency >= 4 || !s.h.hasVehicle;
     if (flip && (s.status === 'unaware' || s.status === 'warned')) { s.status = 'needs_help'; s.warnedAt = Math.min(s.warnedAt, t); dirty = true; }
