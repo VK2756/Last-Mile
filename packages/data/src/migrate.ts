@@ -28,11 +28,11 @@ export const migrationStatements = [
   `ALTER TABLE risk_samples SET (timescaledb.compress, timescaledb.compress_segmentby = 'scenario_id,policy')`,
   `ALTER TABLE dispatch_events SET (timescaledb.compress, timescaledb.compress_segmentby = 'scenario_id,policy')`,
   `ALTER TABLE outcomes SET (timescaledb.compress, timescaledb.compress_segmentby = 'scenario_id,policy')`,
-  `DO $$ BEGIN PERFORM add_compression_policy('risk_samples', INTERVAL '1 day'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
-  `DO $$ BEGIN PERFORM add_compression_policy('dispatch_events', INTERVAL '1 day'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
-  `DO $$ BEGIN PERFORM add_compression_policy('outcomes', INTERVAL '1 day'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
-  `DO $$ BEGIN PERFORM add_continuous_aggregate_policy('risk_1m', start_offset => INTERVAL '1 day', end_offset => INTERVAL '1 minute', schedule_interval => INTERVAL '1 minute'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
-  `DO $$ BEGIN PERFORM add_continuous_aggregate_policy('dispatch_1m', start_offset => INTERVAL '1 day', end_offset => INTERVAL '1 minute', schedule_interval => INTERVAL '1 minute'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+  `SELECT add_compression_policy('risk_samples', INTERVAL '1 day', if_not_exists => TRUE)`,
+  `SELECT add_compression_policy('dispatch_events', INTERVAL '1 day', if_not_exists => TRUE)`,
+  `SELECT add_compression_policy('outcomes', INTERVAL '1 day', if_not_exists => TRUE)`,
+  `SELECT add_continuous_aggregate_policy('risk_1m', start_offset => INTERVAL '1 day', end_offset => INTERVAL '1 minute', schedule_interval => INTERVAL '1 minute', if_not_exists => TRUE)`,
+  `SELECT add_continuous_aggregate_policy('dispatch_1m', start_offset => INTERVAL '1 day', end_offset => INTERVAL '1 minute', schedule_interval => INTERVAL '1 minute', if_not_exists => TRUE)`,
 ];
 
 export async function migrate(connectionString = process.env.TIGER_DATABASE_URL): Promise<void> {
