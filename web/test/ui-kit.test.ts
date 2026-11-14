@@ -17,3 +17,16 @@ describe('shared UI kit helpers', () => {
     expect(eyebrowClass()).toContain('tracking-[0.2em]');
   });
 });
+
+describe('demo link', () => {
+  it('points at /live on this deployment, without presenter flags', async () => {
+    const { demoUrl } = await import('../components/live/DemoLink');
+    expect(demoUrl('https://last-mile-seven.vercel.app')).toBe('https://last-mile-seven.vercel.app/live');
+    expect(demoUrl('http://localhost:3102/')).toBe('http://localhost:3102/live');
+  });
+  it('qrcode encodes the URL', async () => {
+    const QR = await import('qrcode');
+    const svg = await QR.toString('https://last-mile-seven.vercel.app/live', { type: 'svg' });
+    expect(svg.startsWith('<svg')).toBe(true);
+  });
+});
