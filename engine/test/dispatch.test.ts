@@ -182,12 +182,44 @@ describe('createDispatcher', () => {
     expect(a2!.reason).toMatch(/already on the way/);
   });
 
-  it('ignores households that do not need help and helpers that are busy', () => {
+  it('ignores households that do not need help and helpers that are off shift', () => {
     const w = world([hh('h1', nodeAt(5, 5)), hh('h2', nodeAt(6, 6))], { h1: 1800, h2: 1800 }, [helper('p1', nodeAt(5, 6)), helper('p2', nodeAt(6, 7))]);
     w.householdStates.h2!.status = 'self_evacuating';
-    w.helperStates.p1!.status = 'loaded';
+    w.helperStates.p1!.status = 'done';
     const plan = createDispatcher().plan(w);
     expect(plan.map((a) => [a.helperId, a.householdIds])).toEqual([['p2', ['h1']]]);
+  });
+
+  it('gives a loaded helper more pickups only within its remaining seats', () => {
+    const w = world([hh('small', nodeAt(5, 5), 1), hh('big', nodeAt(5, 6), 3)], { small: 1800, big: 1800 }, [helper('p1', nodeAt(5, 7), 4)]);
+    w.helperStates.p1 = { id: 'p1', position: nodeAt(5, 7), status: 'loaded', assignmentId: null, load: 2 };
+    const d = createDispatcher();
+    const plan = d.plan(w);
+    expect(plan).toHaveLength(1);
+    expect(plan[0]!.householdIds).toEqual(['small']); // 2 on board + 1 fits, + 3 would not
+    expect(d.lastUnservable().map((u) => u.householdId)).toEqual(['big']);
+    const full = world([hh('small', nodeAt(5, 5), 1)], { small: 1800 }, [helper('p1', nodeAt(5, 7), 4)]);
+    full.helperStates.p1 = { id: 'p1', position: nodeAt(5, 7), status: 'loaded', assignmentId: null, load: 4 };
+    expect(createDispatcher().plan(full)).toEqual([]);
+  });
+
+  it('never moves an assigned home to a different helper', () => {
+    const d = createDispatcher();
+    const homes = [hh('h1', nodeAt(10, 10))];
+    const far = helper('far', nodeAt(10, 18)), near = helper('near', nodeAt(10, 11));
+    // first plan: only `far` exists, so it gets h1
+    const [a1] = d.plan(world(homes, { h1: 3000 }, [far]));
+    expect(a1!.helperId).toBe('far');
+    // now `near` appears; h1 is assigned to `far`, which is enroute, so it must stay with `far`
+    const w = world(homes, { h1: 3000 }, [far, near]);
+    w.householdStates.h1!.status = 'assigned';
+    w.helperStates.far = { id: 'far', position: nodeAt(10, 17), status: 'enroute', assignmentId: a1!.id, load: 0 };
+    const plan = d.plan(w);
+    expect(plan.map((a) => [a.helperId, a.householdIds])).toEqual([['far', ['h1']]]);
+    // an assigned home whose helper we do not know about is left alone (not moved, not flagged)
+    const fresh = createDispatcher();
+    expect(fresh.plan(w)).toEqual([]);
+    expect(fresh.lastUnservable()).toEqual([]);
   });
 
   it('obeys every rule on random 600-home scenarios', () => {

@@ -1,7 +1,8 @@
 // OWNER: Lane D (dispatch). Greedy insertion + local search for evacuation pickups.
 //
-// Who is planned: households whose status is `needs_help` or `assigned`, using helpers whose status
-// is `idle` or `enroute` (a `loaded` helper is busy driving people to safety; `done` is off shift).
+// Who is planned: households whose status is `needs_help`, plus `assigned` ones (which may only stay with
+// the helper they are assigned to). Every helper except `done` is planned; a `loaded` one counts the people
+// already on board against its capacity. plan() returns the COMPLETE plan: a helper missing from it is idle.
 // Each household's deadline is `ttiSeconds - safetyMarginSeconds` (relative to now). A helper's trip is
 // start -> pickup 1 -> ... -> pickup k -> nearest safe zone. Rules, all hard constraints:
 //   - total residents on a trip <= helper.capacity
@@ -96,6 +97,8 @@ interface Req {
   /** nearest safe zone by travel time, and the time to get there */
   zone: number;
   toZone: number;
+  /** van index this home must stay with (it is already `assigned` to that helper), or -1 */
+  owner: number;
 }
 
 interface Van {
@@ -103,7 +106,12 @@ interface Van {
   pos: LatLng;
   /** request index pinned as first pickup, or -1 */
   pinned: number;
+  /** household id an enroute helper is heading to (from our last plan) */
+  firstPick: string | undefined;
   seq: number[];
+  /** people already on board (a `loaded` helper can still take more) */
+  base: number;
+  /** base + residents of every home in seq */
   people: number;
   completion: number;
 }
@@ -121,11 +129,38 @@ export function createDispatcher(options: DispatchOptions = {}): DispatchPlanner
   const plan = (world: WorldSnapshot): Assignment[] => {
     const { t, router } = world;
 
+    // ---- helpers ----
+    const vans: Van[] = [];
+    const vanOf = new Map<string, number>(); // helperId -> van index
+    const ownerOf = new Map<string, string>(); // householdId -> helperId it is currently assigned to (from our last plan)
+    const helpers = [...world.helpers].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    for (const helper of helpers) {
+      const st = world.helperStates[helper.id];
+      const status = st?.status ?? 'idle';
+      const committed = st?.assignmentId ? memory.get(st.assignmentId) : undefined;
+      if (committed) for (const hid of committed) ownerOf.set(hid, helper.id);
+      if (status === 'done') continue;
+      const base = status === 'loaded' ? (st?.load ?? 0) : 0;
+      if (base >= helper.capacity) continue;
+      vanOf.set(helper.id, vans.length);
+      vans.push({ helper, pos: st?.position ?? helper.position, pinned: -1, firstPick: status === 'enroute' ? committed?.[0] : undefined, seq: [], base, people: base, completion: 0 });
+    }
+    const H = vans.length;
+
     // ---- requests ----
+    // `assigned` homes may only stay with the helper they are assigned to (the engine rejects moving
+    // them); if that helper is not plannable we leave them alone this round.
     const reqs: Req[] = [];
     for (const h of world.households) {
       const s = world.householdStates[h.id];
       if (!s || (s.status !== 'needs_help' && s.status !== 'assigned')) continue;
+      let owner = -1;
+      if (s.status === 'assigned') {
+        const helperId = ownerOf.get(h.id);
+        const v = helperId === undefined ? undefined : vanOf.get(helperId);
+        if (v === undefined) continue;
+        owner = v;
+      }
       const tti = s.ttiSeconds;
       const wheelchair = h.needs.includes('wheelchair');
       reqs.push({
@@ -136,6 +171,7 @@ export function createDispatcher(options: DispatchOptions = {}): DispatchPlanner
         board: wheelchair ? o.wheelchairBoardingSeconds : o.boardingSeconds,
         zone: -1,
         toZone: Infinity,
+        owner,
       });
     }
     reqs.sort((a, b) => a.deadline - b.deadline || (a.h.id < b.h.id ? -1 : a.h.id > b.h.id ? 1 : 0));
@@ -147,23 +183,11 @@ export function createDispatcher(options: DispatchOptions = {}): DispatchPlanner
         if (s < r.toZone) { r.toZone = s; r.zone = zi; }
       });
     }
-
-    // ---- helpers ----
-    const vans: Van[] = [];
-    const helpers = [...world.helpers].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-    for (const helper of helpers) {
-      const st = world.helperStates[helper.id];
-      const status = st?.status ?? 'idle';
-      if (status !== 'idle' && status !== 'enroute') continue;
-      let pinned = -1;
-      if (status === 'enroute' && st?.assignmentId) {
-        const first = memory.get(st.assignmentId)?.[0];
-        const ri = first === undefined ? undefined : reqIdx.get(first);
-        if (ri !== undefined) pinned = ri;
-      }
-      vans.push({ helper, pos: st?.position ?? helper.position, pinned, seq: [], people: 0, completion: 0 });
+    // an enroute helper keeps its current first pickup (if that home still needs it)
+    for (const van of vans) {
+      const ri = van.firstPick === undefined ? undefined : reqIdx.get(van.firstPick);
+      if (ri !== undefined && reqs[ri]!.owner === vanOf.get(van.helper.id)) van.pinned = ri;
     }
-    const H = vans.length;
 
     // ---- travel: helper -> household is exact (router); household -> household is estimated in search ----
     const dH = new Float64Array(H * R);
@@ -179,7 +203,10 @@ export function createDispatcher(options: DispatchOptions = {}): DispatchPlanner
       if (v === undefined) { v = router.travelSeconds(reqs[a]!.h.position, reqs[b]!.h.position, t); exactMemo.set(k, v); }
       return v;
     };
-    const compatible = (van: Van, r: Req) => !(r.wheelchair && !van.helper.wheelchairCapable) && r.h.residents <= van.helper.capacity;
+    const compatible = (van: Van, r: Req) =>
+      !(r.wheelchair && !van.helper.wheelchairCapable) &&
+      van.base + r.h.residents <= van.helper.capacity &&
+      (r.owner < 0 || vans[r.owner] === van);
 
     /** completion time of trip `seq` for van `v`, or Infinity if any rule is broken */
     /**
@@ -190,7 +217,7 @@ export function createDispatcher(options: DispatchOptions = {}): DispatchPlanner
       const van = vans[v]!;
       const n = seq.length + (at >= 0 ? 1 : 0);
       if (n === 0) return 0;
-      let time = 0, people = 0, prev = -1;
+      let time = 0, people = van.base, prev = -1;
       for (let i = 0; i < n; i++) {
         const ri = at < 0 || i < at ? seq[i]! : i === at ? ins : seq[i - 1]!;
         if (i === 0 && van.pinned >= 0 && ri !== van.pinned) return Infinity;
@@ -242,7 +269,7 @@ export function createDispatcher(options: DispatchOptions = {}): DispatchPlanner
       const van = vans[v]!;
       van.seq = seq;
       van.completion = c;
-      van.people = seq.reduce((s, ri) => s + reqs[ri]!.h.residents, 0);
+      van.people = seq.reduce((s, ri) => s + reqs[ri]!.h.residents, van.base);
     };
 
     // ---- 1. pins ----
@@ -403,7 +430,7 @@ export function createDispatcher(options: DispatchOptions = {}): DispatchPlanner
       const slack = reqs[seq[crit]!]!.deadline - arrivals[crit]!;
       const parts = [`${label(van)} is ${minutes(arrivals[0]!)} away`];
       if (first.deadline < o.unthreatenedDeadlineSeconds) parts.push(`arrives ${minutes(slack)} before the safety deadline`);
-      if (seq.length > 1) parts.push(`picks up ${seq.length} homes (${van.people} people) on one trip`);
+      if (seq.length > 1) parts.push(`picks up ${seq.length} homes (${van.people - van.base} people) on one trip`);
       let tail = '';
       if (van.pinned === seq[0]) tail = '; it is already on the way';
       else if (first.wheelchair && choices[seq[0]!] === 1) tail = '; it is the only wheelchair-capable helper that can make it in time';
