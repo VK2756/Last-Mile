@@ -38,3 +38,14 @@ describe('split-screen sync', () => {
     expect(combinedStatus('ended', 'ended')).toBe('ended');
   });
 });
+
+describe('replay history', () => {
+  it('keeps the first frame and then one every minDt sim-seconds', async () => {
+    const { pushHistory } = await import('../lib/sync');
+    const buf: SimFrame[] = [];
+    for (let t = 0; t <= 20; t += 2) pushHistory(buf, f(t), 5);
+    expect(buf.map((x) => x.t)).toEqual([0, 6, 12, 18]);
+    pushHistory(buf, f(1), 5);
+    expect(buf.map((x) => x.t)).toEqual([1]);
+  });
+});

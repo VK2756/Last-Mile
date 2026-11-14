@@ -7,6 +7,8 @@ describe('live shortcuts', () => {
     expect(keyAction({ key: 'R' })).toEqual({ type: 'reset' });
     expect(keyAction({ key: '3' })).toEqual({ type: 'preset', index: 2 });
     expect(keyAction({ key: '?' })).toEqual({ type: 'help' });
+    expect(keyAction({ key: 'ArrowLeft' })).toEqual({ type: 'seek', delta: -30 });
+    expect(keyAction({ key: 'l' })).toEqual({ type: 'live' });
     expect(keyAction({ key: 'x' })).toBeNull();
   });
   it('ignores modifier combos and typing in inputs', () => {
