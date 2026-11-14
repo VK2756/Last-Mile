@@ -1,0 +1,100 @@
+@import 'tailwindcss';
+
+/* ------------------------------------------------------------------
+   Last Mile design tokens. Dark ops-center look.
+   Use the Tailwind names (bg-surface, text-fg-muted, border-line ...)
+   or the CSS vars directly (var(--lm-fire)) inside map paint props.
+   ------------------------------------------------------------------ */
+@theme {
+  --color-bg: #06080b;
+  --color-surface: #0c1016;
+  --color-surface-2: #121821;
+  --color-surface-3: #19212c;
+  --color-line: #1f2935;
+  --color-line-strong: #2d3a4a;
+  --color-fg: #e8edf3;
+  --color-fg-muted: #93a1b0;
+  --color-fg-dim: #5e6b79;
+
+  --color-fire: #ff5a1f;
+  --color-ember: #ffb020;
+  --color-danger: #ff3b47;
+  --color-warn: #f5b301;
+  --color-ok: #34d399;
+  --color-info: #38bdf8;
+  --color-accent: #2ee6c5; /* Last Mile signature (teal) */
+  --color-baseline: #c9a227; /* Alerts-only side */
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+
+  --animate-pulse-slow: pulse 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Numbers never jiggle while they count. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* Faint scanline grid used behind panels and in the no-tiles map fallback. */
+.ops-grid {
+  background-image:
+    linear-gradient(to right, rgb(255 255 255 / 0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.025) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Pitch mode (?pitch=1): bigger type everywhere, dev chrome hidden. */
+html[data-pitch='1'] {
+  font-size: 118%;
+}
+html[data-pitch='1'] [data-dev-only] {
+  display: none !important;
+}
+
+/* MapLibre controls restyled to match. */
+.maplibregl-ctrl-group {
+  background: var(--color-surface-2) !important;
+  border: 1px solid var(--color-line) !important;
+}
+.maplibregl-ctrl-group button + button {
+  border-top: 1px solid var(--color-line) !important;
+}
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: invert(0.9);
+}
+.maplibregl-ctrl-attrib {
+  background: rgb(6 8 11 / 0.6) !important;
+  color: var(--color-fg-dim) !important;
+  font-size: 10px !important;
+}
+.maplibregl-ctrl-attrib a {
+  color: var(--color-fg-muted) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+::selection {
+  background: rgb(46 230 197 / 0.3);
+}
