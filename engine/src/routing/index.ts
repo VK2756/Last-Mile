@@ -266,16 +266,17 @@ export function createRouter(graph: RoadGraph = loadTown(), fire?: FireModel, op
     m.set(k, tree);
   };
 
-  /** A cached or freshly built tree that answers na -> nb. */
-  const treeFor = (na: number, nb: number): { tree: Tree; reverse: boolean } => {
+  /** A cached or freshly built tree that answers na -> nb; sets `lastReverse` (hot path, no allocation). */
+  let lastReverse = false;
+  const treeFor = (na: number, nb: number): Tree => {
     const f = fwd.get(na);
-    if (f) { treeHits++; return { tree: f, reverse: false }; }
+    if (f) { treeHits++; lastReverse = false; return f; }
     const r = rev.get(nb);
-    if (r) { treeHits++; return { tree: r, reverse: true }; }
+    if (r) { treeHits++; lastReverse = true; return r; }
     const sh = (srcHits.get(na) ?? 0) + 1, dh = (dstHits.get(nb) ?? 0) + 1;
     srcHits.set(na, sh); dstHits.set(nb, dh);
-    if (dh > sh) { const t = buildTree(nb, true); remember(rev, nb, t); return { tree: t, reverse: true }; }
-    const t = buildTree(na, false); remember(fwd, na, t); return { tree: t, reverse: false };
+    if (dh > sh) { const t = buildTree(nb, true); remember(rev, nb, t); lastReverse = true; return t; }
+    const t = buildTree(na, false); remember(fwd, na, t); lastReverse = false; return t;
   };
 
   // ---- snapping: uniform grid index + memo (households and safe zones never move) ----
@@ -293,10 +294,12 @@ export function createRouter(graph: RoadGraph = loadTown(), fire?: FireModel, op
     if (!b) { b = []; buckets.set(k, b); }
     b.push(i);
   }
-  const snapMemo = new Map<string, number>();
+  // memo keyed lat -> lng -> node (numeric keys; no string building on the hot path)
+  const snapMemo = new Map<number, Map<number, number>>();
+  let snapMemoSize = 0;
   const snap = (p: LatLng): number => {
-    const key = `${p.lat},${p.lng}`;
-    const m = snapMemo.get(key);
+    let row = snapMemo.get(p.lat);
+    const m = row?.get(p.lng);
     if (m !== undefined) return m;
     const x = px(p), y = py(p);
     const cx = Math.min(gw - 1, Math.max(0, Math.floor((x - minX) / cell)));
@@ -321,8 +324,10 @@ export function createRouter(graph: RoadGraph = loadTown(), fire?: FireModel, op
         }
       }
     }
-    if (snapMemo.size > 50_000) snapMemo.clear();
-    snapMemo.set(key, best);
+    if (snapMemoSize > 50_000) { snapMemo.clear(); snapMemoSize = 0; row = undefined; }
+    if (!row) { row = new Map(); snapMemo.set(p.lat, row); }
+    row.set(p.lng, best);
+    snapMemoSize++;
     return best;
   };
   const toNodeMeters = (p: LatLng, i: number) => Math.hypot(px(p) - xs[i]!, py(p) - ys[i]!);
@@ -335,8 +340,8 @@ export function createRouter(graph: RoadGraph = loadTown(), fire?: FireModel, op
     if (endpointBurning(a, b, t)) return Infinity;
     const na = snap(a), nb = snap(b);
     if (na === nb) return straightMeters(a, b) / accessMps;
-    const { tree, reverse } = treeFor(na, nb);
-    const road = reverse ? tree.dist[na]! : tree.dist[nb]!;
+    const tree = treeFor(na, nb);
+    const road = lastReverse ? tree.dist[na]! : tree.dist[nb]!;
     if (road === Infinity) return Infinity;
     return (toNodeMeters(a, na) + toNodeMeters(b, nb)) / accessMps + road;
   };
@@ -346,7 +351,8 @@ export function createRouter(graph: RoadGraph = loadTown(), fire?: FireModel, op
     if (endpointBurning(a, b, t)) return [];
     const na = snap(a), nb = snap(b);
     if (na === nb) return [a, b];
-    const { tree, reverse } = treeFor(na, nb);
+    const tree = treeFor(na, nb);
+    const reverse = lastReverse;
     const road = reverse ? tree.dist[na]! : tree.dist[nb]!;
     if (road === Infinity) return [];
     const path: LatLng[] = [a];
