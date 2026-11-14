@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Mic, MicOff, Phone, PhoneOff, Send, Volume2, VolumeX, AlertTriangle, Loader2 } from 'lucide-react';
 import { TriageResult, type Need } from '@lastmile/contracts';
-import { AppShell, Banner, Button, SimBadge } from '@/components/ui';
+import { AppShell, Banner, Button, SimBadge, eyebrowClass } from '@/components/ui';
 import { engineUrl } from '@/lib/engine';
 import { cn } from '@/lib/cn';
 import { SampleRibbon } from './SampleRibbon';
@@ -222,7 +222,7 @@ export function CallView() {
 
         <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="mb-2 font-mono text-xs font-semibold uppercase tracking-[0.2em] text-fire">Voice triage</p>
+            <p className={`mb-2 ${eyebrowClass()}`}>Voice triage</p>
             <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Household needs call</h1>
           </div>
           <div className="flex flex-wrap items-end gap-3 text-xs">
@@ -282,7 +282,7 @@ export function CallView() {
                       t.role === 'resident' ? 'bg-accent/15 text-fg' : 'border border-line bg-surface-2',
                     )}
                   >
-                    <div className="mb-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-fg-dim">{t.role === 'resident' ? 'Resident' : 'Assistant'}</div>
+                    <div className="mb-0.5 font-mono text-[0.625rem] uppercase tracking-[0.14em] text-fg-dim">{t.role === 'resident' ? 'Resident' : 'Assistant'}</div>
                     {t.text}
                   </div>
                 </li>
@@ -338,14 +338,14 @@ export function CallView() {
             <div className="flex items-center justify-between border-b border-line px-4 py-3">
               <h2 id="learned-h" className="text-sm font-semibold">What we learned</h2>
               {responder && (
-                <span className={cn('font-mono text-[10px] font-semibold uppercase tracking-[0.14em]', responder === 'gemini' ? 'text-ok' : 'text-warn')}>
+                <span className={cn('font-mono text-[0.625rem] font-semibold uppercase tracking-[0.14em]', responder === 'gemini' ? 'text-ok' : 'text-warn')}>
                   {responder === 'gemini' ? 'via /api/triage' : 'local mock'}
                 </span>
               )}
             </div>
             <div className="p-4">
               <div className="mb-4">
-                <div className="mb-2 font-mono text-[10px] uppercase tracking-[0.14em] text-fg-dim">Needs</div>
+                <div className="mb-2 font-mono text-[0.625rem] uppercase tracking-[0.14em] text-fg-dim">Needs</div>
                 <div className="flex min-h-7 flex-wrap gap-1.5">
                   {learned?.needs.length ? (
                     learned.needs.map((n) => (
@@ -355,7 +355,7 @@ export function CallView() {
                     <span className="text-sm text-fg-dim">None reported yet</span>
                   )}
                 </div>
-                <p className="mt-2 font-mono text-[11px] text-fg-muted">
+                <p className="mt-2 font-mono text-[0.6875rem] text-fg-muted">
                   Needs: {learned?.needs.length ? learned.needs.map((n) => NEED_LABEL[n]).join(', ') : 'none yet'}
                 </p>
               </div>
@@ -364,7 +364,7 @@ export function CallView() {
                 <Fact label="Can walk to road" value={learned ? yesNo(learned.canWalkToRoad) : '—'} warn={learned?.canWalkToRoad === false} />
                 <Fact label="Residents" value={learned?.residents?.toString() ?? (learned ? 'Unknown' : '—')} />
                 <div className="bg-bg p-3">
-                  <dt className="font-mono text-[10px] uppercase tracking-[0.14em] text-fg-dim">Urgency</dt>
+                  <dt className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-fg-dim">Urgency</dt>
                   <dd className="mt-1 flex items-center gap-2">
                     <span className="tabular font-mono font-bold">{learned ? `${learned.urgency}/5` : '—'}</span>
                     <span className="flex gap-0.5" aria-hidden>
@@ -393,7 +393,7 @@ const inputCls =
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="grid gap-1">
-      <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-fg-dim">{label}</span>
+      <span className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-fg-dim">{label}</span>
       {children}
     </label>
   );
@@ -402,7 +402,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function Fact({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
   return (
     <div className="bg-bg p-3">
-      <dt className="font-mono text-[10px] uppercase tracking-[0.14em] text-fg-dim">{label}</dt>
+      <dt className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-fg-dim">{label}</dt>
       <dd className={cn('mt-1 font-semibold', warn && 'text-danger')}>{value}</dd>
     </div>
   );

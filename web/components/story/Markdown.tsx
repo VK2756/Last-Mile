@@ -58,7 +58,7 @@ export function Markdown({ source, skipTitle = false }: { source: string; skipTi
       blocks.push(
         <div key={key} className="my-3 overflow-x-auto rounded-md border border-line">
           <table className="w-full text-left text-xs">
-            <thead className="bg-surface-2 font-mono text-[10px] uppercase tracking-[0.1em] text-fg-dim">
+            <thead className="bg-surface-2 font-mono text-[0.625rem] uppercase tracking-[0.1em] text-fg-dim">
               <tr>{cells(head ?? '').map((c, j) => <th key={j} className="px-2.5 py-2 font-semibold">{inline(c, `${key}h${j}`)}</th>)}</tr>
             </thead>
             <tbody className="tabular font-mono">

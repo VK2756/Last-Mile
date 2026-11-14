@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { ArrowRight } from 'lucide-react';
-import { AppShell, SimBadge } from '@/components/ui';
+import { AppShell, SimBadge, eyebrowClass } from '@/components/ui';
 import { PIPELINE, PipelineDiagram } from '@/components/story/PipelineDiagram';
 
 export const metadata: Metadata = {
@@ -106,7 +106,7 @@ export default function HowItWorksPage() {
     <AppShell right={<SimBadge />}>
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
         <header className="mb-10 max-w-3xl">
-          <p className="mb-3 font-mono text-xs font-semibold uppercase tracking-[0.2em] text-fire">How it works</p>
+          <p className={`mb-3 ${eyebrowClass()}`}>How it works</p>
           <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-5xl">From a spreading fire to a van at the right door.</h1>
           <p className="mt-4 text-lg leading-relaxed text-fg-muted">
             Five parts, each simple on its own. This page describes what the code actually does, including what it leaves out. Everything runs
@@ -133,7 +133,7 @@ export default function HowItWorksPage() {
                     <p className="leading-relaxed text-fg-muted">{s.plain}</p>
                   </div>
                   <div className="rounded-md border border-line bg-bg p-4">
-                    <h3 className="mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-fg-dim">Under the hood</h3>
+                    <h3 className="mb-3 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-fg-dim">Under the hood</h3>
                     <ul className="space-y-2.5 text-sm leading-relaxed">
                       {s.details.map((d) => (
                         <li key={d} className="flex gap-2">
@@ -142,7 +142,7 @@ export default function HowItWorksPage() {
                         </li>
                       ))}
                     </ul>
-                    <p className="mt-4 break-words font-mono text-[11px] text-fg-dim">{s.code.join(' · ')}</p>
+                    <p className="mt-4 break-words font-mono text-[0.6875rem] text-fg-dim">{s.code.join(' · ')}</p>
                   </div>
                 </div>
               </li>

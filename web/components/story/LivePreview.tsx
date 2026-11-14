@@ -1,7 +1,8 @@
 'use client';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { FlaskConical, Maximize2 } from 'lucide-react';
+import { Maximize2 } from 'lucide-react';
+import { SimBadge, buttonClass } from '@/components/ui';
 import { HeroMap } from './HeroMap';
 
 /** The live split-screen, in its mock / maps-only / pitch / autoplay form. Owned by Lane B; flags documented in /live. */
@@ -65,18 +66,17 @@ export function LivePreview() {
             style={{ width: FRAME_W, height: FRAME_H, transform: `scale(${scale})` }}
           />
         )}
-        <span className="pointer-events-none absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-md border border-warn/50 bg-bg/85 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-warn backdrop-blur">
-          <FlaskConical aria-hidden className="size-3" strokeWidth={2.5} />
-          Simulation · {loaded ? 'live preview, mock data' : 'illustration'}
+        <span className="pointer-events-none absolute left-3 top-3 rounded-md bg-bg/85 backdrop-blur">
+          <SimBadge note={loaded ? 'live preview, mock data' : 'illustration'} />
         </span>
         <Link
           href="/live"
-          className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-md border border-line-strong bg-bg/85 px-2.5 py-1.5 text-xs font-semibold text-fg backdrop-blur transition-colors hover:border-accent hover:text-accent focus-visible:outline-2 focus-visible:outline-accent"
+          className={buttonClass({ variant: 'secondary', size: 'sm', className: 'absolute bottom-3 right-3 bg-bg/85 backdrop-blur' })}
         >
           <Maximize2 aria-hidden className="size-3.5" /> Open full demo
         </Link>
       </div>
-      <figcaption className="mt-3 flex flex-wrap gap-x-5 gap-y-1 font-mono text-[11px] text-fg-muted">
+      <figcaption className="mt-3 flex flex-wrap gap-x-5 gap-y-1 font-mono text-[0.6875rem] text-fg-muted">
         <span>
           Left: <span className="text-[#c9a227]">alerts only</span>
         </span>

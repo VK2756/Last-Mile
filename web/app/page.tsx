@@ -16,7 +16,7 @@ import {
   Timer,
   Wind,
 } from 'lucide-react';
-import { AppShell, SimBadge } from '@/components/ui';
+import { AppShell, SimBadge, buttonClass, eyebrowClass } from '@/components/ui';
 import { LivePreview } from '@/components/story/LivePreview';
 import { Reveal } from '@/components/story/Reveal';
 
@@ -101,7 +101,7 @@ const SIMULATED = [
 
 const TEAM = ['Vidhaan', 'Shrish', 'Anant', 'Rishabh', 'Prince'];
 
-const eyebrow = 'mb-2 font-mono text-xs font-semibold uppercase tracking-[0.2em] text-fg-dim';
+const eyebrow = `mb-2 ${eyebrowClass('dim')}`;
 
 export default function Home() {
   return (
@@ -111,7 +111,7 @@ export default function Home() {
         <div aria-hidden className="pointer-events-none absolute -right-40 -top-40 size-[36rem] rounded-full bg-fire/10 blur-3xl" />
         <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[0.9fr_1.1fr] lg:py-20">
           <div>
-            <p className="mb-5 inline-flex items-center gap-2 font-mono text-xs font-semibold uppercase tracking-[0.2em] text-fire">
+            <p className={`mb-5 inline-flex items-center gap-2 ${eyebrowClass()}`}>
               <Flame aria-hidden className="size-3.5" /> Wildfire &amp; flood evacuation
             </p>
             <h1 className="text-4xl font-bold leading-[1.04] tracking-tight sm:text-6xl">
@@ -125,13 +125,13 @@ export default function Home() {
               <Link
                 href="/live"
                 data-testid="landing-cta"
-                className="inline-flex h-14 items-center gap-3 rounded-md bg-accent px-7 text-lg font-semibold text-bg shadow-[0_0_0_1px_rgb(46_230_197/0.4),0_10px_30px_-10px_rgb(46_230_197/0.6)] transition-colors hover:bg-[#5ff0d6] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className={buttonClass({ variant: 'primary', size: 'xl' })}
               >
                 Run the live demo <ArrowRight aria-hidden className="size-5" />
               </Link>
               <Link
                 href="/results"
-                className="inline-flex h-14 items-center gap-2 rounded-md border border-line-strong px-6 text-base font-semibold text-fg-muted transition-colors hover:border-fg-dim hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className={buttonClass({ variant: 'secondary', size: 'xl' })}
               >
                 See the evidence
               </Link>
@@ -150,7 +150,7 @@ export default function Home() {
       {/* THE GAP */}
       <section className="border-b border-line bg-surface">
         <Reveal className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-[auto_1fr] md:items-center">
-          <p className="font-mono text-xs font-semibold uppercase tracking-[0.2em] text-fg-dim">The gap</p>
+          <p className={eyebrowClass('dim')}>The gap</p>
           <div className="grid gap-4 md:grid-cols-2">
             <p className="text-lg leading-relaxed">
               A warning only helps if you can act on it. Without a car, with a wheelchair or an oxygen line, or on a landline that never got
@@ -197,7 +197,7 @@ export default function Home() {
               <h3 className="text-lg font-semibold">{w.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-fg-muted">{w.gap}</p>
               <p className="mt-3 border-t border-line pt-3 text-sm leading-relaxed">
-                <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-accent">Last Mile </span>
+                <span className="font-mono text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-accent">Last Mile </span>
                 {w.does}
               </p>
             </Reveal>
@@ -228,7 +228,7 @@ export default function Home() {
                 </div>
                 <h3 className="mb-2 text-xl font-semibold">{s.title}</h3>
                 <p className="flex-1 text-sm leading-relaxed text-fg-muted">{s.body}</p>
-                <p className="mt-6 font-mono text-[11px] uppercase tracking-[0.14em] text-accent/80">{s.tag}</p>
+                <p className="mt-6 font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-accent/80">{s.tag}</p>
               </Reveal>
             ))}
           </ol>
@@ -249,7 +249,7 @@ export default function Home() {
             </p>
             <Link
               href="/results"
-              className="mt-6 inline-flex h-11 items-center gap-2 rounded-md border border-line-strong bg-surface-2 px-5 text-sm font-semibold transition-colors hover:border-accent hover:text-accent"
+              className={buttonClass({ variant: 'secondary', className: 'mt-6' })}
             >
               Open the Monte Carlo results <ArrowRight aria-hidden className="size-4" />
             </Link>
@@ -270,7 +270,7 @@ export default function Home() {
 
       {/* STACK */}
       <section aria-labelledby="stack" className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
-        <h2 id="stack" className="mb-6 font-mono text-xs font-semibold uppercase tracking-[0.2em] text-fg-dim">
+        <h2 id="stack" className={`mb-6 ${eyebrowClass('dim')}`}>
           Built on
         </h2>
         <Reveal as="div">
@@ -328,7 +328,7 @@ export default function Home() {
             </p>
           </div>
           <nav aria-label="Product" className="text-sm">
-            <p className="mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-fg-dim">Product</p>
+            <p className="mb-3 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-fg-dim">Product</p>
             <ul className="space-y-2">
               <li><Link href="/live" className="text-fg-muted hover:text-fg">Live demo</Link></li>
               <li><Link href="/results" className="text-fg-muted hover:text-fg">Monte Carlo results</Link></li>
@@ -337,7 +337,7 @@ export default function Home() {
             </ul>
           </nav>
           <div className="text-sm">
-            <p className="mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-fg-dim">Sources</p>
+            <p className="mb-3 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-fg-dim">Sources</p>
             <ul className="space-y-2">
               <li>
                 <a className="text-fg-muted hover:text-fg" href="https://www.nist.gov/publications/case-study-camp-fire-notification-evacuation-traffic-and-temporary-refuge-areas-nettra" target="_blank" rel="noreferrer">
