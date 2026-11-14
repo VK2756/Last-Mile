@@ -28,12 +28,12 @@ which assumptions?
   (ride, can walk to the road, residents, wheelchair, oxygen...) into structured needs on the live map. It never
   promises rescue and always says: if you are in immediate danger, call 911.
 - **Prove.** `/live` runs the same fire twice side by side: alerts only vs Last Mile. `/results` runs that comparison
-  over [RUNS] paired seeds and reports the difference with a 95% confidence interval, next to every assumption that
+  over 200 paired seeds and reports the difference with a 95% confidence interval, next to every assumption that
   drives it, plus how the result moves under harsher assumptions.
 
-**Result (simulation):** vulnerable households evacuated before the fire arrived: [BASE_VUL] with alerts only vs
-[LM_VUL] with Last Mile, a paired lift of [LIFT] (95% CI [LIFT_CI]) over [RUNS] seeds on real Amherst, MA streets.
-Under the harshest assumptions we tested (35 mph wind and 6 helpers instead of 24) the lift falls to [HARSH_LIFT]; with
+**Result (simulation):** vulnerable households evacuated before the fire arrived: 45.1% with alerts only vs
+74.5% with Last Mile, a paired lift of +29.4 pts (95% CI [28.6, 30.2]) over 200 seeds on real Amherst, MA streets.
+Under the harshest assumptions we tested (35 mph wind and 6 helpers instead of 24) the lift falls to +15.0 pts [14.5, 15.6]; with
 zero helpers it is exactly zero, as it should be.
 
 ## How we built it
@@ -70,7 +70,7 @@ zero helpers it is exactly zero, as it should be.
 ## Accomplishments that we're proud of
 
 - A reproducible counterfactual: same seed, same metrics, every time; a fresh seed block (1001–1200) replicates the
-  headline within its interval ([FRESH_LIFT]).
+  headline within its interval (+29.6 pts [28.8, 30.4]).
 - Explainable dispatch: every assignment says why this helper, how far, and how much margin before the fire.
 - A sensitivity table instead of a single number: slower help requests, helpers starting far away, fewer helpers, a
   faster fire (see [`SENSITIVITY.md`](SENSITIVITY.md)).
