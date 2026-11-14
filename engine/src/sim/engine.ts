@@ -25,7 +25,7 @@ const RISK_EVERY_S = 30;
 const TTI_REPORT_MAX_S = 5400;
 
 /** a sink may optionally persist the initial world (households/helpers) once per scenario */
-export type EngineSink = DataSink & { onWorld?(init: SimInit): Promise<void> };
+export type EngineSink = DataSink & { onWorld?(init: SimInit): Promise<void>; onTriage?(scenarioId: string, result: TriageResult): Promise<void> };
 export interface SimOptions { variant?: Variant; graph?: RoadGraph; router?: Router; dispatcher?: Dispatcher; sink?: EngineSink }
 
 export type TriageOutcome =
