@@ -13,6 +13,7 @@ import { Metrics, MonteCarloComparison, ScenarioConfig, VULNERABLE_NEEDS } from 
 import type { HeadlessRunner, Policy } from '@lastmile/contracts';
 import { sampleInit } from '@lastmile/contracts/fixtures';
 import { runHeadless } from '../sim/headless';
+import { createSim } from '../sim/engine';
 import { bootstrapMean, mean, type BootstrapOptions } from './stats';
 import type { WorkerReply, WorkerTask } from './worker';
 
@@ -119,6 +120,8 @@ export function summarize(
   alertsOnly: Metrics[],
   lastMile: Metrics[],
   bootstrap: BootstrapOptions = {},
+  /** model assumptions for this base config (from the simulator), appended after the methodology lines */
+  modelAssumptions: string[] = [],
 ): MonteCarloComparison {
   if (alertsOnly.length !== lastMile.length) throw new Error('summarize: runs are not paired');
   const n = alertsOnly.length;
@@ -145,9 +148,10 @@ export function summarize(
     `${n} paired runs: for each seed, both policies face the same fire, population and helpers; only the policy differs.`,
     `Rates are per run (homes evacuated / homes); 95% intervals are percentile bootstrap intervals over runs (${B} resamples).`,
     'Vulnerable lift is the mean per-seed difference (Last Mile minus alerts only) in the vulnerable evacuated rate, bootstrapped over seeds so each pair stays together.',
-    `"Vulnerable" means no vehicle, or any of: ${VULNERABLE_NEEDS.map((x) => x.replace(/_/g, ' ')).join(', ')}.`,
+    `"Vulnerable" means no vehicle, or any of: ${VULNERABLE_NEEDS.filter((x) => x !== 'no_vehicle').map((x) => x.replace(/_/g, ' ')).join(', ')}.`,
     ...new Set(notes),
   ];
+  for (const a of modelAssumptions) if (!assumptions.includes(a)) assumptions.push(a);
   if (identical && n > 1) {
     assumptions.push('WARNING: every run of each policy returned identical metrics, so the simulator may still be a placeholder; do not quote these numbers.');
   }
@@ -167,7 +171,17 @@ export async function runMonteCarlo(base: BaseConfig, seeds: number[], opts: Mon
   const metrics = await runAll(configs, opts);
   const ao = metrics.filter((_, i) => i % 2 === 0);
   const lm = metrics.filter((_, i) => i % 2 === 1);
-  return summarize(base, ao, lm, opts.bootstrap);
+  return summarize(base, ao, lm, opts.bootstrap, opts.runner ? [] : modelAssumptions(base, seeds[0]!));
+}
+
+/**
+ * The simulator's own assumption list for this base config (population, alerts, fire, routing, both
+ * policies, any SENSITIVITY lines), read from the init of the first seed's Last Mile world. Building
+ * the world is cheap (no ticks run). Issue #78: /results no longer needs a throwaway scenario.
+ */
+export function modelAssumptions(base: BaseConfig, seed: number): string[] {
+  const sim = createSim(ScenarioConfig.parse({ ...base, seed, policy: 'last_mile' }), `mc-assumptions-${seed}`);
+  return [`Model assumptions below are from the seed-${seed} world of this configuration (counts in them refer to that seed); both policies share them except the Last Mile lines.`, ...sim.init.assumptions];
 }
 
 export interface RegisterOptions extends MonteCarloOptions {

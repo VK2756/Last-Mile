@@ -166,3 +166,16 @@ describe('worker start-up failures', () => {
     expect(fallback).toEqual(inProc);
   }, 60_000);
 });
+
+describe('model assumptions in the response (#78)', () => {
+  it('appends the simulator assumptions for the base config after the methodology lines', async () => {
+    const c = await runMonteCarlo(PRESET_BASE, [1, 2], { workers: 0 });
+    const text = c.assumptions.join('\n');
+    expect(c.assumptions[0]).toMatch(/^SIMULATION/);
+    expect(text).toMatch(/seed-1 world/);
+    expect(text).toMatch(/Routing:/);
+    expect(text).toMatch(/[Aa]lerts-only baseline/);
+    expect(text).toMatch(/Fire spread/);
+    expect(new Set(c.assumptions).size).toBe(c.assumptions.length); // no duplicates
+  }, 60_000);
+});
