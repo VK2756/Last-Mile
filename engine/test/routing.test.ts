@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { FireModel, LatLng, RoadGraph } from '@lastmile/contracts';
 import { sampleInit } from '@lastmile/contracts/fixtures';
 import { createRouter, routingAssumptions } from '../src/routing/index';
+import { largestScc } from '../src/routing/scc';
 import { makeGridGraph } from '../src/world/town';
 import { createFireModel } from '../src/sim/fire';
 
@@ -178,18 +179,23 @@ describe('createRouter matches brute force on random directed graphs', () => {
       };
       const r = createRouter(g, undefined, { accessSpeedMph: 1 });
       const pos = (i: number) => ({ lat: nodes[i]!.lat, lng: nodes[i]!.lng });
+      // the router only snaps to the largest strongly connected component; compare within it
+      const main = largestScc(N, edges.map((e) => ({ from: e.from - 1000, to: e.to - 1000 })));
+      const inMain = (i: number) => main[i] === 1;
+      expect([...main].filter(Boolean).length).toBeGreaterThan(5);
       for (let s = 0; s < N; s += 3) {
+        if (!inMain(s)) continue;
         const d = bf(s);
         for (let t = 0; t < N; t++) {
-          if (t === s) continue;
+          if (t === s || !inMain(t)) continue;
           expect(r.travelSeconds(pos(s), pos(t), 0)).toBeCloseTo(d[t]!, 6);
         }
       }
       // fan-in to one target forces reverse trees; check those too
       const r2 = createRouter(g, undefined, { accessSpeedMph: 1 });
-      const target = 7;
+      const target = [...main].findIndex((m) => m === 1);
       for (let s = 0; s < N; s++) {
-        if (s === target) continue;
+        if (s === target || !inMain(s)) continue;
         const d = bf(s);
         expect(r2.travelSeconds(pos(s), pos(target), 0)).toBeCloseTo(d[target]!, 6);
         const path = r2.route(pos(s), pos(target), 0);
@@ -254,5 +260,44 @@ describe('state refresh window', () => {
     expect(r.travelSeconds(a, b, 929)).toBeLessThan(Infinity); // window [900,930) is judged at 930: 70 s left > 60, open
     expect(r.travelSeconds(a, b, 930)).toBe(Infinity);          // window [930,960) judged at 960: closed 10 s before the exact rule (940)
     expect(r.travelSeconds(a, b, 941)).toBe(Infinity);          // strict rule closes at 940: never late
+  });
+});
+
+describe('one-way roads and disconnected pieces', () => {
+  // a one-way triangle 0 -> 1 -> 2 -> 0 (100 m sides) plus an island node 3 with a one-way spur 3 -> 0
+  const base = { lat: 42.37, lng: -72.52 };
+  const dLat = 100 / 111_320, dLng = 100 / (111_320 * Math.cos((base.lat * Math.PI) / 180));
+  const g: RoadGraph = {
+    nodes: [
+      { id: 0, lat: base.lat, lng: base.lng },
+      { id: 1, lat: base.lat, lng: base.lng + dLng },
+      { id: 2, lat: base.lat + dLat, lng: base.lng + dLng / 2 },
+      { id: 3, lat: base.lat - 3 * dLat, lng: base.lng },
+    ],
+    edges: [
+      { from: 0, to: 1, meters: 100, speedMph: 25 },
+      { from: 1, to: 2, meters: 100, speedMph: 25 },
+      { from: 2, to: 0, meters: 100, speedMph: 25 },
+      { from: 3, to: 0, meters: 300, speedMph: 25 },
+    ],
+  };
+  const p = (i: number) => ({ lat: g.nodes[i]!.lat, lng: g.nodes[i]!.lng });
+  const edge = 100 / MPS_25;
+
+  it('respects one-way edges (the way back goes around)', () => {
+    const r = createRouter(g, undefined, { accessSpeedMph: 25 });
+    expect(r.travelSeconds(p(0), p(1), 0)).toBeCloseTo(edge, 6);
+    expect(r.travelSeconds(p(1), p(0), 0)).toBeCloseTo(2 * edge, 6);
+    expect(r.route(p(1), p(0), 0).length).toBe(5); // 1 -> 1, 2, 0 -> 0
+  });
+
+  it('never snaps to a node outside the main strongly connected component', () => {
+    const r = createRouter(g, undefined, { accessSpeedMph: 25 });
+    // node 3 is an island (it can leave but nothing comes back), so a home there uses the nearest main node
+    const t = r.travelSeconds(p(3), p(1), 0);
+    expect(t).toBeLessThan(Infinity);
+    const path = r.route(p(1), p(3), 0);
+    expect(path.length).toBeGreaterThan(0); // reachable via the straight access leg from node 0
+    expect(path.some((q) => q.lat === g.nodes[3]!.lat && q.lng === g.nodes[3]!.lng && q !== path[path.length - 1])).toBe(false);
   });
 });

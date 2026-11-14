@@ -1,44 +1,36 @@
 # Lane D status (ROUTING / DISPATCH / MONTE CARLO, Rishabh)
-_Updated 2026-11-14 ~2:30pm._
+_Updated 2026-11-14 ~2:40pm._
 
-## Done
-- Routing merged (#20), dispatch merged (#23, closes #9). This PR adds Monte Carlo and a routing speed-up: road states are refreshed per 30 s window (closures can come up to 30 s early, never late), and cached trees survive unless one of their edges changed. A last_mile run went from ~1.1 s to ~0.5 s.
-- `runHeadless` on main is REAL (no STUB). Every number below comes from it, unedited.
+## Done (merged)
+#20 routing, #23 dispatch (closes #9), #28 Monte Carlo + routing speed-up, #35 clearer unservable reasons.
+**This PR: item 13, the real Amherst roads.** `loadTown('amherst')` now reads `engine/data/town-amherst.json` from disk: OSM, 5 km box, 710 nodes, 1,507 directed edges, 185 one-way ways, largest strongly connected component only. It is baked once by `scripts/bake-roads.ts` with no runtime network; `synthetic_grid`/`paradise_like`, or a missing file, fall back to `makeGridGraph`. The router only snaps to the largest strongly connected component, so trips never start on an island. No `STUB:` markers are left in Lane D files.
 
-## For Lane A (Vidhaan): mount Monte Carlo in `engine/src/server.ts` (tracked in a lane:a issue)
+## For Lane A (Vidhaan): mount Monte Carlo (issue #29)
 ```ts
 import { registerMonteCarlo } from './montecarlo';
 // inside buildServer(), after the other routes and before `return app`:
 registerMonteCarlo(app, { warmPreset: process.env.NODE_ENV !== 'test' });
 ```
-- Adds `POST /montecarlo` (body `{ base?, runs?=200, seeds? }`; `{}` = the preset) and `GET /montecarlo/preset`. Both return `MonteCarloComparison`.
-- Runs one uncached batch at a time (others get 429 + Retry-After), caches the last 8 results, and aborts a running batch on `app.close()`. With `warmPreset` on, the N=200 preset starts computing at boot.
-- Checked for real: `scripts/montecarlo-smoke.ts` mounts it on `buildServer()` over HTTP. `/health` ok; POST runs=200 took 11.9 s (cache miss) and 4 ms on repeat; `GET /montecarlo/preset` took 1 ms (cache hit).
+This adds `POST /montecarlo` (`{ base?, runs?=200, seeds? }`; `{}` = preset) and `GET /montecarlo/preset`. It runs one uncached batch at a time (429 otherwise), caches results, and aborts a running batch on close. Checked over real HTTP against `buildServer()` with `scripts/montecarlo-smoke.ts`.
+**Heads-up:** with real roads, `amherst` scenarios now use OSM streets. Fewer homes are at risk (about 270 instead of 364 for seed 1) and routes follow real streets. 78/78 engine tests pass, and the real sim shows 0 rejected assignments.
 
-## Timing, N=200 paired (400 real runs), Intel Core Ultra 5 225H laptop
-| workers | wall |
-|---|---|
-| 14 (default = all cores) | 10.8-11.9 s |
-| 4 | 21.0 s |
-| 2 | 45.7 s |
-About 0.55 CPU-seconds per seed pair. Most of a last_mile run is the dispatcher and router (Lane D), not the sim loop. **For Lane C:** a 2-vCPU Vultr VM is borderline for 60 s; 4 vCPU is comfortable. The preset is cached either way.
-
-## Monte Carlo results (`pnpm exec tsx scripts/montecarlo-cli.ts ...`, real sim, nothing tuned)
+## Monte Carlo on REAL Amherst roads (real runHeadless, `scripts/montecarlo-cli.ts`, nothing tuned)
 Vulnerable evacuated rate, mean [95% CI], and the paired lift:
 | config | seeds | alerts_only | last_mile | lift (pts) |
 |---|---|---|---|---|
-| preset: wind 20 mph @90, 24 helpers | 1-200 | 47.3% [46.6, 48.1] | 79.4% [78.7, 80.1] | +32.1 [31.4, 32.8] |
-| preset | 1001-1200 | 47.8% [47.2, 48.5] | 79.6% [78.8, 80.3] | +31.7 [31.0, 32.5] |
-| preset | 5001-5200 | 47.3% [46.7, 48.0] | 79.2% [78.5, 79.9] | +31.8 [31.1, 32.6] |
-| wind 10 mph @270, 12 helpers | 1-200 | 55.3% [54.7, 56.0] | 90.2% [89.7, 90.6] | +34.8 [34.2, 35.5] |
-| wind 35 mph @45, 6 helpers | 1-200 | 36.7% [35.9, 37.4] | 56.9% [56.0, 57.7] | +20.2 [19.5, 20.9] |
-| wind 35 mph @45, 48 helpers | 1-200 | 36.7% [35.9, 37.4] | 63.0% [62.1, 63.8] | +26.3 [25.5, 27.1] |
-| sanity: 0 helpers | 1-50 | 46.0% [44.5, 47.4] | 46.0% [44.5, 47.4] | +0.0 [0.0, 0.0] |
-All homes evacuated (preset, seeds 1-200): alerts_only 74.6%, last_mile 82.3%. Last Mile won in every config tried. The gain shrinks in fast fires with few helpers, and a fast fire caps it even with 48 helpers (63%). These numbers depend on Lane A's behaviour model (who asks for help, alert delays) as much as on dispatch.
+| preset: wind 20 mph @90, 24 helpers | 1-200 | 45.1% [44.2, 45.9] | 72.5% [71.6, 73.3] | +27.4 [26.6, 28.2] |
+| preset | 1001-1200 | 44.8% [43.9, 45.8] | 71.7% [70.8, 72.6] | +26.8 [25.9, 27.7] |
+| wind 10 mph @270, 12 helpers | 1-200 | 55.7% [54.9, 56.4] | 85.1% [84.4, 85.9] | +29.5 [28.8, 30.2] |
+| wind 35 mph @45, 6 helpers | 1-200 | 36.7% [35.9, 37.4] | 51.3% [50.5, 52.1] | +14.7 [14.1, 15.2] |
+| wind 35 mph @45, 48 helpers | 1-200 | 36.7% [35.9, 37.4] | 62.0% [61.2, 62.8] | +25.4 [24.6, 26.0] |
+| sanity: 0 helpers | 1-50 | equal | equal | +0.0 [0.0, 0.0] |
+All homes evacuated (preset): 69.7% vs 76.2%. Last Mile wins in every config. The lift is smaller on real roads than on the synthetic grid (grid preset was +32.1), smallest in fast fires with few helpers, and a fast fire caps it even with 48 helpers.
 
-## Dispatch quality (`scripts/unservable-report.ts`, 20 seeds, 24 helpers)
-74 homes/run needed help; 34/run (46%) were flagged unservable at least once, mostly temporarily (28 of those 34 were evacuated in the end, 5.5 were trapped). Last reasons: "no helper before the safety deadline" 30/run, "roads cut off by fire" 4/run. Next PR: say when a home is waiting only because every capable helper is busy, and let busy helpers add best-effort pickups after their current trip.
+## Timing, N=200 (400 real runs), real roads, Intel Core Ultra 5 225H
+All 14 cores: 13.4 s. 2 workers: 50.4 s. **For Lane C:** a 2-vCPU Vultr VM is borderline for 60 s, so use 4 vCPU if possible. The preset is cached and warmed at boot either way.
+
+## Dispatch quality (`scripts/unservable-report.ts`, 20 seeds, grid)
+46% of homes needing help are flagged at least once, mostly because every capable helper is busy (28 of 34 per run), not because they are too far. Most of them are evacuated later. I tried letting busy helpers add best-effort pickups after their trip: no gain (32.2 -> 32.0 pts) and more trapped homes that were never flagged, so I didn't keep it.
 
 ## Next
-Dispatch-quality PR (measured before/after), then item 13 (Amherst OSM roads).
-**Blockers:** none.
+Re-time on the Vultr box once Lane C deploys; watch `gh issue list --label lane:d`. **Blockers:** none.
