@@ -51,6 +51,9 @@ Stress (40 paired seeds, preset base, vulnerable evacuated): default fleet lift 
 ## Knob #72 (urgent family pickup) merged
 30 paired seeds, vulnerable evacuated: urgentFamilyPickup alone -> alerts 47.2%, LM 76.1%, lift +28.8 [26.2, 31.4]; urgent + familyPickupProb 0.5 -> alerts 58.1%, LM 77.0%, lift +18.9 [16.5, 21.3].
 
+## Knob #69 (neighbours give rides) merged: the strongest baseline lever
+30 paired seeds, vulnerable evacuated, lift [95% CI]: neighborRideProb 0.1 -> alerts 52.8%, LM 77.0%, lift +24.2 [21.8, 26.6]; 0.3 -> 64.9% / 77.8%, +12.9 [10.8, 15.0]; 0.5 -> 69.5% / 78.7%, +9.1 [7.6, 10.7]. Say this in the pitch: if half of all drivers voluntarily took a vehicle-less neighbour, most of the gap closes; Last Mile still helps but the margin is single digits.
+
 ## Next
 Vercel deploy, sensitivity table, full-stack click-through, Vultr readiness.
 

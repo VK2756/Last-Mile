@@ -12,12 +12,17 @@ export function selfEvacDepartTime(h: Pick<Household, 'hasVehicle'>, b: Behavior
   return warnedAt + delay;
 }
 
+export const NEIGHBOR_RIDE_RADIUS_M = 300;
+export const VEHICLE_SEATS = 5;
+export const BOARD_S = 60;
+
 export function alertsOnlyAssumptions(b: BaselineKnobs = {}): string[] {
   const fam = b.familyPickupProb ?? P.familyPickup, prep = b.prepDelayScale ?? 1, alert = b.alertIssueS ?? ALERT_ISSUE_S;
   const tag = (on: boolean) => (on ? 'SENSITIVITY: ' : '');
   return [
     `${tag(prep !== 1)}Alerts-only baseline: every household with a vehicle leaves on its own after receiving the alert plus a preparation delay (mean about ${Math.round(6 * prep * 10) / 10} min${prep !== 1 ? `, default 6 min x prepDelayScale ${prep}` : ''}; longer with children or pets). No one is dispatched.`,
     `${tag(fam !== P.familyPickup)}Households without a vehicle only leave if a relative or friend picks them up: ${Math.round(fam * 1000) / 10}% of them have such a pickup${fam !== P.familyPickup ? ` (default ${P.familyPickup * 100}%)` : ''}, arriving 15 to 40 min after they are warned${b.urgentFamilyPickup ? ', or sooner when the fire is near (see below)' : ''}. The rest wait until the fire arrives.`,
+    ...(b.neighborRideProb ? [`SENSITIVITY: neighbours give rides: with probability ${b.neighborRideProb}, a household with a car that is leaving takes the nearest vehicle-less household (no wheelchair user) within ${NEIGHBOR_RIDE_RADIUS_M} m if the car has room (${VEHICLE_SEATS} seats), uncoordinated and at most one stop; it adds ${BOARD_S} s boarding plus the detour, and both households share the same fate. Applied identically under both policies.`] : []),
     ...(b.urgentFamilyPickup ? ['SENSITIVITY: family pickups hurry when the fire is near: pickup delay = min(drawn delay, max(120 s, 0.5 x time-to-impact at the moment of the warning)). The relative drives the same road network and smoke/closure model as everyone else: if the roads are cut they keep retrying and give up when the fire arrives.'] : []),
     `${tag(alert !== ALERT_ISSUE_S)}The alert is issued ${alert} s after ignition. This baseline is applied identically under Last Mile, which only adds dispatched help on top of it.`,
   ];

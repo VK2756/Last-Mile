@@ -26,6 +26,8 @@ export interface Behavior {
   pickupDelayS: number;
   /** time from being warned until a help request reaches Last Mile (last_mile policy only) */
   helpRequestDelayS: number;
+  /** uniform [0,1) roll from its own RNG stream: this household offers a neighbour a seat if the roll is below neighborRideProb */
+  rideRoll: number;
 }
 
 /** Knobs for sensitivity tests. Defaults are the headline assumptions; every non-default is listed in SimInit.assumptions. */
@@ -97,6 +99,7 @@ function drawHousehold(i: number, rng: Rng, graph: RoadGraph, helpDelay: [number
     familyPickup: rng.chance(familyProb),
     pickupDelayS: 900 + rng.range(0, 1500),
     helpRequestDelayS: rng.range(helpDelay[0], helpDelay[1]),
+    rideRoll: 0, // filled from a separate stream below so adding it never shifts the other draws
   };
   return { hh, beh };
 }
@@ -106,6 +109,8 @@ export function generatePopulation(config: ScenarioConfig, graph: RoadGraph, fir
   const rng = createRng(config.seed, SALT.population);
   const households: Household[] = []; const behavior: Record<string, Behavior> = {};
   for (let i = 0; i < HOUSEHOLD_COUNT; i++) { const { hh, beh } = drawHousehold(i, rng, graph, helpDelay, config.baseline?.familyPickupProb ?? P.familyPickup, config.baseline?.prepDelayScale ?? 1); households.push(hh); behavior[hh.id] = beh; }
+  const rideRng = createRng(config.seed, SALT.behavior);
+  for (const h of households) behavior[h.id]!.rideRoll = rideRng.next();
   const hr = createRng(config.seed, SALT.helpers);
   const helpers: Helper[] = [];
   const kinds = helperKinds(config.helperCount, config.helperMix);
