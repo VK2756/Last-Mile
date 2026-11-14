@@ -7,7 +7,7 @@ import type {
 import { isVulnerable } from '@lastmile/contracts';
 import { createFireModel, FIRE_ASSUMPTIONS } from './fire';
 import { distMeters } from './geo';
-import { loadGraph, makeDispatcher, makeRouter } from './deps';
+import { loadGraph, makeDispatcher, makeRouter, routerAssumptions } from './deps';
 import { generatePopulation, ALERT_ISSUE_S, type Behavior, type SafeZone } from '../world/population';
 import { ALERTS_ONLY_ASSUMPTIONS, selfEvacDepartTime } from '../policy/alertsOnly';
 import { helpRequestTime, LAST_MILE_ASSUMPTIONS } from '../policy/lastMile';
@@ -22,7 +22,9 @@ const REPLAN_EVERY_S = 5;
 const RISK_EVERY_S = 30;
 const TTI_REPORT_MAX_S = 5400;
 
-export interface SimOptions { graph?: RoadGraph; router?: Router; dispatcher?: Dispatcher; sink?: DataSink }
+/** a sink may optionally persist the initial world (households/helpers) once per scenario */
+export type EngineSink = DataSink & { onWorld?(init: SimInit): Promise<void> };
+export interface SimOptions { graph?: RoadGraph; router?: Router; dispatcher?: Dispatcher; sink?: EngineSink }
 
 export type TriageOutcome =
   | { ok: true; status: HouseholdStatus; flipped: boolean }
@@ -95,11 +97,13 @@ export function createSim(config: ScenarioConfig, scenarioId: string, opts: SimO
   const init: SimInit = {
     scenarioId, config, bounds: pop.bounds, households, helpers: pop.helpers, safeZones: pop.safeZones,
     assumptions: [
-      ...pop.assumptions, ...FIRE_ASSUMPTIONS, ...ALERTS_ONLY_ASSUMPTIONS, ...(lastMile ? LAST_MILE_ASSUMPTIONS : []),
+      ...pop.assumptions, ...FIRE_ASSUMPTIONS, ...routerAssumptions(), ...ALERTS_ONLY_ASSUMPTIONS, ...(lastMile ? LAST_MILE_ASSUMPTIONS : []),
       `Metrics count only the ${atRiskCount} households the fire reaches within ${HORIZON_S / 3600} h. "Trapped" means the fire reached the household (or its vehicle) before it was safe; this is a simulation outcome, not a prediction of casualties.`,
       'Evacuating residents drive at road speed x1.3 congestion to the nearest safe zone and are trapped if the fire reaches any point of the route while they are on it.',
     ],
   };
+
+  if (sink?.onWorld) swallow(sink.onWorld(init));
 
   const resolve = (s: HS, status: 'evacuated' | 'trapped') => { if (s.status === 'evacuated' || s.status === 'trapped') return; s.status = status; s.owner = -1; if (s.atRisk) unresolvedAtRisk--; dirty = true; };
   const routeTo = (a: LatLng, b: LatLng): LatLng[] => { const r = router.route(a, b, t); return r.length >= 2 ? r : [a, b]; };

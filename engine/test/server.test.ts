@@ -66,3 +66,34 @@ describe('server (real engine)', () => {
     } finally { await app.close(); }
   }, 20_000);
 });
+
+import { allowedOrigin } from '../src/server';
+import { PRESETS } from '../src/sim/presets';
+import { ScenarioConfig as SC } from '@lastmile/contracts';
+import { createSim } from '../src/sim/engine';
+
+describe('hardening', () => {
+  it('CORS accepts * and comma lists', () => {
+    expect(allowedOrigin('*', 'https://x.app')).toBe('*');
+    expect(allowedOrigin('https://a.app, https://b.app', 'https://b.app')).toBe('https://b.app');
+    expect(allowedOrigin('https://a.app', 'https://evil.app')).toBeNull();
+    expect(allowedOrigin('https://a.app', undefined)).toBeNull();
+  });
+  it('GET /presets returns 3 valid configs', async () => {
+    const app = await buildServer({ factory: fake }); const r = await app.inject({ method: 'GET', url: '/presets' });
+    const body = r.json(); expect(body).toHaveLength(3); body.forEach((p: { config: unknown }) => SC.parse(p.config)); await app.close();
+    expect(PRESETS).toHaveLength(3);
+  });
+  it('rate limits POST /scenarios and rejects odd ids', async () => {
+    const app = await buildServer({ factory: fake, ratePerMin: 3 });
+    const codes: number[] = [];
+    for (let i = 0; i < 5; i++) codes.push((await app.inject({ method: 'POST', url: '/scenarios', payload: cfg })).statusCode);
+    expect(codes).toEqual([200, 200, 200, 429, 429]);
+    expect((await app.inject({ method: 'GET', url: '/scenarios/..%2Fetc/stream' })).statusCode).toBe(404);
+    await app.close();
+  });
+  it('a streamed frame is under 100 KB', () => {
+    const sim = createSim({ ...PRESETS[0]!.config }, 'sz'); sim.advance(900);
+    expect(JSON.stringify({ type: 'frame', frame: sim.frame() }).length).toBeLessThan(100_000);
+  });
+});
