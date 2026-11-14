@@ -1,10 +1,12 @@
 // /live keyboard shortcuts (all modes; pitch mode advertises them). Pure so it can be unit-tested.
-export type KeyAction = { type: 'space' } | { type: 'reset' } | { type: 'preset'; index: number } | { type: 'help' } | { type: 'escape' };
+export type KeyAction = { type: 'space' } | { type: 'reset' } | { type: 'seek'; delta: number } | { type: 'live' } | { type: 'preset'; index: number } | { type: 'help' } | { type: 'escape' };
 
 export const SHORTCUTS: { keys: string[]; label: string }[] = [
   { keys: ['Space'], label: 'Start, or pause / resume' },
   { keys: ['R'], label: 'Reset and run again' },
   { keys: ['1', '2', '3'], label: 'Run preset 1 / 2 / 3' },
+  { keys: ['←', '→'], label: 'Rewind / forward 30 s (replay)' },
+  { keys: ['L'], label: 'Back to live' },
   { keys: ['?'], label: 'Show / hide shortcuts' },
   { keys: ['Esc'], label: 'Close card or dialog' },
 ];
@@ -22,6 +24,9 @@ export function keyAction(e: KeyLike): KeyAction | null {
     case 'r': case 'R': return { type: 'reset' };
     case '1': case '2': case '3': return { type: 'preset', index: Number(e.key) - 1 };
     case '?': case '/': return { type: 'help' };
+    case 'ArrowLeft': return { type: 'seek', delta: -30 };
+    case 'ArrowRight': return { type: 'seek', delta: 30 };
+    case 'l': case 'L': return { type: 'live' };
     case 'Escape': return { type: 'escape' };
     default: return null;
   }

@@ -15,6 +15,7 @@ import { AssumptionsDrawer } from './AssumptionsDrawer';
 import { Legend } from './Legend';
 import { MapPane, type MapView } from './MapPane';
 import { OperatorPanel } from './OperatorPanel';
+import { ReplayBar } from './ReplayBar';
 import { ScenarioPicker } from './ScenarioPicker';
 import { ShortcutsOverlay } from './ShortcutsOverlay';
 import { StreamStatusPill } from './StreamStatusPill';
@@ -31,6 +32,8 @@ export function LiveView() {
   const mock = forcedMock || noEngine;
   const tiles = params.get('tiles') !== '0';
   const pitch = params.get('pitch') === '1';
+  /** ?view=maps: screenshot-friendly, just the two maps + scoreboards (no sidebar, no map controls) */
+  const mapsOnly = params.get('view') === 'maps';
 
   const speedParam = Number(params.get('speed'));
   const startSpeed = Number.isFinite(speedParam) && speedParam >= 0.25 && speedParam <= 60 ? speedParam : 12;
@@ -45,6 +48,7 @@ export function LiveView() {
   const [view, setView] = useState<MapView | null>(null);
   const [assumptionsOpen, setAssumptionsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [replayT, setReplayT] = useState<number | null>(null);
   /** pitch mode opens on the first frame, paused: the presenter presses Space to start */
   const [holdAtStart, setHoldAtStart] = useState(pitch);
 
@@ -52,7 +56,7 @@ export function LiveView() {
   const rightConfig = useMemo(() => withPolicy(base, 'last_mile'), [base]);
   const left = useScenarioStream(leftConfig, { mock, runKey });
   const right = useScenarioStream(rightConfig, { mock, runKey });
-  const synced = useSyncedFrames(left, right);
+  const synced = useSyncedFrames(left, right, replayT);
   const status = combinedStatus(left.status, right.status);
   const live = left.status === 'live' || right.status === 'live';
   const paused = left.paused && right.paused;
@@ -76,7 +80,7 @@ export function LiveView() {
   /** Run = apply the draft (if edited) and restart both sides from t=0. */
   const run = useCallback((next?: BaseConfig) => {
     const cfg = next ?? draft;
-    setSelected(null); setView(null); setPicking(false); setHoldAtStart(false);
+    setSelected(null); setView(null); setPicking(false); setHoldAtStart(false); setReplayT(null);
     setDraft(cfg);
     setBase({ ...cfg, speedMultiplier: right.speed });
     setRunKey((k) => k + 1);
@@ -110,6 +114,12 @@ export function LiveView() {
     if (assumptionsOpen) return;
     e.preventDefault();
     if (a.type === 'help') setHelpOpen((x) => !x);
+    else if (a.type === 'live') setReplayT(null);
+    else if (a.type === 'seek') {
+      if (synced.liveT === null) return;
+      const next = (replayT ?? synced.liveT) + a.delta;
+      setReplayT(next >= synced.liveT ? null : Math.max(next, synced.startT ?? 0));
+    }
     else if (a.type === 'reset') { setHoldAtStart(false); restart(); }
     else if (a.type === 'preset') { const p = presets[a.index]; if (p) { setHoldAtStart(false); choosePreset(p); } }
     else if (holdAtStart) { setHoldAtStart(false); control('resume'); }
@@ -135,6 +145,7 @@ export function LiveView() {
       fullBleed
       right={
         <>
+          {replayT !== null && <span className="rounded border border-info/50 bg-info/10 px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-info" data-testid="replay-badge">Replay</span>}
           <span className="tabular font-mono text-base font-bold text-fg md:text-lg" aria-label="Shared simulated time since ignition" data-testid="frame-counter">
             {formatSimClock(synced.t ?? 0)}
           </span>
@@ -143,8 +154,9 @@ export function LiveView() {
         </>
       }
     >
-      <div className="grid h-full grid-cols-1 lg:grid-cols-[1fr_340px]">
-        <div className="relative grid min-h-[70vh] grid-rows-2 gap-px bg-line md:grid-cols-2 md:grid-rows-1 lg:min-h-0">
+      <div className={mapsOnly ? 'grid h-full grid-cols-1' : 'grid h-full grid-cols-1 lg:grid-cols-[1fr_340px]'} data-maps-only={mapsOnly ? '1' : undefined}>
+        <div className="flex min-h-[70vh] flex-col lg:min-h-0">
+        <div className="relative grid min-h-0 flex-1 grid-rows-2 gap-px bg-line md:grid-cols-2 md:grid-rows-1">
           <MapPane
             side="left" policy="alerts_only" init={left.init} frame={synced.left} tiles={tiles}
             selectedId={selected?.id ?? null} showCard={selected?.policy === 'alerts_only'} onSelect={select('alerts_only')}
@@ -174,8 +186,10 @@ export function LiveView() {
             {status === 'reconnecting' && <Banner tone="warn" title="Reconnecting to the engine…" className="pointer-events-auto bg-surface/95" />}
           </div>
         </div>
+        {!mapsOnly && <ReplayBar startT={synced.startT} liveT={synced.liveT} replayT={replayT} onScrub={(t) => setReplayT(synced.liveT !== null && t >= synced.liveT ? null : t)} onLive={() => setReplayT(null)} />}
+        </div>
 
-        <aside className="flex min-h-0 flex-col gap-3 overflow-y-auto border-l border-line bg-bg p-3 [&>*]:shrink-0">
+        {!mapsOnly && <aside className="flex min-h-0 flex-col gap-3 overflow-y-auto border-l border-line bg-bg p-3 [&>*]:shrink-0">
           <Panel eyebrow="Run" title="Controls">
             <p className="mb-3 text-xs leading-relaxed text-fg-muted">Same fire, same synthetic people. Only the policy differs.</p>
             <div className="flex flex-wrap items-center gap-2">
@@ -212,7 +226,7 @@ export function LiveView() {
           <Panel eyebrow="Map key" title="Legend" data-dev-only>
             <Legend />
           </Panel>
-        </aside>
+        </aside>}
       </div>
       <ShortcutsOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
       <AssumptionsDrawer open={assumptionsOpen} onClose={() => setAssumptionsOpen(false)} assumptions={right.init?.assumptions ?? left.init?.assumptions ?? []} mock={mock} />

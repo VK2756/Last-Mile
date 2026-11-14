@@ -49,3 +49,20 @@ export function combinedStatus(a: StreamStatus, b: StreamStatus): StreamStatus {
   const order: StreamStatus[] = ['error', 'reconnecting', 'connecting', 'idle', 'live', 'ended'];
   return order[Math.min(order.indexOf(a), order.indexOf(b))]!;
 }
+
+export const HISTORY_MIN_DT = 5;
+export const MAX_HISTORY = 1500;
+
+/**
+ * Replay history: keep a frame only every `minDt` sim-seconds (a whole run fits in memory),
+ * always keeping the very first frame. Resets when time goes backwards. Mutates and returns `buf`.
+ */
+export function pushHistory(buf: SimFrame[], f: SimFrame, minDt = HISTORY_MIN_DT): SimFrame[] {
+  const last = buf[buf.length - 1];
+  if (last === f) return buf;
+  if (last && f.t < last.t) buf.length = 0;
+  const prev = buf[buf.length - 1];
+  if (!prev || f.t - prev.t >= minDt) buf.push(f);
+  if (buf.length > MAX_HISTORY) buf.splice(1, buf.length - MAX_HISTORY); // keep t=0
+  return buf;
+}

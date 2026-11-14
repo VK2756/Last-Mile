@@ -1,5 +1,5 @@
 # Lane B status (WEB) — Shrish / Claude Code
-_Updated: Sat 14 Nov, M2 + pitch mode merged._
+_Updated: Sat 14 Nov, M2 + pitch mode + stretch merged._
 
 ## Done (M2)
 - Split-screen `/live` merged (#25): LEFT Alerts only / RIGHT Last Mile, same config except policy, one Run, shared clock (frames buffered per side, shown at the slower side's t), pause/speed to both scenarios, mirrored cameras. testids `map-left/right`, `scoreboard-left/right`, `frame-counter`, plus e2e aliases `map-alerts`, `map-last-mile`, `score-alerts`, `score-last-mile`.
@@ -8,6 +8,7 @@ _Updated: Sat 14 Nov, M2 + pitch mode merged._
 - Pitch mode `?pitch=1`: nav, legend and picker sliders hidden, bigger type, opens paused on the first frame ("Press Space to start"). Keys on /live: Space start/pause, R reset, 1/2/3 presets, ? (or /) shortcuts overlay, Esc close. `web/package.json` has `e2e` (#13).
 - Failure UX: engine-offline banner has Retry + Switch to mock (verified: engine killed -> banner; engine back -> Retry -> LIVE). Perf: 0 long tasks (>50ms) over 5s with 2x545 households streaming (prod build).
 - docs/VERCEL.md: click-by-click Vercel setup; NEXT_PUBLIC_ENGINE_URL is baked in at build (redeploy after changing).
+- Stretch: replay scrubber under the maps (both sides rewind together from a 5s-downsampled history while the runs continue; ←/→ ±30s, L = live; `replay-scrubber`, `replay-badge`, `replay-live`). Screenshot layout `?view=maps` (two maps + scoreboards only, no zoom buttons; add `&pitch=1` to hide nav).
 
 ## Done (M1, merged #19)
 - **UI kit published: `web/components/ui/**`** (import from `@/components/ui`): AppShell (top bar + nav Live/Results/Call), Button, Badge, Banner, Panel, StatTile, SimBadge (`data-testid="sim-badge"`), CountdownChip, StatusIcon/ShapeGlyph, Drawer, Segmented, Spinner, EmptyState, Kbd, Logo. Tokens in `web/app/globals.css` (Tailwind v4 `@theme`: bg-surface, text-fg-muted, border-line, text-accent…). Lane C: wrap /call in `<AppShell right={<SimBadge />}>`.

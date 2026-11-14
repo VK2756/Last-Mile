@@ -98,3 +98,8 @@ html[data-pitch='1'] [data-dev-only] {
 ::selection {
   background: rgb(46 230 197 / 0.3);
 }
+
+/* ?view=maps: screenshot-friendly. Zoom buttons hidden; tile attribution stays (licence). */
+[data-maps-only='1'] .maplibregl-ctrl-group {
+  display: none !important;
+}
