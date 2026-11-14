@@ -52,10 +52,10 @@ function TooltipBody({ active, payload, label }: { active?: boolean; payload?: A
     <div className="rounded-md border border-line-strong bg-surface-2 px-3 py-2 text-xs shadow-lg">
       <div className="mb-1 font-semibold text-fg">{label}</div>
       <div className="tabular font-mono text-[#c9a227]">
-        Alerts only {formatPct(r.alerts)} <span className="text-fg-dim">[{formatPct(r.alertsCi[0])}, {formatPct(r.alertsCi[1])}]</span>
+        Alerts only {formatPct(r.alerts)} <span className="text-fg-muted">[{formatPct(r.alertsCi[0])}, {formatPct(r.alertsCi[1])}]</span>
       </div>
       <div className="tabular font-mono text-accent">
-        Last Mile {formatPct(r.lastMile)} <span className="text-fg-dim">[{formatPct(r.lastMileCi[0])}, {formatPct(r.lastMileCi[1])}]</span>
+        Last Mile {formatPct(r.lastMile)} <span className="text-fg-muted">[{formatPct(r.lastMileCi[0])}, {formatPct(r.lastMileCi[1])}]</span>
       </div>
     </div>
   );

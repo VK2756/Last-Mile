@@ -178,7 +178,7 @@ export function ResultsView({ sensitivity }: { sensitivity: ReactNode | null }) 
             {error}
           </Banner>
         )}
-        {notice && !job && <p className="mb-4 font-mono text-xs text-fg-dim" role="status">{notice}</p>}
+        {notice && !job && <p className="mb-4 font-mono text-xs text-fg-muted" role="status">{notice}</p>}
         {job && <Progress job={job} now={now} compact={Boolean(shown)} />}
         {shown && <Ready shown={shown} sensitivity={sensitivity} model={shown.kind === 'sample' ? [] : model} />}
       </div>
@@ -207,7 +207,7 @@ function Progress({ job, now, compact }: { job: NonNullable<Job>; now: number; c
           {job.label}
           {determinate && ` ${job.done ?? 0} of ${job.total} paired runs`}
         </p>
-        <span className="tabular font-mono text-xs text-fg-dim">
+        <span className="tabular font-mono text-xs text-fg-muted">
           {elapsed}s elapsed{job.expectS ? ` · usually ~${job.expectS}s` : ''}
         </span>
       </div>
@@ -248,7 +248,7 @@ function Ready({ shown, sensitivity, model }: { shown: Shown; sensitivity: React
         data-testid="results-lift"
         className={cn('rounded-lg border p-6 sm:p-8', significant && positive && kind !== 'sample' ? 'border-accent/40 bg-accent/5' : 'border-line bg-surface')}
       >
-        <p className="font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.16em] text-fg-dim">
+        <p className="font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.16em] text-fg-muted">
           Paired lift · vulnerable households evacuated · {data.runs} seeds ({shown.seeds})
         </p>
         <div className="mt-3 flex flex-wrap items-baseline gap-x-6 gap-y-2">
@@ -270,12 +270,12 @@ function Ready({ shown, sensitivity, model }: { shown: Shown; sensitivity: React
       <div className="grid gap-6 lg:grid-cols-[1.35fr_1fr]">
         <section className="rounded-lg border border-line bg-surface p-4 sm:p-6">
           <h2 className="mb-1 text-sm font-semibold">Evacuated before the fire arrived</h2>
-          <p className="mb-4 text-xs text-fg-dim">Share of at-risk households, mean over {data.runs} seeds, 95% CI whiskers</p>
+          <p className="mb-4 text-xs text-fg-muted">Share of at-risk households, mean over {data.runs} seeds, 95% CI whiskers</p>
           <CiChart data={data} />
           <table data-testid="confidence-intervals" className="mt-6 w-full text-sm">
             <caption className="sr-only">Means and 95% confidence intervals by policy</caption>
             <thead>
-              <tr className="border-b border-line text-left font-mono text-[0.625rem] uppercase tracking-[0.14em] text-fg-dim">
+              <tr className="border-b border-line text-left font-mono text-[0.625rem] uppercase tracking-[0.14em] text-fg-muted">
                 <th className="pb-2 font-semibold">Metric</th>
                 <th className="pb-2 text-right font-semibold" style={{ color: POLICY_COLOR.alerts_only }}>Alerts only</th>
                 <th className="pb-2 text-right font-semibold" style={{ color: POLICY_COLOR.last_mile }}>Last Mile</th>
@@ -304,13 +304,13 @@ function Ready({ shown, sensitivity, model }: { shown: Shown; sensitivity: React
               All {all.length} assumptions <ArrowRight aria-hidden className="size-3.5" />
             </a>
             <dl className="mt-5 grid grid-cols-2 gap-2 border-t border-line pt-4 text-xs">
-              <dt className="text-fg-dim">Seeds (paired)</dt>
+              <dt className="text-fg-muted">Seeds (paired)</dt>
               <dd className="tabular text-right font-mono">{data.runs}</dd>
-              <dt className="text-fg-dim">Town</dt>
+              <dt className="text-fg-muted">Town</dt>
               <dd className="text-right font-mono">{data.base.town}</dd>
-              <dt className="text-fg-dim">Helpers</dt>
+              <dt className="text-fg-muted">Helpers</dt>
               <dd className="tabular text-right font-mono">{data.base.helperCount}</dd>
-              <dt className="text-fg-dim">Wind</dt>
+              <dt className="text-fg-muted">Wind</dt>
               <dd className="tabular text-right font-mono">
                 {data.base.wind.speedMph} mph toward {data.base.wind.dirDeg}°
               </dd>
@@ -324,7 +324,7 @@ function Ready({ shown, sensitivity, model }: { shown: Shown; sensitivity: React
           <ShieldAlert aria-hidden className="size-4 text-warn" /> Under harsher assumptions
         </h2>
         <div className="max-w-4xl">{sensitivity ?? <p className="text-sm text-fg-muted">Sensitivity runs are not written up yet.</p>}</div>
-        <p className="mt-3 font-mono text-[0.625rem] text-fg-dim">Source: docs/submission/SENSITIVITY.md (real evaluator runs; refresh with docs/submission/tools/numbers.mjs)</p>
+        <p className="mt-3 font-mono text-[0.625rem] text-fg-muted">Source: docs/submission/SENSITIVITY.md (real evaluator runs; refresh with docs/submission/tools/numbers.mjs)</p>
       </section>
 
       <section id="assumptions" className="scroll-mt-20 rounded-lg border border-line bg-surface p-4 sm:p-6">
@@ -350,11 +350,11 @@ function CiRow({ label, a, l }: { label: string; a: { mean: number; ci95: [numbe
       <th scope="row" className="py-2 text-left font-sans text-sm font-normal text-fg-muted">{label}</th>
       <td className="py-2 text-right">
         {formatPct(a.mean)}
-        <div className="text-[0.625rem] text-fg-dim">[{formatPct(a.ci95[0])}, {formatPct(a.ci95[1])}]</div>
+        <div className="text-[0.625rem] text-fg-muted">[{formatPct(a.ci95[0])}, {formatPct(a.ci95[1])}]</div>
       </td>
       <td className="py-2 text-right">
         {formatPct(l.mean)}
-        <div className="text-[0.625rem] text-fg-dim">[{formatPct(l.ci95[0])}, {formatPct(l.ci95[1])}]</div>
+        <div className="text-[0.625rem] text-fg-muted">[{formatPct(l.ci95[0])}, {formatPct(l.ci95[1])}]</div>
       </td>
     </tr>
   );

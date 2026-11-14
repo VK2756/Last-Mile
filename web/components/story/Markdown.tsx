@@ -45,7 +45,7 @@ export function Markdown({ source, skipTitle = false }: { source: string; skipTi
     if (h) {
       const level = h[1]!.length;
       if (!(skipTitle && level === 1)) {
-        const cls = level <= 2 ? 'mt-5 mb-2 text-sm font-semibold text-fg' : 'mt-4 mb-1 text-xs font-semibold uppercase tracking-[0.12em] text-fg-dim';
+        const cls = level <= 2 ? 'mt-5 mb-2 text-sm font-semibold text-fg' : 'mt-4 mb-1 text-xs font-semibold uppercase tracking-[0.12em] text-fg-muted';
         blocks.push(level <= 2 ? <h3 key={key} className={cls}>{inline(h[2]!, key)}</h3> : <h4 key={key} className={cls}>{inline(h[2]!, key)}</h4>);
       }
       i++;
@@ -58,7 +58,7 @@ export function Markdown({ source, skipTitle = false }: { source: string; skipTi
       blocks.push(
         <div key={key} className="my-3 overflow-x-auto rounded-md border border-line">
           <table className="w-full text-left text-xs">
-            <thead className="bg-surface-2 font-mono text-[0.625rem] uppercase tracking-[0.1em] text-fg-dim">
+            <thead className="bg-surface-2 font-mono text-[0.625rem] uppercase tracking-[0.1em] text-fg-muted">
               <tr>{cells(head ?? '').map((c, j) => <th key={j} className="px-2.5 py-2 font-semibold">{inline(c, `${key}h${j}`)}</th>)}</tr>
             </thead>
             <tbody className="tabular font-mono">

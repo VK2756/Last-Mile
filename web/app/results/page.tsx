@@ -1,13 +1,15 @@
 import type { Metadata } from 'next';
+import { storyMeta } from '@/components/story/meta';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { Markdown } from '@/components/story/Markdown';
 import { ResultsView } from '@/components/story/ResultsView';
 
-export const metadata: Metadata = {
-  title: 'Results · Last Mile',
-  description: 'Monte Carlo comparison of alerts-only vs Last Mile evacuation dispatch, with 95% confidence intervals. Simulation with synthetic people.',
-};
+export const metadata: Metadata = storyMeta(
+  'Results · Last Mile',
+  'Monte Carlo comparison of alerts-only vs Last Mile evacuation dispatch, with 95% confidence intervals. Simulation with synthetic people.',
+  '/results',
+);
 
 /**
  * docs/submission/SENSITIVITY.md is read at build time (the page is static), so the note ships with each deploy.
