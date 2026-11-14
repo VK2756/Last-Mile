@@ -18,3 +18,11 @@ describe('live shortcuts', () => {
     expect(keyAction({ key: 'Escape', target: input })).toEqual({ type: 'escape' });
   });
 });
+
+describe('shortcuts and the map', () => {
+  it('arrow keys pan a focused map instead of seeking the replay', () => {
+    const inMap = { tagName: 'CANVAS', closest: (sel: string) => (sel === '.maplibregl-map' ? {} : null) } as unknown as EventTarget;
+    expect(keyAction({ key: 'ArrowLeft', target: inMap })).toBeNull();
+    expect(keyAction({ key: ' ', target: inMap })).toEqual({ type: 'space' });
+  });
+});

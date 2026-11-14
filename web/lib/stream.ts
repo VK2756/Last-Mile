@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StreamEvent, type Metrics, type ScenarioConfig, type SimFrame, type SimInit } from '@lastmile/contracts';
 import { createMockRunner } from './mock';
-import { createScenario, engineUrl, sendControl, type ControlAction } from './engine';
+import { createScenario, engineHealthy, engineUrl, sendControl, type ControlAction } from './engine';
 
 export type StreamStatus = 'idle' | 'connecting' | 'live' | 'reconnecting' | 'ended' | 'error';
 
@@ -45,10 +45,16 @@ export interface ScenarioStream {
   scenarioId: string | null;
   paused: boolean;
   speed: number;
+  /** completed automatic reconnects in this run (the UI shows a short "Reconnected" notice) */
+  reconnects: number;
   control: (action: ControlAction, value?: number) => void;
 }
 
 const MAX_RECONNECT_MS = 12_000;
+/** after the browser's own retries give up: health-check backoff before re-attaching to the same run */
+export const RESUME_BACKOFF_MS = [2000, 4000, 8000, 15_000];
+/** consecutive re-attach failures while the engine itself is healthy = the run is gone (engine restarted) */
+const MAX_HEALTHY_FAILURES = 2;
 
 export function useScenarioStream(config: ScenarioConfig | null, opts: StreamOptions): ScenarioStream {
   const { mock, enabled = true, runKey = 0, mockFrameMs = 250 } = opts;
@@ -60,6 +66,7 @@ export function useScenarioStream(config: ScenarioConfig | null, opts: StreamOpt
   const [scenarioId, setScenarioId] = useState<string | null>(null);
   const [paused, setPaused] = useState(false);
   const [speed, setSpeed] = useState(config?.speedMultiplier ?? 8);
+  const [reconnects, setReconnects] = useState(0);
   const controlRef = useRef<(a: ControlAction, v?: number) => void>(() => {});
   const configKey = config ? JSON.stringify(config) : '';
 
@@ -69,7 +76,7 @@ export function useScenarioStream(config: ScenarioConfig | null, opts: StreamOpt
       return;
     }
     let cancelled = false;
-    setInit(null); setFrame(null); setFinal(null); setError(null); setPaused(false); setSpeed(config.speedMultiplier);
+    setInit(null); setFrame(null); setFinal(null); setError(null); setPaused(false); setSpeed(config.speedMultiplier); setReconnects(0);
     setStatus('connecting');
 
     const handle = (ev: StreamEvent) => {
@@ -113,6 +120,56 @@ export function useScenarioStream(config: ScenarioConfig | null, opts: StreamOpt
     let es: EventSource | null = null;
     let downSince: number | null = null;
     let id: string | null = null;
+    let ended = false;
+    let wasDown = false;
+    let attempt = 0;
+    let healthyFailures = 0;
+    let resumeTimer: ReturnType<typeof setTimeout> | null = null;
+
+    // The engine keeps running a scenario while nobody watches, so after a drop we re-attach to the
+    // SAME run (it resumes where the engine is now) instead of starting a new one.
+    const scheduleResume = () => {
+      if (cancelled || ended) return;
+      setStatus('reconnecting');
+      const wait = RESUME_BACKOFF_MS[Math.min(attempt, RESUME_BACKOFF_MS.length - 1)]!;
+      attempt++;
+      resumeTimer = setTimeout(async () => {
+        if (cancelled) return;
+        if (!(await engineHealthy())) { scheduleResume(); return; }
+        if (healthyFailures >= MAX_HEALTHY_FAILURES) { fail('The engine restarted and this run is gone. Press Retry to start a new one.'); return; }
+        healthyFailures++;
+        open();
+      }, wait);
+    };
+
+    const open = () => {
+      if (!id || cancelled) return;
+      es?.close();
+      es = new EventSource(`${base}/scenarios/${encodeURIComponent(id)}/stream`);
+      es.onopen = () => {
+        downSince = null;
+        if (cancelled) return;
+        attempt = 0; healthyFailures = 0;
+        if (wasDown) { wasDown = false; setReconnects((n) => n + 1); }
+        setStatus((s) => (s === 'reconnecting' ? 'live' : s));
+      };
+      es.onmessage = (m) => {
+        const r = parseStreamEvent(m.data as string);
+        if (!r.ok) { console.error(r.error); fail(r.error); es?.close(); return; }
+        handle(r.event);
+        if (r.event.type === 'end') { ended = true; es?.close(); } // otherwise EventSource would reconnect and replay
+      };
+      es.onerror = () => {
+        if (cancelled || !es || ended) return;
+        wasDown = true;
+        if (es.readyState === EventSource.CLOSED) { scheduleResume(); return; }
+        // CONNECTING: the browser retries on its own for a while; then we take over with health checks.
+        downSince ??= Date.now();
+        if (Date.now() - downSince > MAX_RECONNECT_MS) { es.close(); downSince = null; scheduleResume(); return; }
+        setStatus((s) => (s === 'ended' ? s : 'reconnecting'));
+      };
+    };
+
     (async () => {
       try {
         id = await createScenario(config);
@@ -122,22 +179,7 @@ export function useScenarioStream(config: ScenarioConfig | null, opts: StreamOpt
       }
       if (cancelled) return;
       setScenarioId(id);
-      es = new EventSource(`${base}/scenarios/${encodeURIComponent(id)}/stream`);
-      es.onopen = () => { downSince = null; if (!cancelled) setStatus((s) => (s === 'reconnecting' ? 'live' : s)); };
-      es.onmessage = (m) => {
-        const r = parseStreamEvent(m.data as string);
-        if (!r.ok) { console.error(r.error); fail(r.error); es?.close(); return; }
-        handle(r.event);
-        if (r.event.type === 'end') es?.close(); // otherwise EventSource would reconnect and replay
-      };
-      es.onerror = () => {
-        if (cancelled || !es) return;
-        if (es.readyState === EventSource.CLOSED) { fail('Lost connection to the engine'); return; }
-        // CONNECTING: the browser retries on its own; give up after MAX_RECONNECT_MS.
-        downSince ??= Date.now();
-        if (Date.now() - downSince > MAX_RECONNECT_MS) { es.close(); fail('Lost connection to the engine'); return; }
-        setStatus((s) => (s === 'ended' ? s : 'reconnecting'));
-      };
+      open();
     })();
     controlRef.current = (a, v) => {
       if (!id) return;
@@ -146,11 +188,11 @@ export function useScenarioStream(config: ScenarioConfig | null, opts: StreamOpt
       if (a === 'speed' && v !== undefined) setSpeed(v);
       sendControl(id, a, v).catch((e) => console.error('control failed', e));
     };
-    return () => { cancelled = true; es?.close(); };
+    return () => { cancelled = true; es?.close(); if (resumeTimer) clearTimeout(resumeTimer); };
     // configKey captures config by value
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [configKey, mock, enabled, runKey, mockFrameMs]);
 
   const control = useCallback((a: ControlAction, v?: number) => controlRef.current(a, v), []);
-  return { init, frame, final, status, error, scenarioId, paused, speed, control };
+  return { init, frame, final, status, error, scenarioId, paused, speed, reconnects, control };
 }

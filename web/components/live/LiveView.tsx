@@ -54,6 +54,9 @@ export function LiveView() {
   const [assumptionsOpen, setAssumptionsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [replayT, setReplayT] = useState<number | null>(null);
+  // SSE drop + automatic resume: remember when it dropped, flash "Reconnected" when it is back
+  const [dropT, setDropT] = useState<number | null>(null);
+  const [justReconnected, setJustReconnected] = useState(false);
   const [verdictDismissed, setVerdictDismissed] = useState(false);
   /** pitch mode opens on the first frame, paused: the presenter presses Space to start */
   const [holdAtStart, setHoldAtStart] = useState(pitch && !auto);
@@ -68,6 +71,18 @@ export function LiveView() {
   const status = combinedStatus(left.status, right.status);
   const live = left.status === 'live' || right.status === 'live';
   const paused = left.paused && right.paused;
+  useEffect(() => {
+    if (status === 'reconnecting') setDropT((d) => d ?? synced.t ?? 0);
+    else if (status !== 'error') setDropT(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
+  const reconnects = left.reconnects + right.reconnects;
+  useEffect(() => {
+    if (!reconnects) return;
+    setJustReconnected(true);
+    const t = setTimeout(() => setJustReconnected(false), 3500);
+    return () => clearTimeout(t);
+  }, [reconnects]);
   // end-of-run verdict from the two runs' real final metrics
   const result = useMemo(() => (left.final && right.final ? verdict(left.final, right.final) : null), [left.final, right.final]);
 
@@ -191,6 +206,7 @@ export function LiveView() {
         </>
       }
     >
+      <a href="#operator-panel" className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-16 focus:z-50 focus:rounded-md focus:bg-surface focus:px-3 focus:py-2 focus:text-sm focus:font-semibold">Skip to the operator queue</a>
       <div className={mapsOnly ? 'grid h-full grid-cols-1' : 'grid h-full grid-cols-1 lg:grid-cols-[1fr_21.25rem]'} data-maps-only={mapsOnly ? '1' : undefined}>
         <div className="flex min-h-[70vh] flex-col lg:min-h-0">
         <div className="relative grid min-h-0 flex-1 grid-rows-2 gap-px bg-line md:grid-cols-2 md:grid-rows-1">
@@ -226,7 +242,16 @@ export function LiveView() {
               </div>
             )}
             {result && !verdictDismissed && replayT === null && <RunVerdict v={result} mock={mock} onClose={() => setVerdictDismissed(true)} className="mx-auto w-full" />}
-            {status === 'reconnecting' && <Banner tone="warn" title="Reconnecting to the engine…" className="pointer-events-auto bg-surface/95" />}
+            {status === 'reconnecting' && (
+              <div data-testid="sse-drop-banner">
+                <Banner tone="warn" title="Connection to the engine dropped." className="pointer-events-auto bg-surface/95" action={<Button size="sm" onClick={switchToMock}>Switch to mock</Button>}>
+                  Lost at {formatSimClock(dropT ?? synced.t ?? 0)}. The run keeps going on the engine; reconnecting automatically and picking up where it is now…
+                </Banner>
+              </div>
+            )}
+            {justReconnected && status === 'live' && (
+              <div role="status" className="glass-map mx-auto rounded-full px-4 py-1.5 text-xs font-semibold text-ok" data-testid="reconnected-toast">Reconnected. The run resumed.</div>
+            )}
           </div>
         </div>
         {!mapsOnly && <ReplayBar startT={synced.startT} liveT={synced.liveT} replayT={replayT} onScrub={(t) => setReplayT(synced.liveT !== null && t >= synced.liveT ? null : t)} onLive={() => setReplayT(null)} />}

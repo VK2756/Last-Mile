@@ -25,6 +25,8 @@ export function OperatorPanel({ init, frame, selectedId, onSelect }: { init: Sim
       flush
       className="flex flex-col"
       data-testid="operator-panel"
+      id="operator-panel"
+      tabIndex={-1}
     >
       {!frame ? (
         <ul className="divide-y divide-white/[0.05]" aria-label="Loading at-risk households" data-testid="operator-skeleton">
