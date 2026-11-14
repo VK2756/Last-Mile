@@ -66,8 +66,11 @@ export class Scenario {
         this.subs.clear();
       }
     } catch (err) {
-      console.error(`[scenario ${this.id}] tick failed`, err);
+      // never leave a viewer hanging: log, then close the stream with whatever metrics we have
+      console.error(JSON.stringify({ level: 'error', msg: 'scenario tick failed', scenarioId: this.id, err: String(err) }));
       this.stopTicker();
+      try { this.ended = { type: 'end', scenarioId: this.id, final: this.runner.finalMetrics() }; this.emit(this.ended); } catch { /* nothing more to do */ }
+      this.subs.clear();
     }
   }
 
@@ -89,13 +92,19 @@ export class Registry {
     this.sweeper = setInterval(() => this.sweep(), 60_000);
     this.sweeper.unref();
   }
+  /** thrown by create() when the registry is full */
+  static readonly FULL = 'registry full';
+  maxScenarios = Number(process.env.ENGINE_MAX_SCENARIOS ?? 300);
   create(config: ScenarioConfig): Scenario {
+    if (this.map.size >= this.maxScenarios) { this.sweep(Date.now() + this.ttlMs + 1); if (this.map.size >= this.maxScenarios) throw new Error(Registry.FULL); }
     const id = `sc-${randomUUID().slice(0, 8)}`;
     const s = new Scenario(id, config, this.factory(id, config));
     this.map.set(id, s);
     return s;
   }
   get(id: string) { return this.map.get(id); }
+  /** end every open stream and stop all tickers (graceful shutdown) */
+  shutdown() { for (const s of this.map.values()) s.dispose(); }
   get size() { return this.map.size; }
   sweep(now = Date.now()) {
     for (const [id, s] of this.map) {
