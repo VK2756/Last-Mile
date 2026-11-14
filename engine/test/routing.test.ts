@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { FireModel, LatLng, RoadGraph } from '@lastmile/contracts';
+import { sampleInit } from '@lastmile/contracts/fixtures';
 import { createRouter, routingAssumptions } from '../src/routing/index';
 import { makeGridGraph } from '../src/world/town';
+import { createFireModel } from '../src/sim/fire';
 
 const MPS_25 = 25 * 0.44704;
 const node = (g: RoadGraph, id: number): LatLng => { const n = g.nodes.find((x) => x.id === id)!; return { lat: n.lat, lng: n.lng }; };
@@ -195,5 +197,31 @@ describe('createRouter matches brute force on random directed graphs', () => {
         else { expect(path[0]).toEqual(pos(s)); expect(path[path.length - 1]).toEqual(pos(target)); }
       }
     }
+  });
+});
+
+describe('createRouter with the real fire model (Lane A sim/fire)', () => {
+  it('never routes through ground that is burning, and closes more roads as the fire grows', () => {
+    const g = makeGridGraph(20, 150);
+    const fire = createFireModel(sampleInit.config);
+    const r = createRouter(g, fire);
+    const pts = g.nodes.filter((_, i) => i % 23 === 0).map((n) => ({ lat: n.lat, lng: n.lng }));
+    let closedBefore = -1;
+    for (const t of [0, 900, 1800, 3600]) {
+      for (const a of pts) for (const b of pts) {
+        if (a === b) continue;
+        const path = r.route(a, b, t);
+        if (path.length === 0) continue;
+        expect(r.travelSeconds(a, b, t)).toBeLessThan(Infinity);
+        for (let i = 2; i < path.length - 1; i++) { // road nodes only (endpoints are checked separately)
+          const p = path[i - 1]!, q = path[i]!;
+          for (const f of [0, 0.5, 1]) expect(fire.isBurning({ lat: p.lat + (q.lat - p.lat) * f, lng: p.lng + (q.lng - p.lng) * f }, t)).toBe(false);
+        }
+      }
+      const { closedEdges } = r.stats();
+      expect(closedEdges).toBeGreaterThanOrEqual(closedBefore);
+      closedBefore = closedEdges;
+    }
+    expect(closedBefore).toBeGreaterThan(0);
   });
 });
