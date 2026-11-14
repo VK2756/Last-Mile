@@ -20,10 +20,10 @@ export function OperatorPanel({ init, frame, selectedId, onSelect }: { init: Sim
   return (
     <Panel
       eyebrow="Last Mile · operator"
-      title={<span className="tabular">{rows.length} at risk{rows.length ? ` · ${unassigned} without a helper` : ''}</span>}
+      title={<span className="tabular">{rows.length} at risk{rows.length ? ` · ${unassigned} unassigned` : ''}</span>}
       actions={<Segmented<Filter> label="Filter households" value={filter} onChange={setFilter} options={[{ value: 'vulnerable', label: 'Vulnerable' }, { value: 'all', label: 'All' }]} />}
       flush
-      className="flex min-h-0 flex-col"
+      className="flex flex-col"
       data-testid="operator-panel"
     >
       {rows.length === 0 ? (
@@ -57,7 +57,7 @@ const Row = memo(function Row({ row, selected, onSelect }: { row: AtRiskRow; sel
       >
         <div className="flex items-center gap-2.5">
           <CountdownChip status={state.status} tti={state.ttiSeconds} className="w-[86px] shrink-0" />
-          <span className="min-w-0 flex-1 truncate text-sm font-medium">{h.name ?? `Household ${h.id}`}</span>
+          <span className="min-w-0 flex-1 truncate text-sm font-medium">{h.name ?? <span className="font-mono text-fg-muted">{h.id}</span>}<span className="ml-1.5 text-xs text-fg-dim">{h.residents}p</span></span>
           {vulnerable && <Accessibility aria-label="Vulnerable" className="size-3.5 shrink-0 text-warn" />}
           <span className={cn('shrink-0 font-mono text-[10px] uppercase tracking-[0.12em]', assignment ? 'text-accent' : 'text-fg-dim')}>
             {assignment ? STATUS_META[state.status].short : 'No helper'}
