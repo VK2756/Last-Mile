@@ -10,7 +10,7 @@ import { sharedWorld } from './cache';
 import { distMeters } from './geo';
 import { makeDispatcher, makeRouter, routerAssumptions } from './deps';
 import { ALERT_ISSUE_S, type Variant, type Behavior, type SafeZone } from '../world/population';
-import { alertsOnlyAssumptions, selfEvacDepartTime } from '../policy/alertsOnly';
+import { alertsOnlyAssumptions, selfEvacDepartTime, BOARD_S, NEIGHBOR_RIDE_RADIUS_M, VEHICLE_SEATS } from '../policy/alertsOnly';
 import { helpRequestTime, LAST_MILE_ASSUMPTIONS } from '../policy/lastMile';
 
 /** only households the fire reaches within this horizon are "at risk" and counted in Metrics */
@@ -44,7 +44,7 @@ export interface Sim {
   /** apply a voice-triage result to one household (see below); never throws */
   applyTriage(r: TriageResult): TriageOutcome;
   /** counters for tests */
-  stats: { rejectedCapacity: number; rejectedWheelchair: number; plans: number };
+  stats: { rejectedCapacity: number; rejectedWheelchair: number; plans: number; neighborRides: number; rideIds: string[] };
 }
 
 interface HS {
@@ -95,7 +95,8 @@ export function createSim(config: ScenarioConfig, scenarioId: string, opts: SimO
   const hpById = new Map(hp.map((p, i) => [p.h.id, i]));
 
   let t = 0, acc = 0, dirty = false, lastPlan = -Infinity, outcomeSent = false, hardDone = false;
-  const stats = { rejectedCapacity: 0, rejectedWheelchair: 0, plans: 0 };
+  const stats = { rejectedCapacity: 0, rejectedWheelchair: 0, plans: 0, neighborRides: 0, rideIds: [] as string[] };
+  const rideP = config.baseline?.neighborRideProb ?? 0;
   const atRiskCount = hs.filter((s) => s.atRisk).length;
   let unresolvedAtRisk = atRiskCount;
 
@@ -117,15 +118,37 @@ export function createSim(config: ScenarioConfig, scenarioId: string, opts: SimO
   };
   const routeTo = (a: LatLng, b: LatLng): LatLng[] => { const r = router.route(a, b, t); return r.length >= 2 ? r : [a, b]; };
 
+  /** neighbourRideProb: the nearest vehicle-less, non-wheelchair household within reach that still fits in the car and is not already burning */
+  function rideCandidate(d: HS): { c: HS; detour: number } | null {
+    let best: HS | null = null; let bestD = Infinity;
+    for (const c of hs) {
+      if (c === d || c.h.hasVehicle || c.h.needs.includes('wheelchair')) continue;
+      if (c.status !== 'unaware' && c.status !== 'warned' && c.status !== 'needs_help' && c.status !== 'assigned') continue;
+      if (d.h.residents + c.h.residents > VEHICLE_SEATS) continue;
+      const dist = distMeters(d.h.position, c.h.position);
+      if (dist > NEIGHBOR_RIDE_RADIUS_M || dist > bestD || (dist === bestD && best && c.h.id > best.h.id)) continue;
+      if (c.ign <= t + BOARD_S + (2 * dist) / 8) continue;
+      best = c; bestD = dist;
+    }
+    return best ? { c: best, detour: BOARD_S + (2 * bestD) / 8 } : null;
+  }
+
   function tryDepart(s: HS) {
     const dest = s.zone.position; const tt = router.travelSeconds(s.h.position, dest, t) * ROAD_CONGESTION;
     if (!Number.isFinite(tt)) { s.nextTry = t + 15; return; }
     const route = routeTo(s.h.position, dest);
+    const ride = rideP > 0 && s.h.hasVehicle && s.b.rideRoll < rideP ? rideCandidate(s) : null;
+    const t0 = t + (ride?.detour ?? 0);
     let caughtAt = Infinity;
-    for (let k = 1; k <= 10; k++) { const f = k / 10; if (fire.isBurning(pointAlong(route, f), t + f * tt)) { caughtAt = t + f * tt; break; } }
+    for (let k = 1; k <= 10; k++) { const f = k / 10; if (fire.isBurning(pointAlong(route, f), t0 + f * tt)) { caughtAt = t0 + f * tt; break; } }
     if (s.status === 'needs_help' || s.status === 'assigned') dirty = true;
     s.status = 'self_evacuating'; s.owner = -1;
-    if (Number.isFinite(caughtAt)) { s.endAt = caughtAt; s.endStatus = 'trapped'; } else { s.endAt = t + tt; s.endStatus = 'evacuated'; }
+    const endAt = Number.isFinite(caughtAt) ? caughtAt : t0 + tt, endStatus: HouseholdStatus = Number.isFinite(caughtAt) ? 'trapped' : 'evacuated';
+    s.endAt = endAt; s.endStatus = endStatus;
+    if (ride) {
+      const c = ride.c; if (c.status === 'needs_help' || c.status === 'assigned') dirty = true;
+      c.status = 'self_evacuating'; c.owner = -1; c.endAt = endAt; c.endStatus = endStatus; stats.neighborRides++; stats.rideIds.push(c.h.id);
+    }
   }
 
   function tickHouseholds() {

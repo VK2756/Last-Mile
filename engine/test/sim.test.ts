@@ -138,7 +138,7 @@ describe('urgent family pickup (#72)', () => {
   });
   it('the delay formula: shrinks with time-to-impact, never below 120 s, never above the drawn delay', async () => {
     const { selfEvacDepartTime } = await import('../src/policy/alertsOnly');
-    const b = { alertDelayS: 0, prepS: 0, familyPickup: true, pickupDelayS: 2000, helpRequestDelayS: 0 };
+    const b = { alertDelayS: 0, prepS: 0, familyPickup: true, pickupDelayS: 2000, helpRequestDelayS: 0, rideRoll: 0 };
     expect(selfEvacDepartTime({ hasVehicle: false }, b, 1000, { ign: 2000 })).toBe(1000 + 500);
     expect(selfEvacDepartTime({ hasVehicle: false }, b, 1000, { ign: 1100 })).toBe(1000 + 120);
     expect(selfEvacDepartTime({ hasVehicle: false }, b, 1000, { ign: 20000 })).toBe(1000 + 2000);
@@ -148,5 +148,26 @@ describe('urgent family pickup (#72)', () => {
   it('deterministic and applied to both policies', () => {
     const k = { urgentFamilyPickup: true };
     expect(runHeadlessWith({ ...mk(8, 'last_mile'), baseline: k })).toEqual(runHeadlessWith({ ...mk(8, 'last_mile'), baseline: k }));
+  });
+});
+
+describe('neighbour rides (#69)', () => {
+  const sim = (baseline: ScenarioConfig['baseline'], policy: ScenarioConfig['policy'] = 'alerts_only') => { const s = createSim({ ...mk(8, policy), baseline }, 'nr'); while (!s.done) s.advance(600); return s; };
+  it('p=0 or absent changes nothing (and the roll stream never shifts other draws)', () => {
+    expect(sim({ neighborRideProb: 0 }).finalMetrics()).toEqual(sim(undefined).finalMetrics()); expect(sim(undefined).stats.neighborRides).toBe(0);
+  });
+  it('rides help the baseline, grow with p, never carry wheelchair users, and respect the seat limit', () => {
+    const base = sim(undefined), lo = sim({ neighborRideProb: 0.1 }), hi = sim({ neighborRideProb: 1 });
+    expect(lo.stats.neighborRides).toBeGreaterThan(0); expect(hi.stats.neighborRides).toBeGreaterThan(lo.stats.neighborRides);
+    expect(hi.finalMetrics().vulnerableEvacuated).toBeGreaterThan(base.finalMetrics().vulnerableEvacuated);
+    const byId = new Map(hi.init.households.map((h) => [h.id, h]));
+    for (const id of hi.stats.rideIds) { const h = byId.get(id)!; expect(h.hasVehicle).toBe(false); expect(h.needs).not.toContain('wheelchair'); }
+    expect(new Set(hi.stats.rideIds).size).toBe(hi.stats.rideIds.length); // nobody is picked up twice
+  });
+  it('deterministic, applied to both policies, and announced', () => {
+    const a = sim({ neighborRideProb: 0.3 }, 'last_mile'), b = sim({ neighborRideProb: 0.3 }, 'last_mile');
+    expect(a.finalMetrics()).toEqual(b.finalMetrics()); expect(a.stats.rideIds).toEqual(b.stats.rideIds); expect(a.stats.neighborRides).toBeGreaterThan(0);
+    expect(a.init.assumptions.join('\n')).toMatch(/SENSITIVITY: neighbours give rides: with probability 0.3/);
+    expect(sim(undefined).init.assumptions.join('\n')).not.toMatch(/neighbours give rides/);
   });
 });
