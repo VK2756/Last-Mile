@@ -1,5 +1,5 @@
-// OWNER: Lane A (Engine). STUB: replace with the baked Amherst OSM road graph (keep makeGridGraph as fallback).
-import type { RoadGraph } from '@lastmile/contracts';
+// OWNER: Lane D (Rishabh). STUB: replace with the baked Amherst OSM road graph (keep makeGridGraph as fallback).
+import type { RoadGraph, ScenarioConfig } from '@lastmile/contracts';
 
 /** Synthetic n x n grid of roads, ~spacing meters apart, centered near Amherst, MA. Never needs the network. */
 export function makeGridGraph(n = 20, spacingMeters = 150, center = { lat: 42.3732, lng: -72.5199 }): RoadGraph {
@@ -18,5 +18,5 @@ export function makeGridGraph(n = 20, spacingMeters = 150, center = { lat: 42.37
   return { nodes, edges };
 }
 
-// STUB: loadTown returns the synthetic grid until the baked OSM graph lands.
-export function loadTown(): RoadGraph { return makeGridGraph(); }
+// STUB: loadTown returns the synthetic grid for every town until the baked OSM graph lands (Lane D item 13).
+export function loadTown(_town?: ScenarioConfig['town']): RoadGraph { return makeGridGraph(); }
