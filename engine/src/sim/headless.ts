@@ -1,6 +1,11 @@
-// OWNER: Lane A (Engine). STUB: returns fake metrics so Lane A's Monte Carlo can be built. Replace with the real simulator.
+// OWNER: Lane A. Headless run: the SAME engine code as the streamed run, no stream, no sink. Same seed => same Metrics.
 import type { HeadlessRunner } from '@lastmile/contracts';
-export const runHeadless: HeadlessRunner = async (config) => {
-  const total = 600;
-  return { total, evacuated: Math.round(total * 0.7), trapped: Math.round(total * 0.1), inProgress: 0, vulnerableTotal: 120, vulnerableEvacuated: config.policy === 'last_mile' ? 90 : 50, vulnerableTrapped: 10 };
-};
+import { createSim, type SimOptions } from './engine';
+
+export const runHeadless: HeadlessRunner = async (config) => runHeadlessWith(config);
+
+export function runHeadlessWith(config: Parameters<HeadlessRunner>[0], opts: SimOptions = {}) {
+  const sim = createSim(config, `headless-${config.seed}-${config.policy}`, opts);
+  while (!sim.done) sim.advance(600);
+  return sim.finalMetrics();
+}

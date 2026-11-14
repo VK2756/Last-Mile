@@ -2,19 +2,21 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import { z } from 'zod';
-import { ScenarioConfig } from '@lastmile/contracts';
+import { ScenarioConfig, type DataSink } from '@lastmile/contracts';
 import { Registry, type RunnerFactory } from './sim/registry';
-import { createSyntheticRunner } from './sim/synthetic';
+import { createSim } from './sim/engine';
+import { loadSink } from './sim/sink';
 
 const Control = z.object({ action: z.enum(['pause', 'resume', 'speed']), value: z.number().optional() });
 
-export interface ServerOpts { factory?: RunnerFactory; corsOrigin?: string; ttlMs?: number }
+export interface ServerOpts { factory?: RunnerFactory; corsOrigin?: string; ttlMs?: number; sink?: DataSink }
 
 export async function buildServer(opts: ServerOpts = {}): Promise<FastifyInstance & { registry: Registry }> {
   const app = Fastify({ logger: process.env.NODE_ENV !== 'test' });
   const origin = opts.corsOrigin ?? process.env.ENGINE_CORS_ORIGIN ?? '*';
   await app.register(cors, { origin: origin === '*' ? true : origin.split(',').map((s) => s.trim()) });
-  const registry = new Registry(opts.factory ?? createSyntheticRunner, opts.ttlMs);
+  const sink = opts.sink ?? (await loadSink());
+  const registry = new Registry(opts.factory ?? ((id, config) => createSim(config, id, { sink })), opts.ttlMs);
   app.decorate('registry', registry);
   app.addHook('onClose', async () => registry.close());
 
