@@ -33,7 +33,7 @@ export const PRESET_BASE: BaseConfig = BaseConfig.parse({ ...sampleInit.config, 
 export const PRESET_RUNS = 200;
 
 export interface MonteCarloOptions {
-  /** worker threads; 0 runs in-process. Default: available cores - 1 (at least 1). */
+  /** worker threads; 0 runs in-process. Default: all available cores. */
   workers?: number;
   /** custom runner (tests); forces in-process execution since functions cannot cross threads */
   runner?: HeadlessRunner;
@@ -41,7 +41,8 @@ export interface MonteCarloOptions {
 }
 
 const POLICIES: Policy[] = ['alerts_only', 'last_mile'];
-const defaultWorkers = () => Math.max(1, (os.availableParallelism?.() ?? os.cpus().length) - 1);
+// all cores: the server thread is mostly idle while a Monte Carlo batch runs
+const defaultWorkers = () => Math.max(1, os.availableParallelism?.() ?? os.cpus().length);
 
 /** Run every config, returning metrics in input order. */
 async function runAll(configs: ScenarioConfig[], opts: MonteCarloOptions): Promise<Metrics[]> {
