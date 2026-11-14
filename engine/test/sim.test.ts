@@ -69,3 +69,26 @@ describe('sim engine', () => {
     expect(per).toBeLessThan(50);
   });
 });
+
+import { TriageResult } from '@lastmile/contracts';
+const triage = (householdId: string, o: Partial<TriageResult> = {}): TriageResult => ({ householdId, needs: ['oxygen'], hasRide: false, canWalkToRoad: false, residents: 2, urgency: 5, reply: 'ok', summary: 's', done: true, ...o });
+
+describe('triage', () => {
+  it('flips a household with a car to needs_help, merges needs, drops its own ride, and gets it rescued', () => {
+    const sim = createSim(mk(9, 'last_mile'), 'tri', { dispatcher: greedy });
+    const withCar = sim.init.households.find((h) => h.hasVehicle && !h.needs.includes('oxygen'))!;
+    const out = sim.applyTriage(triage(withCar.id));
+    expect(out).toMatchObject({ ok: true, status: 'needs_help', flipped: true });
+    expect(withCar.hasVehicle).toBe(false); expect(withCar.needs).toEqual(expect.arrayContaining(['oxygen', 'no_vehicle']));
+    expect(sim.frame().households.find((h) => h.id === withCar.id)!.status).toBe('needs_help');
+    sim.advance(60);
+    expect(['needs_help', 'assigned', 'enroute', 'evacuated', 'trapped']).toContain(sim.frame().households.find((h) => h.id === withCar.id)!.status);
+  });
+  it('rejects unknown and already-resolved households without throwing', () => {
+    const sim = createSim(mk(9, 'alerts_only'), 'tri2');
+    expect(sim.applyTriage(triage('nope'))).toMatchObject({ ok: false, code: 'unknown_household' });
+    while (!sim.done) sim.advance(600);
+    const done = sim.frame().households.find((h) => h.status === 'evacuated' || h.status === 'trapped')!;
+    expect(sim.applyTriage(triage(done.id))).toMatchObject({ ok: false, code: 'already_resolved' });
+  });
+});

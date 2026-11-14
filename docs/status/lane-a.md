@@ -5,8 +5,10 @@
 - PR "sim engine" (this one): real tick loop `sim/engine.ts`, `policy/alertsOnly.ts` + `policy/lastMile.ts`, real `runHeadless` (`sim/headless.ts`), real stream. `sim/synthetic.ts` STUB deleted.
 - Evidence: `PORT=8099 pnpm start`; POST /scenarios (last_mile, seed 1) then stream: init has 600 households; frames t=120,135.. with metrics total=364 (at-risk), burnedFraction growing. Headless seed 1 alerts_only: total 364, evacuated 222, trapped 142, 130 ms per run.
 
+- Needs endpoint merged in the next PR: `POST /scenarios/:id/households/:hid/needs` body TriageResult -> 200 {ok,status,flipped}; 404 unknown scenario/household; 400 bad body or householdId mismatch; 409 if already resolved/leaving. hasRide=false / canWalkToRoad=false / urgency>=4 flips the household to needs_help and drops its own car.
+
 ## Next
-needs endpoint (POST /scenarios/:id/households/:hid/needs), mount registerMonteCarlo(app) when Lane D ships, tuning pass, determinism proof test for CI.
+mount registerMonteCarlo(app) when Lane D ships, tuning pass, determinism proof test for CI.
 
 ## For Lane D (Rishabh): contracts between our code (all adapters live in engine/src/sim/deps.ts)
 - Please export `createRouter(graph: RoadGraph, fire: FireModel): Router`, `createDispatcher(): Dispatcher`, `loadTown(town: ScenarioConfig['town']): RoadGraph`. Today your stubs take no args; I call them through casts so nothing breaks either way.

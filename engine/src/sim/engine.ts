@@ -2,7 +2,7 @@
 // pre-drawn in createFireModel / generatePopulation, so streamed and headless runs are identical.
 import type {
   Assignment, DataSink, Dispatcher, FireModel, Helper, HelperState, Household, HouseholdState, HouseholdStatus, LatLng,
-  Metrics, RoadGraph, Router, ScenarioConfig, SimFrame, SimInit, WorldSnapshot,
+  Metrics, RoadGraph, Router, ScenarioConfig, SimFrame, SimInit, TriageResult, WorldSnapshot,
 } from '@lastmile/contracts';
 import { isVulnerable } from '@lastmile/contracts';
 import { createFireModel, FIRE_ASSUMPTIONS } from './fire';
@@ -24,6 +24,10 @@ const TTI_REPORT_MAX_S = 5400;
 
 export interface SimOptions { graph?: RoadGraph; router?: Router; dispatcher?: Dispatcher; sink?: DataSink }
 
+export type TriageOutcome =
+  | { ok: true; status: HouseholdStatus; flipped: boolean }
+  | { ok: false; code: 'unknown_household' | 'already_resolved' | 'already_leaving'; status?: HouseholdStatus };
+
 export interface Sim {
   init: SimInit;
   readonly t: number;
@@ -33,6 +37,8 @@ export interface Sim {
   advance(ticks: number): void;
   frame(): SimFrame;
   finalMetrics(): Metrics;
+  /** apply a voice-triage result to one household (see below); never throws */
+  applyTriage(r: TriageResult): TriageOutcome;
   /** counters for tests */
   stats: { rejectedCapacity: number; rejectedWheelchair: number; plans: number };
 }
@@ -255,11 +261,33 @@ export function createSim(config: ScenarioConfig, scenarioId: string, opts: SimO
     };
   }
 
+  /**
+   * A resident told the voice agent about their situation. Needs are merged (never removed). If they have no ride, cannot walk
+   * to the road, or urgency >= 4, the household becomes `needs_help` right now (the call itself warns them) and, if it has no ride,
+   * it stops counting on its own car. `Metrics.vulnerableTotal` keeps the ORIGINAL definition so outcomes stay comparable.
+   */
+  function applyTriage(r: TriageResult): TriageOutcome {
+    const s = byId.get(r.householdId);
+    if (!s) return { ok: false, code: 'unknown_household' };
+    if (s.status === 'evacuated' || s.status === 'trapped') return { ok: false, code: 'already_resolved', status: s.status };
+    if (s.status === 'self_evacuating' || s.status === 'enroute') return { ok: false, code: 'already_leaving', status: s.status };
+    for (const n of r.needs) if (!s.h.needs.includes(n)) s.h.needs.push(n);
+    if (r.residents !== null) s.h.residents = Math.max(1, Math.min(12, r.residents));
+    const noRide = r.hasRide === false;
+    if (noRide && s.h.hasVehicle) {
+      s.h.hasVehicle = false; if (!s.h.needs.includes('no_vehicle')) s.h.needs.push('no_vehicle');
+      s.departAt = s.b.familyPickup ? s.warnedAt + s.b.pickupDelayS : Infinity;
+    }
+    const flip = noRide || r.canWalkToRoad === false || r.urgency >= 4 || !s.h.hasVehicle;
+    if (flip && (s.status === 'unaware' || s.status === 'warned')) { s.status = 'needs_help'; s.warnedAt = Math.min(s.warnedAt, t); dirty = true; }
+    return { ok: true, status: s.status, flipped: flip };
+  }
+
   const advance = (n: number) => { for (let i = 0; i < n && !isDone(); i++) tick(); };
   const isDone = () => unresolvedAtRisk <= 0 || hardDone;
 
   return {
-    init, stats, frame, advance, finalMetrics: metrics,
+    init, stats, frame, advance, applyTriage, finalMetrics: metrics,
     get t() { return t; }, get done() { return isDone(); },
     step(dt) { acc += dt; const n = Math.floor(acc); acc -= n; advance(n); return frame(); },
   };

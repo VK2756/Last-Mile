@@ -56,6 +56,12 @@ describe('server (real engine)', () => {
       const init = evs[0] as Extract<StreamEvent, { type: 'init' }>;
       expect(init.init.households.length).toBe(600); expect(init.init.assumptions.length).toBeGreaterThan(5);
       const frames = evs.filter((e) => e.type === 'frame') as Extract<StreamEvent, { type: 'frame' }>[];
+      const hid = init.init.households[0]!.id;
+      const triage = { householdId: hid, needs: ['oxygen'], hasRide: false, canWalkToRoad: false, residents: 2, urgency: 5, reply: 'x', summary: 'y', done: true };
+      const ok = await post(base, `/scenarios/${scenarioId}/households/${hid}/needs`, triage);
+      expect(ok.status).toBe(200);
+      expect((await post(base, `/scenarios/${scenarioId}/households/nope/needs`, { ...triage, householdId: 'nope' })).status).toBe(404);
+      expect((await post(base, `/scenarios/${scenarioId}/households/${hid}/needs`, { bad: 1 })).status).toBe(400);
       expect(frames.length).toBeGreaterThanOrEqual(2); expect(frames[1]!.frame.t).toBeGreaterThan(frames[0]!.frame.t);
     } finally { await app.close(); }
   }, 20_000);
