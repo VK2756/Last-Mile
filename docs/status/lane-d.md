@@ -1,8 +1,8 @@
 # Lane D status (ROUTING / DISPATCH / MONTE CARLO, Rishabh)
-_Updated 2026-11-14 ~5:50pm._
+_Updated 2026-11-14 ~7:30pm._
 
 ## Merged
-#20 routing, #23 dispatch, #28 Monte Carlo, #35 dispatch reasons, #43 real Amherst roads (closed #45), #47 Windows worker fix (closed #33), #66 Monte Carlo ~2x cheaper (exact), #75 fuzz invariants, #76 + #89 baseline fairness review, #85 scenario stories + map alignment, #90 perf-test bound (closed #77), #92 model assumptions in the Monte Carlo response (closed #78), #96 status, baseline review rerun with the #69/#71-#73 knobs. No open lane:d issues.
+#20 routing, #23 dispatch, #28 Monte Carlo, #35 dispatch reasons, #43 real Amherst roads (closed #45), #47 Windows worker fix (closed #33), #66 Monte Carlo ~2x cheaper (exact), #75 fuzz invariants, #76 + #89 baseline fairness review, #85 scenario stories + map alignment, #90 perf-test bound (closed #77), #92 model assumptions in the Monte Carlo response (closed #78), #96 status, #107 baseline review rerun with the #69/#71-#73 knobs, plus this PR (lift by household group, fresh-seed holdout, fuzz with every knob, node-distance check). No open lane:d issues.
 
 ## Monte Carlo (mounted in server.ts by Lane A)
 - `POST /montecarlo` / `GET /montecarlo/preset` return `MonteCarloComparison`. `assumptions` now includes the simulator's model assumptions for the base config (#78), so /results needs no throwaway scenario.
@@ -12,8 +12,20 @@ _Updated 2026-11-14 ~5:50pm._
 ## For Lane E (Prince): baseline review rerun with the new knobs, please update the pitch numbers
 `docs/submission/BASELINE_REVIEW.md` now has 33 configs, 100 paired seeds each, including Lane A's new baseline and fleet knobs (#69, #71, #72, #73). **The +29 lift assumes neighbours never give rides.** With 30% of neighbours giving rides the lift is +12; with every baseline knob turned up together it is +4.1 [3.5, 4.8]. Last Mile still wins in all 33. The review's pitch sentence is now a range (+29 with no neighbour rides, +12 with rides at 30%, about +4 with a strong baseline). Pages and docs that quote "45% -> 74%" on its own should add that caveat.
 
-## Fuzz invariants (`scripts/fuzz-invariants.ts 300`)
-300 random public configs on real roads, 0 failures, on main and on #66's code: routes avoid burning ground; capacity and wheelchair rules hold; ETAs >= 0; late trips flagged; every run terminates; same config gives identical metrics and frames. 3 seeds run in CI.
+## Lift by household group (new, in BASELINE_REVIEW.md, `scripts/group-lift.ts`)
+Seeds 1-200, paired. **91% of Last Mile's extra evacuations are homes without a car that have a car-owning neighbour within 300 m** (12% -> 71% evacuated). With 30% neighbour rides it is still 81% (55% -> 77%), and with everything generous, 68%. Wheelchair homes gain only about +6 points, because 71% already get out under alerts only. The model has no age field, so "elderly alone" uses the proxy "1 resident with a medical need".
+
+## Fresh-seed holdout
+Seeds 7,000,001-7,000,200, which no earlier run used: lift +30.1 [29.3, 30.9], against the headline's +29.4 [28.6, 30.2] on seeds 1-200. The CIs overlap.
+
+## Fuzz invariants (`scripts/fuzz-invariants.ts 300`, now with every optional knob)
+300 configs, each drawing helperMix, helperCapacityScale and every baseline knob about half the time. New checks: one helper per home (per plan and per frame), helper loads equal riders, all times finite, metrics add up, the same fire for both policies frame by frame, and termination by the engine's 4 h cap. **229 pass; the other 71 fail only on #114** (a frame lists a home under two helpers; display only, since ownership and loads are correct). Seed 227 also showed **#118**: a loaded helper waits forever for a safe zone the fire has cut off instead of trying a reachable one. That happens in 11 of 200 headline runs, with 43 people stuck in total. Both are filed for Lane A. CI runs seeds 1-3, which pass.
+
+## Map: distance to the nearest road node (`scripts/check-node-distance.ts`)
+All 3 presets plus the Monte Carlo preset: homes are a median 24 m and at most 49 m from a routable node, and every helper starts exactly on a node (0 m). **No point is over 50 m, so there is no Lane A issue.**
+
+## #77 / #78
+#77: the timing test passed 30 times out of 30 with all 14 cores busy (median 4.9-7.3 ms, one run 30.9 ms, bound 60 ms); commented on the issue. #78: already merged in #92 as an addition to the existing `assumptions` field (no contract change); commented so Lane E can switch /results over.
 
 ## Scenario stories on real roads (exact configs in #81 for Lane A presets)
 Each seed is the median-lift seed of 10, not the best. 24 helpers, 20 mph wind.
@@ -26,4 +38,4 @@ Each seed is the median-lift seed of 10, not the best. 24 helpers, 20 mph wind.
 Homes are a median 13 m from a road (max ~48 m); helpers and safe zones are on road nodes; fire rings are `[lng, lat]` and enclose the ignition. Overlaid on the same OpenFreeMap/OSM basemap the web uses, the baked roads sit exactly on the streets.
 
 ## Next
-Re-time Monte Carlo on the Vultr box once Lane C reports its size; break down the remaining lift by household type (wheelchair vs no car nearby). Lane A: #69, #71, #72, #73 are implemented and can be closed. **Blockers:** none.
+Re-time Monte Carlo on the Vultr box once Lane C reports its size; rerun the fuzz after #114 lands (expect 300/300) and the headline after #118. Lane A: #69, #71, #72, #73 are implemented and can be closed; #114 and #118 are open for Lane A. **Blockers:** none.
