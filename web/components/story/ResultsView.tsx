@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { ArrowRight, Cpu, Play, RefreshCw, Server, ShieldAlert } from 'lucide-react';
+import { ArrowRight, Cpu, PlugZap, Play, RefreshCw, Server, ShieldAlert } from 'lucide-react';
 import { ScenarioConfig, type MonteCarloComparison } from '@lastmile/contracts';
 import { sampleInit } from '@lastmile/contracts/fixtures';
 import { AppShell, AssumptionsList, Banner, Button, SimBadge, eyebrowClass } from '@/components/ui';
@@ -11,7 +11,7 @@ import { cn } from '@/lib/cn';
 import { CiChart, POLICY_COLOR } from './CiChart';
 import { SampleRibbon } from './SampleRibbon';
 import { computeSampleComparison, type MonteCarloBase } from './sampleMonteCarlo';
-import { EngineBusyError, FRESH_SEEDS, fetchModelAssumptions, fetchPreset, runSeeds } from './mcClient';
+import { EngineBusyError, FRESH_SEEDS, fetchPreset, runSeeds } from './mcClient';
 import { excludesZero } from './stats';
 
 const SAMPLE_RUNS = 60;
@@ -28,9 +28,10 @@ type Kind = 'preset' | 'fresh' | 'sample';
 type Shown = { kind: Kind; data: MonteCarloComparison; seeds: string; note?: string };
 type Job = { label: string; startedAt: number; done?: number; total?: number; expectS?: number } | null;
 
-const SOURCE: Record<Kind, { label: string; icon: typeof Server; tone: string }> = {
-  preset: { label: 'Engine · cached preset', icon: Server, tone: 'border-ok/40 bg-ok/10 text-ok' },
-  fresh: { label: 'Engine · fresh run', icon: Server, tone: 'border-ok/40 bg-ok/10 text-ok' },
+// `label` is its own element: Lane C's real-engine e2e looks for the exact text "Monte Carlo engine"
+const SOURCE: Record<Kind, { label: string; detail?: string; icon: typeof Server; tone: string }> = {
+  preset: { label: 'Monte Carlo engine', detail: 'cached preset', icon: Server, tone: 'border-ok/40 bg-ok/10 text-ok' },
+  fresh: { label: 'Monte Carlo engine', detail: 'fresh run', icon: Server, tone: 'border-ok/40 bg-ok/10 text-ok' },
   sample: { label: 'Browser sample', icon: Cpu, tone: 'border-warn/45 bg-warn/10 text-warn' },
 };
 
@@ -53,10 +54,23 @@ export function ResultsView({ sensitivity }: { sensitivity: ReactNode | null }) 
   const [now, setNow] = useState(() => Date.now());
   const abort = useRef<AbortController | null>(null);
   const hasEngine = Boolean(engineUrl());
-  const [model, setModel] = useState<string[]>([]);
+  /** why the engine's numbers can't be shown (unreachable, not configured, or a placeholder response) */
+  const [offline, setOffline] = useState<string | null>(null);
 
-  const fallbackToSample = useCallback(async (why: string | undefined, signal: AbortSignal) => {
-    setJob({ label: 'Engine not connected: computing labelled sample data in your browser', startedAt: Date.now(), done: 0, total: SAMPLE_RUNS });
+  const goOffline = useCallback((why: string) => {
+    setShown(null);
+    setOffline(why);
+    setJob(null);
+  }, []);
+
+  /** Only on request: the browser mock, shown greyed out with the lift hidden, so it can never pass for a result. */
+  const previewSample = useCallback(async () => {
+    abort.current?.abort();
+    const ctrl = new AbortController();
+    abort.current = ctrl;
+    const signal = ctrl.signal;
+    const why = offline ?? undefined;
+    setJob({ label: 'Computing a labelled layout preview in your browser (not a result)', startedAt: Date.now(), done: 0, total: SAMPLE_RUNS });
     try {
       const data = await computeSampleComparison(sampleBase(), SAMPLE_RUNS, (done, total) => setJob((j) => (j ? { ...j, done, total } : j)), signal);
       if (signal.aborted) return;
@@ -68,7 +82,7 @@ export function ResultsView({ sensitivity }: { sensitivity: ReactNode | null }) 
         setJob(null);
       }
     }
-  }, []);
+  }, [offline]);
 
   const loadPreset = useCallback(async () => {
     abort.current?.abort();
@@ -76,12 +90,13 @@ export function ResultsView({ sensitivity }: { sensitivity: ReactNode | null }) 
     abort.current = ctrl;
     setError(null);
     setNotice(null);
-    if (!engineUrl()) return fallbackToSample(undefined, ctrl.signal);
+    if (!engineUrl()) return goOffline('This build has no engine address (NEXT_PUBLIC_ENGINE_URL is not set).');
+    setOffline(null);
     setJob({ label: 'Loading the cached 200-seed comparison…', startedAt: Date.now() });
     try {
       const r = await fetchPreset(ctrl.signal);
       if (ctrl.signal.aborted) return;
-      if (r.placeholder) return fallbackToSample('The engine marked its Monte Carlo response as a placeholder.', ctrl.signal);
+      if (r.placeholder) return goOffline('The engine marked its Monte Carlo response as a placeholder.');
       setShown({ kind: 'preset', data: r.data, seeds: `seeds 1–${r.data.runs}` });
       setJob(null);
     } catch (e) {
@@ -91,9 +106,9 @@ export function ResultsView({ sensitivity }: { sensitivity: ReactNode | null }) 
         setJob(null);
         return;
       }
-      await fallbackToSample(e instanceof Error ? e.message : 'request failed', ctrl.signal);
+      goOffline(`The engine did not answer (${e instanceof Error ? e.message : 'request failed'}).`);
     }
-  }, [fallbackToSample]);
+  }, [goOffline]);
 
   const runFull = useCallback(async () => {
     abort.current?.abort();
@@ -105,7 +120,10 @@ export function ResultsView({ sensitivity }: { sensitivity: ReactNode | null }) 
     try {
       const r = await runSeeds(FRESH_SEEDS, ctrl.signal);
       if (ctrl.signal.aborted) return;
-      if (r.placeholder) return fallbackToSample('The engine marked its Monte Carlo response as a placeholder.', ctrl.signal);
+      if (r.placeholder) {
+        setError('The engine marked this run as a placeholder, so it is not shown. Still showing the previous result.');
+        return;
+      }
       setShown({ kind: 'fresh', data: r.data, seeds: `seeds ${FRESH_SEEDS[0]}–${FRESH_SEEDS.at(-1)}` });
       setNotice(r.ms ? `Finished in ${(r.ms / 1000).toFixed(1)} s${r.cached ? ' (served from the engine cache)' : ''}.` : r.cached ? 'Served from the engine cache.' : null);
     } catch (e) {
@@ -114,23 +132,12 @@ export function ResultsView({ sensitivity }: { sensitivity: ReactNode | null }) 
     } finally {
       if (!ctrl.signal.aborted) setJob(null);
     }
-  }, [fallbackToSample]);
+  }, []);
 
   useEffect(() => {
     void loadPreset();
     return () => abort.current?.abort();
   }, [loadPreset]);
-
-  // model assumptions (from the scenario init) once we show engine numbers
-  const engineBase = shown && shown.kind !== 'sample' ? JSON.stringify(shown.data.base) : null;
-  useEffect(() => {
-    if (!engineBase) return;
-    let alive = true;
-    void fetchModelAssumptions(JSON.parse(engineBase) as MonteCarloComparison['base']).then((list) => alive && setModel(list));
-    return () => {
-      alive = false;
-    };
-  }, [engineBase]);
 
   useEffect(() => {
     if (!job) return;
@@ -144,7 +151,7 @@ export function ResultsView({ sensitivity }: { sensitivity: ReactNode | null }) 
     <AppShell right={<SimBadge mock={sample} />}>
       {sample && (
         <SampleRibbon testId="results-sample-ribbon">
-          {shown?.note ? `${shown.note} ` : ''}These numbers come from the in-browser mock, not the Monte Carlo evaluator. Do not quote them.
+          {shown?.note ? `${shown.note} ` : ''}Greyed-out layout preview from the in-browser mock, not the Monte Carlo evaluator. The lift is hidden; do not quote anything here.
         </SampleRibbon>
       )}
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
@@ -160,16 +167,12 @@ export function ResultsView({ sensitivity }: { sensitivity: ReactNode | null }) 
           </div>
           <div className="flex flex-wrap items-center gap-3">
             {shown && <SourcePill kind={shown.kind} />}
-            {hasEngine && (
+            {hasEngine && !offline && (
               <Button variant="primary" size="md" onClick={() => void runFull()} disabled={Boolean(job)} data-testid="results-run-full">
                 <Play aria-hidden className="size-4" /> Run full 200-seed comparison
               </Button>
             )}
-            {!hasEngine && (
-              <Button variant="secondary" size="sm" onClick={() => void loadPreset()} disabled={Boolean(job)}>
-                <RefreshCw aria-hidden className="size-3.5" /> Re-run sample
-              </Button>
-            )}
+
           </div>
         </header>
 
@@ -179,8 +182,9 @@ export function ResultsView({ sensitivity }: { sensitivity: ReactNode | null }) 
           </Banner>
         )}
         {notice && !job && <p className="mb-4 font-mono text-xs text-fg-muted" role="status">{notice}</p>}
-        {job && <Progress job={job} now={now} compact={Boolean(shown)} />}
-        {shown && <Ready shown={shown} sensitivity={sensitivity} model={shown.kind === 'sample' ? [] : model} />}
+        {job && <Progress job={job} now={now} compact={Boolean(shown) || Boolean(offline)} />}
+        {offline && <Offline reason={offline} busy={Boolean(job)} onRetry={() => void loadPreset()} onPreview={sample ? undefined : () => void previewSample()} table={!shown} />}
+        {shown && <Ready shown={shown} sensitivity={sensitivity} />}
       </div>
     </AppShell>
   );
@@ -191,7 +195,8 @@ function SourcePill({ kind }: { kind: Kind }) {
   return (
     <span className={cn('inline-flex h-8 items-center gap-2 rounded-md border px-3 font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.12em]', s.tone)}>
       <s.icon aria-hidden className="size-3.5" />
-      {s.label}
+      <span>{s.label}</span>
+      {s.detail && <span className="opacity-80">· {s.detail}</span>}
     </span>
   );
 }
@@ -233,15 +238,65 @@ function Progress({ job, now, compact }: { job: NonNullable<Job>; now: number; c
   );
 }
 
-function Ready({ shown, sensitivity, model }: { shown: Shown; sensitivity: ReactNode | null; model: string[] }) {
+/** Engine unreachable: no numbers at all, only how to get them. The table skeleton keeps the layout honest (dashes). */
+function Offline({ reason, busy, onRetry, onPreview, table }: { reason: string; busy: boolean; onRetry: () => void; onPreview?: () => void; table: boolean }) {
+  return (
+    <section data-testid="results-offline" aria-labelledby="offline-h" className="mb-6 rounded-lg border border-line bg-surface p-6 sm:p-8">
+      <div className="flex flex-wrap items-start gap-4">
+        <PlugZap aria-hidden className="mt-1 size-6 shrink-0 text-fg-muted" />
+        <div className="min-w-0 flex-1">
+          <h2 id="offline-h" className="text-xl font-semibold">Run the engine to see results</h2>
+          <p className="mt-2 max-w-2xl text-sm text-fg-muted">
+            {reason} Results on this page come only from the Monte Carlo evaluator, so none are shown until it answers. Start it with{' '}
+            <code className="font-mono text-xs">pnpm --filter @lastmile/engine dev</code> or check the deployed engine, then retry.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Button variant="primary" size="md" onClick={onRetry} disabled={busy} data-testid="results-retry">
+              <RefreshCw aria-hidden className="size-4" /> Retry
+            </Button>
+            {onPreview && (
+              <Button variant="secondary" size="md" onClick={onPreview} disabled={busy}>
+                <Cpu aria-hidden className="size-4" /> Preview the layout with sample data
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+      {table && (
+        <table data-testid="confidence-intervals" className="mt-6 w-full max-w-xl text-sm text-fg-muted" aria-describedby="offline-h">
+          <caption className="sr-only">No results: the engine is not connected</caption>
+          <thead>
+            <tr className="border-b border-line text-left font-mono text-[0.625rem] uppercase tracking-[0.14em]">
+              <th className="pb-2 font-semibold">Metric</th>
+              <th className="pb-2 text-right font-semibold">Alerts only</th>
+              <th className="pb-2 text-right font-semibold">Last Mile</th>
+            </tr>
+          </thead>
+          <tbody className="font-mono text-xs">
+            {['Vulnerable evacuated', 'All evacuated', 'Paired lift'].map((m) => (
+              <tr key={m} className="border-t border-line first:border-t-0">
+                <th scope="row" className="py-2 text-left font-sans text-sm font-normal">{m}</th>
+                <td className="py-2 text-right">—</td>
+                <td className="py-2 text-right">—</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+  );
+}
+
+function Ready({ shown, sensitivity }: { shown: Shown; sensitivity: ReactNode | null }) {
   const { data, kind } = shown;
   const a = data.results.alerts_only;
   const l = data.results.last_mile;
   const lift = data.vulnerableLift;
   const significant = excludesZero(lift.ci95);
   const positive = lift.mean > 0;
-  const all = [...data.assumptions, ...model.filter((m) => !data.assumptions.includes(m))];
-  const keyDrivers = drivers(model.length ? model : data.assumptions);
+  const all = data.assumptions;
+  const keyDrivers = drivers(data.assumptions);
+  const muted = kind === 'sample';
   return (
     <div className="grid gap-6">
       <section
@@ -252,23 +307,34 @@ function Ready({ shown, sensitivity, model }: { shown: Shown; sensitivity: React
           Paired lift · vulnerable households evacuated · {data.runs} seeds ({shown.seeds})
         </p>
         <div className="mt-3 flex flex-wrap items-baseline gap-x-6 gap-y-2">
-          <span className={cn('tabular font-mono text-5xl font-bold tracking-tight sm:text-6xl', positive ? 'text-accent' : 'text-danger')}>{formatPts(lift.mean)}</span>
-          <span className="tabular font-mono text-sm text-fg-muted">
-            95% CI [{formatPts(lift.ci95[0])}, {formatPts(lift.ci95[1])}]
-          </span>
+          {muted ? (
+            <span className="font-mono text-5xl font-bold tracking-tight text-fg-muted sm:text-6xl" aria-label="hidden">—</span>
+          ) : (
+            <>
+              <span className={cn('tabular font-mono text-5xl font-bold tracking-tight sm:text-6xl', positive ? 'text-accent' : 'text-danger')}>{formatPts(lift.mean)}</span>
+              <span className="tabular font-mono text-sm text-fg-muted">
+                95% CI [{formatPts(lift.ci95[0])}, {formatPts(lift.ci95[1])}]
+              </span>
+            </>
+          )}
         </div>
         <p className="mt-3 max-w-2xl text-sm text-fg-muted">
-          {significant
+          {muted ? 'Hidden: this is a layout preview from the browser mock, not a result. Run the engine to see the real lift.' : significant
             ? positive
               ? 'The interval excludes zero: across these paired runs, Last Mile evacuated more vulnerable households than alerts alone.'
               : 'The interval excludes zero in the wrong direction: in these runs Last Mile did worse than alerts alone. We report it as is.'
             : 'The interval includes zero: these runs do not show a clear difference. We report it as is.'}
-          {kind === 'sample' && ' (Sample data from the browser mock; not a result.)'}
         </p>
       </section>
 
       <div className="grid gap-6 lg:grid-cols-[1.35fr_1fr]">
-        <section className="rounded-lg border border-line bg-surface p-4 sm:p-6">
+        <section className={cn('relative rounded-lg border border-line bg-surface p-4 sm:p-6', muted && 'select-none')}>
+          {muted && (
+            <span className="absolute right-4 top-4 z-10 rounded border border-warn/50 bg-bg px-2 py-1 font-mono text-[0.625rem] font-bold uppercase tracking-[0.14em] text-warn">
+              Sample · not a result
+            </span>
+          )}
+          <div className={cn(muted && 'opacity-40 grayscale')}>
           <h2 className="mb-1 text-sm font-semibold">Evacuated before the fire arrived</h2>
           <p className="mb-4 text-xs text-fg-muted">Share of at-risk households, mean over {data.runs} seeds, 95% CI whiskers</p>
           <CiChart data={data} />
@@ -291,6 +357,7 @@ function Ready({ shown, sensitivity, model }: { shown: Shown; sensitivity: React
               </tr>
             </tbody>
           </table>
+          </div>
         </section>
 
         <aside aria-labelledby="drivers-h" className="flex flex-col gap-6">
