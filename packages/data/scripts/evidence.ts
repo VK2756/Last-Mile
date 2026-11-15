@@ -118,4 +118,10 @@ async function main(): Promise<void> {
   if (atlas.some((line) => line.includes('FAIL')) || tiger.some((line) => line.includes('FAIL'))) process.exitCode = 1;
 }
 
-main().catch(() => { console.error('Evidence generation: FAIL'); process.exitCode = 1; });
+if (process.argv.includes('--dry-run')) {
+  const missing = (['MONGODB_URI', 'TIGER_DATABASE_URL'] as const).filter((name) => !process.env[name]);
+  console.log(`Missing env vars: ${missing.length ? missing.join(', ') : 'none'}`);
+  console.log('Evidence dry-run: no connections or files written');
+} else {
+  main().catch(() => { console.error('Evidence generation: FAIL'); process.exitCode = 1; });
+}
