@@ -26,12 +26,12 @@ export async function triage(input: TriageRequestType): Promise<TriageResultType
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     const response = await ai.models.generateContent({
-      model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+      model: process.env.GEMINI_MODEL || 'gemini-3.5-flash',
       contents: [...request.history.map((item) => `${item.role}: ${item.text}`), `resident: ${request.utterance}`].join('\n'),
       config: { systemInstruction, responseMimeType: 'application/json', responseJsonSchema: schema },
     });
-    const result = TriageResult.parse(JSON.parse(response.text || '{}'));
-    if (result.householdId !== request.householdId) throw new Error('Gemini returned a mismatched householdId');
+    // The prompt never contains the household id, so the model cannot know it: the caller's id is authoritative.
+    const result = TriageResult.parse({ ...JSON.parse(response.text || '{}'), householdId: request.householdId });
     if (isImmediateDanger(request.utterance) && !mentionsEmergencyNumber(result.reply)) {
       return { ...result, reply: `${result.reply} ${emergencyInstruction(request.language)}` };
     }
