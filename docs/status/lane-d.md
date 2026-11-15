@@ -1,5 +1,5 @@
 # Lane D status (ROUTING / DISPATCH / MONTE CARLO, Rishabh)
-_Updated 2026-11-14 ~7:30pm._
+_Updated 2026-11-14 ~8:15pm._
 
 ## Merged
 #20 routing, #23 dispatch, #28 Monte Carlo, #35 dispatch reasons, #43 real Amherst roads (closed #45), #47 Windows worker fix (closed #33), #66 Monte Carlo ~2x cheaper (exact), #75 fuzz invariants, #76 + #89 baseline fairness review, #85 scenario stories + map alignment, #90 perf-test bound (closed #77), #92 model assumptions in the Monte Carlo response (closed #78), #96 status, #107 baseline review rerun with the #69/#71-#73 knobs, plus this PR (lift by household group, fresh-seed holdout, fuzz with every knob, node-distance check). No open lane:d issues.
@@ -19,7 +19,7 @@ Seeds 1-200, paired. **91% of Last Mile's extra evacuations are homes without a 
 Seeds 7,000,001-7,000,200, which no earlier run used: lift +30.1 [29.3, 30.9], against the headline's +29.4 [28.6, 30.2] on seeds 1-200. The CIs overlap.
 
 ## Fuzz invariants (`scripts/fuzz-invariants.ts 300`, now with every optional knob)
-300 configs, each drawing helperMix, helperCapacityScale and every baseline knob about half the time. New checks: one helper per home (per plan and per frame), helper loads equal riders, all times finite, metrics add up, the same fire for both policies frame by frame, and termination by the engine's 4 h cap. **229 pass; the other 71 fail only on #114** (a frame lists a home under two helpers; display only, since ownership and loads are correct). Seed 227 also showed **#118**: a loaded helper waits forever for a safe zone the fire has cut off instead of trying a reachable one. That happens in 11 of 200 headline runs, with 43 people stuck in total. Both are filed for Lane A. CI runs seeds 1-3, which pass.
+300 configs, each drawing helperMix, helperCapacityScale and every baseline knob about half the time. New checks: one helper per home (per plan and per frame), helper loads equal riders, all times finite, metrics add up, the same fire for both policies frame by frame, and termination by the engine's 4 h cap. **After Lane A's #122 (fixes #114 and #118): 300/300 pass.** Before it, 71 seeds failed only on #114 (a frame listed a home under two helpers; display only), and seed 227 exposed #118 (a loaded helper waited forever for a safe zone the fire had cut off; 11 of 200 headline runs, 43 people). The headline lift (+29.4) and the holdout (+30.1) are unchanged after #122 to one decimal. CI runs seeds 1-3, which pass.
 
 ## Map: distance to the nearest road node (`scripts/check-node-distance.ts`)
 All 6 presets (including the three story presets from #81) plus the Monte Carlo preset: homes are a median 24-25 m and at most 49 m from a routable node, and every helper starts exactly on a node (0 m). **No point is over 50 m, so there is no Lane A issue.**
@@ -38,4 +38,4 @@ Each seed is the median-lift seed of 10, not the best. 24 helpers, 20 mph wind.
 Homes are a median 13 m from a road (max ~48 m); helpers and safe zones are on road nodes; fire rings are `[lng, lat]` and enclose the ignition. Overlaid on the same OpenFreeMap/OSM basemap the web uses, the baked roads sit exactly on the streets.
 
 ## Next
-Re-time Monte Carlo on the Vultr box once Lane C reports its size; rerun the fuzz after #114 lands (expect 300/300) and the headline after #118. Lane A: #69, #71, #72, #73 are implemented and can be closed; #114 and #118 are open for Lane A. **Blockers:** none.
+Re-time Monte Carlo on the Vultr box once Lane C reports its size; nothing queued. Lane A: #69, #71, #72, #73 are implemented and can be closed. **Blockers:** none.
