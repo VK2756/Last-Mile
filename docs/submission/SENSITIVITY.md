@@ -69,8 +69,3 @@ approximation (mean ± 1.96 SE of the paired differences), not the bootstrap. Ev
 - Helpers that break down or arrive late, wrong or false help requests, people who refuse to leave.
 - A stronger baseline is now measured (see above and [`BASELINE_REVIEW.md`](BASELINE_REVIEW.md), 33 configs on main @ `d98f2e3`): neighbour rides are most of the gap. Not yet measured: how much of the remaining lift is wheelchair users and homes with no car nearby, which neighbour rides can't serve.
 - Other towns (`paradise_like`, `synthetic_grid`): `--town` flag; road data quality differs.
-
-## Earlier numbers (for the record)
-
-Lane D's status (before #61's cadence change) reported the preset lift as +27.4 pts [26.6, 28.2] and fast fire + 6 helpers
-as +14.7 pts [14.1, 15.2]. The numbers above supersede them for anything we publish.
