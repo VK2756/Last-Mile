@@ -14,8 +14,14 @@ export async function POST(request: Request) {
       body: JSON.stringify({ to: value.to, scenarioId: value.scenarioId, householdId: value.householdId, language: value.language }),
       cache: 'no-store', signal: AbortSignal.timeout(15_000),
     });
-    if (!response.ok) return NextResponse.json({ error: response.status === 403 ? 'This number is not registered for this demo.' : response.status === 429 ? 'This number has reached the demo call limit or has an active call.' : 'Could not start the demo call.' }, { status: response.status });
+    if (!response.ok) {
+      let reason = '';
+      try { const detail = await response.json() as { reason?: unknown }; if (typeof detail.reason === 'string') reason = detail.reason.slice(0, 240); } catch { /* no JSON body */ }
+      const known = response.status === 403 ? 'This number is not registered for this demo.' : response.status === 429 ? 'This number has reached the demo call limit or has an active call.'
+        : response.status === 401 ? 'Phone service rejected the shared secret (check PHONE_SHARED_SECRET).' : response.status === 503 ? 'Phone service is not configured on the Mac.' : 'Could not start the demo call.';
+      return NextResponse.json({ error: reason ? `${known} Reason: ${reason}` : known }, { status: response.status });
+    }
     const result = await response.json() as { sid?: string; status?: string };
     return NextResponse.json({ sid: result.sid, status: result.status }, { status: 202, headers: { 'Cache-Control': 'no-store' } });
-  } catch { return NextResponse.json({ error: 'Phone service is unavailable.' }, { status: 502 }); }
+  } catch (error) { return NextResponse.json({ error: 'Phone service unreachable from the website' + (error instanceof Error && error.name === 'TimeoutError' ? ' (timed out)' : '') + '.' }, { status: 502 }); }
 }
