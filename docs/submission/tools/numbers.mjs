@@ -90,7 +90,7 @@ function values(r) {
   };
 }
 
-function numbersMd(r, v) {
+function numbersMd(r, v, b) {
   const src = r.preset.source ?? 'engine';
   const rows = CONFIGS.map((c) => {
     const x = r[c.name];
@@ -130,10 +130,22 @@ Single headline run by hand: \`curl -s https://<engine-host>/montecarlo/preset |
 | all at-risk households evacuated | ${v.BASE_ALL} | ${v.LM_ALL} |
 | **paired lift, vulnerable** | | **${v.LIFT} ${v.LIFT_CI}** |
 
+**The headline depends on the baseline.** These ${v.RUNS} runs assume neighbours never give each other rides. Lane D's
+baseline review ([\`BASELINE_REVIEW.md\`](BASELINE_REVIEW.md), ${b.CONFIGS} configs, 100 paired seeds each) turns the
+baseline up:
+
+| baseline (alerts only) | alerts only: vulnerable | Last Mile: vulnerable | lift |
+|---|---|---|---|
+${b.rows}
+
+Last Mile wins in all ${b.CONFIGS} configs, but the honest headline is a range: **about ${v.LIFT_LOW} to ${v.LIFT_HIGH} points,
+about ${v.LIFT_RIDES30_SHORT} if a third of neighbours with a car give rides.**
+
 **Say it like this:** "In our simulation of Amherst's real roads, coordinated dispatch raised the share of vulnerable
-households that got out before the fire from ${v.BASE_VUL} to ${v.LM_VUL}: ${v.LIFT}, 95% CI ${v.LIFT_CI}, over ${v.RUNS}
-paired runs. With a faster fire and a quarter of the helpers it is ${v.HARSH_LIFT.split(' [')[0]}. It is a simulation with
-synthetic people, and our baseline doesn't yet model neighbours giving rides, so treat it as an upper-end estimate."
+households that got out before the fire by about ${v.LIFT_RANGE}, depending on how much informal help the town already has.
+With no neighbour rides it goes from ${v.BASE_VUL} to ${v.LM_VUL} (${v.LIFT}, 95% CI ${v.LIFT_CI}, ${v.RUNS} paired runs); if a third of
+neighbours with a car pick someone up, the gain is ${v.LIFT_RIDES30_SHORT} points; with neighbours, families and early alerts all
+working well, it is about ${v.LIFT_LOW}. It matters most where informal help is thin. It is a simulation with synthetic people."
 
 ## All configurations
 
@@ -154,7 +166,7 @@ ${keys.join('\n')}
 }
 const ci2 = (m) => `${p1(m.mean)} ${ci(m.ci95)}`;
 
-const DOCS = ['DEVPOST.md', 'DEV_POST.md', 'VIDEO.md', 'PITCH_QA.md', '../DEMO_SCRIPT.md'].map((f) => path.join(SUB, f));
+const DOCS = ['DEVPOST.md', 'DEV_POST.md', 'VIDEO.md', 'PITCH_QA.md', 'DEMO_RUNBOOK.md', 'SENSITIVITY.md', '../DEMO_SCRIPT.md'].map((f) => path.join(SUB, f));
 
 const results = await collect();
 const v = values(results);
@@ -166,7 +178,35 @@ const far = grab(/helpers start far from the fire[^|]*\|[^|]*\|[^|]*\|[^|]*\| ([
 if (slow) v.LIFT_SLOW = slow;
 if (far) v.LIFT_FAR = far;
 v.REPO_URL = 'https://github.com/VK2756/Last-Mile';
-writeFileSync(path.join(SUB, 'NUMBERS.md'), numbersMd(results, v));
+
+// baseline-strength rows from Lane D's BASELINE_REVIEW.md (100 paired seeds each); never typed by hand here
+const review = readFileSync(path.join(SUB, 'BASELINE_REVIEW.md'), 'utf8');
+const reviewRows = review.split('\n').filter((l) => /^\| .*\| \d+-\d+ \|/.test(l)).map((l) => l.split('|').slice(1, -1).map((c) => c.trim().replace(/\*\*/g, '')));
+const row = (group, config) => {
+  const r = reviewRows.find((c) => c[0].startsWith(group) && c[1] === config);
+  if (!r) throw new Error(`BASELINE_REVIEW.md: no row "${group}" / "${config}"`);
+  const m = /^([\d.]+) (\[[^\]]+\])$/.exec(r[5]);
+  if (!m) throw new Error(`BASELINE_REVIEW.md: cannot read lift "${r[5]}"`);
+  return { ao: r[3], lm: r[4], lift: `+${m[1]} pts ${m[2]}`, short: `+${Math.round(Number(m[1]))}` };
+};
+const B = [
+  ['no neighbour rides, 25% family pickup (headline default)', row('reference', 'preset (wind 20 mph E, 24 helpers)')],
+  ['family pickup 50% instead of 25%', row('self-evac', 'familyPickupProb 0.5 (default 0.25)')],
+  ['30% of neighbours with a car give a ride', row('neighbours give rides', 'neighborRideProb 0.3')],
+  ['60% of neighbours give a ride', row('neighbours give rides', 'neighborRideProb 0.6')],
+  ['every neighbour with a free seat gives a ride', row('neighbours give rides', 'neighborRideProb 1 (every car with a free seat)')],
+  ['strong baseline: rides 60%, family 50%, faster prep, alert at ignition', row('strong baseline', 'rides 0.6, family 0.5, urgent pickup, prep 0.5, alert at ignition')],
+];
+const strong = B[5][1], rides30 = B[2][1];
+v.LIFT_RIDES30 = rides30.lift;
+v.LIFT_RIDES30_SHORT = rides30.short;
+v.LIFT_STRONG = strong.lift;
+v.LIFT_LOW = strong.short;
+v.LIFT_HIGH = `+${Math.round(Number(v.LIFT.replace(/[^\d.]/g, '')))}`;
+v.LIFT_RANGE = `${v.LIFT_LOW.slice(1)} to ${v.LIFT_HIGH.slice(1)} points`;
+const configsMatch = /on (\d+) configs/.exec(review) ?? /these (\d+) configs/.exec(review);
+const b = { CONFIGS: configsMatch ? configsMatch[1] : String(reviewRows.length), rows: B.map(([label, x]) => `| ${label} | ${x.ao} | ${x.lm} | ${x.lift} |`).join('\n') };
+writeFileSync(path.join(SUB, 'NUMBERS.md'), numbersMd(results, v, b));
 process.stderr.write('wrote docs/submission/NUMBERS.md\n');
 
 if (flag('--fill')) {

@@ -31,10 +31,18 @@ which assumptions?
   over 200 paired seeds and reports the difference with a 95% confidence interval, next to every assumption that
   drives it, plus how the result moves under harsher assumptions.
 
-**Result (simulation):** vulnerable households evacuated before the fire arrived: 45.1% with alerts only vs
-74.5% with Last Mile, a paired lift of +29.4 pts (95% CI [28.6, 30.2]) over 200 seeds on real Amherst, MA streets.
-Under the harshest assumptions we tested (35 mph wind and 6 helpers instead of 24) the lift falls to +15.0 pts [14.5, 15.6]; with
-zero helpers it is exactly zero, as it should be.
+**Result (simulation): coordinated dispatch raised the share of vulnerable households that got out before the fire by
+about 4 to 29 percentage points, depending on how much informal help the town already has.** Last Mile won in all 33
+baseline configurations we tested, but by how much depends on the baseline:
+
+- If neighbours never give each other rides (our default): 45.1% with alerts only vs 74.5% with Last Mile, +29.4 pts
+  (95% CI [28.6, 30.2]) over 200 paired seeds on real Amherst, MA streets.
+- If 30% of neighbours with a car pick someone up: +12.3 pts [11.5, 13.2].
+- If neighbours, families and early alerts all work well: +4.1 pts [3.5, 4.8].
+
+The baseline rows use 100 paired seeds each (Lane D's [`BASELINE_REVIEW.md`](BASELINE_REVIEW.md)). Coordinated dispatch
+matters most where informal help is thin. With a faster fire and 6 helpers instead of 24 (default baseline) the lift is
++15.0 pts [14.5, 15.6]; with zero helpers it is exactly zero, as it should be.
 
 ## How we built it
 
@@ -58,7 +66,8 @@ zero helpers it is exactly zero, as it should be.
 
 - **A fair baseline.** It is easy to make "alerts only" a strawman. We made the baseline a strict subset of Last Mile:
   same people, same fire, same self-evacuation and family pickups; Last Mile can only add help. A zero-helper run gives
-  exactly zero lift.
+  exactly zero lift. Then we turned the baseline up: once neighbours give rides, most of the gap closes (+12 points at
+  30% of neighbours, about +4 with everything working well). That is why we report a range, not one number.
 - **Speed vs fidelity.** 400 full simulations per comparison had to finish during a demo. Sharing the fire, population
   and road graph across both policies of a seed, and timing helper legs from one shortest-path tree, cut CPU per paired
   run from 587 ms to 361 ms (N=200 in about 40 s on 2 workers; about 14 s on 12 cores).
@@ -78,8 +87,9 @@ zero helpers it is exactly zero, as it should be.
 ## What we learned
 
 Evacuation outcomes for vulnerable people depend less on the alert and more on transport capability, mobility and how
-early needs are known. In our model the number of available helpers matters most; how fast help requests arrive matters
-less, because the fire needs about an hour to reach most homes. Those are properties of our assumptions, not field facts.
+early needs are known. In our model, how much informal help already exists (neighbours giving rides) matters most, then
+the number of available helpers; how fast help requests arrive matters less, because the fire needs about an hour to
+reach most homes. Those are properties of our assumptions, not field facts.
 
 ## What's next
 
@@ -95,7 +105,7 @@ and official evacuation orders.
 - The alert goes out 300 s after ignition; households react after a random delay (longer for landline-only,
   limited-English or no-signal homes).
 - Households with a car leave on their own after packing; 25% of households without a car get a family pickup 15–40
-  min after being warned; the rest wait.
+  min after being warned; the rest wait. By default neighbours do not give rides; the range above shows what changes when they do.
 - Last Mile learns of a household that cannot drive 1–3 min after it is warned (voice call / app / registry); helpers
   start at random road nodes, drive at road speed with congestion, and are always willing and available.
 - Metrics count only households the fire reaches within 2 hours. "Trapped" is a simulation outcome, not a casualty estimate.

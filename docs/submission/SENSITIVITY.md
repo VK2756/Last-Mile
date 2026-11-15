@@ -28,7 +28,9 @@ Vulnerable households evacuated and the paired lift with its 95% CI. Real engine
 | slow requests + 6 helpers + far start | 100 | 45.0% | 64.5% | +19.5 pts [18.6, 20.4] |
 | sanity: 0 helpers | 50 | 44.2% | 44.2% | +0.0 pts [0.0, 0.0] |
 
-Harsher assumptions cut the lift roughly in half in the worst case we ran (fast fire, few helpers) but never to zero; with no helpers the two policies are identical, as they should be. The number of helpers matters most; the request delay matters less because the fire needs about an hour to reach most homes. **Not tested:** helpers that break down, wrong or false help requests, people refusing to leave, neighbours giving rides (see BASELINE_REVIEW.md).
+Harsher assumptions cut the lift roughly in half in the worst case we ran (fast fire, few helpers) but never to zero; with no helpers the two policies are identical, as they should be. The number of helpers matters most; the request delay matters less because the fire needs about an hour to reach most homes.
+
+**The baseline matters more than any of these.** Every row above assumes neighbours never give each other rides. In Lane D's baseline review ([`BASELINE_REVIEW.md`](BASELINE_REVIEW.md), 100 paired seeds per config), if 30% of neighbours with a car give a ride the lift is +12.3 pts [11.5, 13.2], and with neighbours, families and early alerts all working well it is +4.1 pts [3.5, 4.8]. Last Mile still wins in all 33 configs, so the honest claim is a range of about 4 to 29 points. **Not tested:** helpers that break down or don't show up, wrong or false help requests, people refusing to leave, traffic beyond a flat congestion factor.
 
 ## Full table (200 paired seeds unless noted)
 
@@ -65,7 +67,7 @@ approximation (mean ± 1.96 SE of the paired differences), not the bootstrap. Ev
 ## What would make the result weaker (to test next)
 
 - Helpers that break down or arrive late, wrong or false help requests, people who refuse to leave.
-- A stronger baseline (neighbours giving rides, more family pickups, earlier self-evacuation): Lane D's [`BASELINE_REVIEW.md`](BASELINE_REVIEW.md) stress-tests 20 public-knob configs (Last Mile wins in all, by only ~6 pts with a single helper) and lists the missing behaviours (#69, #71–#73). Its numbers were produced before #61's re-plan cadence change, so they run about 2 pts lower than this file; the conclusions are the same.
+- A stronger baseline is now measured (see above and [`BASELINE_REVIEW.md`](BASELINE_REVIEW.md), 33 configs on main @ `d98f2e3`): neighbour rides are most of the gap. Not yet measured: how much of the remaining lift is wheelchair users and homes with no car nearby, which neighbour rides can't serve.
 - Other towns (`paradise_like`, `synthetic_grid`): `--town` flag; road data quality differs.
 
 ## Earlier numbers (for the record)
