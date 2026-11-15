@@ -6,12 +6,35 @@
 
 | # | URL | ready when |
 |---|---|---|
-| 1 | `https://<domain>/` | live preview playing in the hero |
-| 2 | `https://<domain>/live?pitch=1` | paused on frame 0, both maps drawn |
-| 3 | `https://<domain>/call?scenario=<id>&household=<hid>&language=es` | IDs copied from a red-triangle household in tab 2 |
-| 4 | `https://<domain>/results` | lift card shows the engine's number (default baseline, 200 seeds), pill says "Monte Carlo engine · cached preset" |
-| 5 | `https://<domain>/how-it-works` | only if asked "how does it decide?" |
-| — | `https://<engine-host>/health` | `{"ok":true,...}` (check once, then close) |
+| 1 | `[DEMO_URL]/` | live preview playing in the hero |
+| 2 | `[DEMO_URL]/live?pitch=1` | paused on frame 0, both maps drawn |
+| 3 | `[DEMO_URL]/call?scenario=<id>&household=<hid>&language=es` | IDs copied from a red-triangle household in tab 2 |
+| 4 | `[DEMO_URL]/results` | lift card shows the engine's number (default baseline, 200 seeds), pill says "Monte Carlo engine · cached preset" |
+| 5 | `[DEMO_URL]/how-it-works` | only if asked "how does it decide?" |
+| — | `[API_URL]/health` | `{"ok":true,...}` (check once, then close) |
+
+## Fill the links (once, when the deploy is up)
+
+One command fills every link in `docs/submission/**` (not `evidence/`). Re-running is safe; a new URL replaces the old one.
+
+```bash
+node docs/submission/tools/fill-links.mjs --demo https://<web> --api https://<engine> --video https://<video> --post https://<dev-post>
+node docs/submission/tools/fill-links.mjs --check   # exits 1 while any token is left
+```
+
+<!-- fill-links:off -->
+
+| token | flag | what |
+|---|---|---|
+| `[DEMO_URL]` | `--demo` | web app, no trailing slash (`[DEMO_URL]/live`, `[DEMO_URL]/results`) |
+| `[API_URL]` | `--api` | engine (`[API_URL]/health`) |
+| `[VIDEO_URL]` | `--video` | demo video |
+| `[DEV_URL]` | `--post` | DEV Writing Challenge post |
+| `[DOMAIN]` | from `--demo` | host name only, for SPONSORS.md |
+
+<!-- fill-links:on -->
+
+Values used are saved in `docs/submission/links.json`; commit it with the filled docs.
 
 ## The 3 minutes, 15 seconds at a time
 
