@@ -1,13 +1,17 @@
-# Lane C status — 2026-11-14 15:10 EST
+# Lane C status — 2026-11-14
 
-## Merged and verified
-- Data, Atlas/Tiger migration and seed, memory/real sink, Gemini triage API/fallback, risk-series API, Vultr scripts/runbook, evidence generator, and Playwright suite are on main via #5, #10, #15, #18, #22, #51, #60. Latest observed main `962b463` (#61); CI passed. Required `bash scripts/postmerge.sh` was run after each merge but fails in this Windows checkout because Git gives it CRLF (#4). Full `pnpm verify` passed in a clean worktree (79 engine tests, web build).
-- `pnpm --filter @lastmile/data evidence` without credentials passed and wrote `not configured` for Atlas, Tiger, and compression. `.env` is ignored but absent locally; Anant said he will provide it later. Live migrate/seed/counts, real sink persistence, and Gemini-key path remain unverified.
-- **Prince (Lane E):** `/api/triage` returned HTTP 200 without Gemini key. `/api/risk-series?scenarioId=demo` returned HTTP 200 with `points: []`, `source: not configured` without Tiger. Both routes are on main. `/call` UI is Lane E-owned.
-- Main `962b463` includes A's Monte Carlo endpoint. Local engine + web Playwright now passes all 5/5: mock `/live`, real `/live`, evaluator-backed `/results` with CIs, typed `/call`, and completed `/call` writing needs to the engine. Zero browser console errors. A closed #29. Main CI passed; full `pnpm verify` passed in a clean worktree (79 engine tests, web build).
-- Freeze audit now passes all five source checks: no stub markers, SIMULATION badge on live/results/call, no hard-coded outcome percentage, no rescue promise, no tracked credential pattern. QA audit fix is in this branch. D's Windows worker fix #47 retested: 79/79 engine tests passed; closed #33.
+## Merged
 
-## Next / blockers
-- Run live `migrate`, `seed`, evidence and with-key API checks when ignored root `.env` arrives. User has already been asked; do not request it again.
-- A: persist triage calls #36. A Windows engine start #41 remains open. Shared script CRLF #4 and root deploy script #7 remain open. Local postmerge verification of current main passed 79 engine tests and web build in a clean worktree; Git/gh status lines inside that worktree's Bash script are unavailable due its Windows worktree pointer, so CI was checked separately.
-- Public engine URL, Vultr VM IP, and Vercel URL are not available; production `/health`, CORS, full freeze gate, and production e2e are pending deployment. Runbook gives the exact SSH blocks.
+- #110 fixed Windows line endings with `.gitattributes`; issue #4 closed. A fresh Windows clone with `core.autocrlf=true` kept all three shell scripts LF, and `bash -n` and `bash scripts/postmerge.sh` ran there.
+- #113 added `pnpm deploy:engine` to match the Vultr systemd start command and documented it in the runbook; issue #7 closed. A local `/health` request returned HTTP 200.
+- #117 added dispatches per minute to `/api/risk-series` from Tiger dispatch events, with tests. The dashboard already reads `dispatches`; issue #79 closed.
+- #131 added Gemini Live `/call/live`, constrained ephemeral token minting, direct browser audio and transcript, triage extraction, fallback, mock WebSocket tests, and `docs/VOICE.md`. The no-key route returned 503 and the browser fallback test passed.
+- #136 added the nonfatal neighbour-ride caveat warning to the audit and marked stale Monte Carlo evidence as superseded; issue #129 closed. Lane E issue #135 tracks the remaining warning in its submission file.
+- #138 added `evidence --dry-run`; it reports only missing `MONGODB_URI` and `TIGER_DATABASE_URL` names and makes no connections or file writes. Four missing/present combinations passed with test-only variables.
+
+## Verification and remaining work
+
+- All six PRs passed their required checks before squash merge. The fresh clone passed `pnpm verify` on the latest Lane C code; main CI passed after #138. `node web/e2e/audit.mjs` passes all five source checks and reports only Lane E issue #135 as a warning.
+- The freeze gate passes source audit and main CI. Its health item needs a reachable engine origin. Windows `curl.exe` received HTTP 200 from the local engine, but this checkout's `bash` is WSL and cannot reach that Windows loopback server. Public production `/health` is pending the Vultr address.
+- Required `bash scripts/postmerge.sh` was run after each Lane C merge. In the original `C:\HackUmass` checkout, Next prerender fails on a React `useRef` null/path-casing issue; the clean `C:\LastMileLFCheck` clone passes the same full verification. See prior issue #21.
+- Real Atlas, Tiger, Gemini key, headset, and production deployment checks remain for Vidhaan/Anant. No secrets were read or printed. The local engine used the memory sink. `docs/VOICE.md` has the headset checklist and `docs/RUNBOOK_VULTR.md` has SSH commands.
