@@ -1,7 +1,8 @@
 'use client';
 // One live map. GeoJSON layers only (no per-household DOM markers) so 600+ points stay at 60fps.
-// Basemap: OpenFreeMap vector tiles (no API key) styled dark, over a background + grid that still
-// looks right when tiles fail to load (flaky venue wifi), or when ?tiles=0 forces the offline style.
+// Basemap: OpenFreeMap vector tiles (no API key) styled dark, added after the tile-free style has
+// loaded, over a background + grid that still looks right when tiles are slow or blocked (flaky
+// venue wifi), or when ?tiles=0 forces the offline style. Before MapLibre loads, StaticMap draws.
 import { useEffect, useRef, useState } from 'react';
 import type { Map as MLMap, GeoJSONSource, StyleSpecification } from 'maplibre-gl';
 import type { LatLng, SimFrame, SimInit } from '@lastmile/contracts';
@@ -9,6 +10,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { cn } from '@/lib/cn';
 import { EMPTY_FC, embersFC, fireFC, gridFC, helpersFC, householdsFC, ignitionFC, routesFC, safeZonesFC, type FC } from '@/lib/geo';
 import { registerMapIcons } from '@/lib/map-icons';
+import { StaticMap } from './StaticMap';
 
 export interface LiveMapProps {
   init: SimInit | null;
@@ -55,20 +57,32 @@ function basemapLayers(): Layer[] {
   ];
 }
 
-function baseStyle(tiles: boolean): StyleSpecification {
+/**
+ * The map always starts tile-free (background + grid, no network), so 'load' fires at once and the
+ * simulation draws immediately. Tiles are added afterwards by addTiles() and stream in underneath;
+ * if they are slow or blocked, the tile-free map is what people see.
+ */
+function baseStyle(): StyleSpecification {
   return {
     version: 8,
-    sources: {
-      grid: { type: 'geojson', data: EMPTY_FC },
-      ...(tiles ? { ofm: { type: 'vector', url: OPENFREEMAP_URL, attribution: TILE_ATTRIB } } : {}),
-    },
+    sources: { grid: { type: 'geojson', data: EMPTY_FC } },
     layers: [
       { id: 'bg', type: 'background', paint: { 'background-color': '#080b10' } },
-      // the grid is the offline basemap; with tiles it stays faint underneath in case they fail
-      { id: 'grid', type: 'line', source: 'grid', paint: { 'line-color': '#1a2330', 'line-width': 1, 'line-opacity': tiles ? 0.35 : 1 } },
-      ...(tiles ? basemapLayers() : []),
+      { id: 'grid', type: 'line', source: 'grid', paint: { 'line-color': '#1a2330', 'line-width': 1, 'line-opacity': 1 } },
     ],
   };
+}
+
+/** Add the vector basemap under the simulation layers; the grid fades once the first tiles draw. */
+function addTiles(map: MLMap, beforeId: string) {
+  map.addSource('ofm', { type: 'vector', url: OPENFREEMAP_URL, attribution: TILE_ATTRIB });
+  for (const l of basemapLayers()) map.addLayer(l, beforeId);
+  const onData = (e: { sourceId?: string; isSourceLoaded?: boolean; tile?: unknown }) => {
+    if (e.sourceId !== 'ofm' || !e.tile) return;
+    map.off('sourcedata', onData);
+    if (map.getLayer('grid')) map.setPaintProperty('grid', 'line-opacity', 0.35);
+  };
+  map.on('sourcedata', onData);
 }
 
 /** UI scale from the root font size (16px = 1). Map icons follow it so 4K screens aren't specks. */
@@ -118,7 +132,7 @@ export function LiveMap({ init, frame, selectedId = null, onSelect, tiles = true
       if (disposed || !el.current) return;
       const map = new maplibre.Map({
         container: el.current,
-        style: baseStyle(tiles),
+        style: baseStyle(),
         center: [-72.52, 42.372],
         zoom: 13.4,
         attributionControl: { compact: true },
@@ -128,8 +142,6 @@ export function LiveMap({ init, frame, selectedId = null, onSelect, tiles = true
       });
       map.addControl(new maplibre.NavigationControl({ showCompass: false }), 'bottom-right');
       mapRef.current = map;
-      // two maps on one page: give each canvas its own accessible name (axe landmark-unique)
-      map.getCanvas().setAttribute('aria-label', `${label ?? 'Simulation map'} (interactive map)`);
       // keep the canvas sized to its box (layout settles after mount; split screen resizes)
       ro = new ResizeObserver(() => {
         map.resize();
@@ -181,6 +193,7 @@ export function LiveMap({ init, frame, selectedId = null, onSelect, tiles = true
           layout: { 'icon-image': ['get', 'icon'], 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'icon-size': ['interpolate', ['linear'], ['zoom'], 11, 0.7, 15, 1.05] },
         });
         applyScale(map, uiScale());
+        if (tiles) addTiles(map, 'fire-halo');
 
         map.on('click', 'households', (e) => {
           if (onPickRef.current) return;
@@ -332,6 +345,11 @@ export function LiveMap({ init, frame, selectedId = null, onSelect, tiles = true
     if (h) map.easeTo({ center: [h.position.lng, h.position.lat], zoom: Math.max(map.getZoom(), 15), duration: prefersReducedMotion() ? 0 : 700 });
   }, [ready, init, selectedId]);
 
+  // ---- two maps on one page: each canvas gets its own accessible name (axe landmark-unique) ----
+  useEffect(() => {
+    mapRef.current?.getCanvas().setAttribute('aria-label', `${label ?? 'Simulation map'} (interactive map)`);
+  }, [ready, label]);
+
   // ---- mirror camera from a sibling map ----
   useEffect(() => {
     const map = mapRef.current;
@@ -347,11 +365,9 @@ export function LiveMap({ init, frame, selectedId = null, onSelect, tiles = true
       {/* inline style: maplibre's own CSS sets .maplibregl-map { position: relative } */}
       <div ref={el} style={{ position: 'absolute', inset: 0 }} />
       {!ready && (
-        <div className="ops-grid absolute inset-0 grid place-items-center" role="status" aria-label="Loading map">
-          <div className="flex flex-col items-center gap-3">
-            <div className="skeleton size-10 rounded-full" />
-            <span className="font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-fg-dim">Loading map</span>
-          </div>
+        // until MapLibre is up: the same frame drawn as plain SVG (no tiles, no scripts), never a spinner
+        <div className="ops-grid absolute inset-0" role="status" aria-label="Preparing the interactive map">
+          <StaticMap init={init} frame={frame} accent={accent} />
         </div>
       )}
     </div>
