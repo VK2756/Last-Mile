@@ -81,6 +81,14 @@ export function createSim(config: ScenarioConfig, scenarioId: string, opts: SimO
   const swallow = (p: Promise<void>) => p.catch((e) => console.error('[sink]', e));
 
   const nearestZone = (p: LatLng): SafeZone => pop.safeZones.reduce((best, z) => (distMeters(p, z.position) < distMeters(p, best.position) ? z : best));
+  /** Where a loaded helper unloads: the nearest zone, unless the fire has cut every road to it right now, then the quickest reachable one (#118). Unchanged whenever the nearest zone is reachable. */
+  const unloadZone = (p: LatLng): SafeZone => {
+    const near = nearestZone(p);
+    if (Number.isFinite(router.travelSeconds(p, near.position, t))) return near;
+    let best = near; let bestT = Infinity;
+    for (const z of pop.safeZones) { const tt = router.travelSeconds(p, z.position, t); if (tt < bestT) { bestT = tt; best = z; } }
+    return best;
+  };
   const households: Household[] = pop.households.map((h) => ({ ...h, needs: [...h.needs] }));
   const hs: HS[] = households.map((h) => {
     const b = pop.behavior[h.id]!; const ign = fire.ignitionTime(h.position); const warnedAt = (config.baseline?.alertIssueS ?? ALERT_ISSUE_S) + b.alertDelayS;
@@ -208,7 +216,7 @@ export function createSim(config: ScenarioConfig, scenarioId: string, opts: SimO
         if (distMeters(p.pos, z.position) <= UNLOAD_RADIUS_M) {
           for (const id of p.loaded) resolve(byId.get(id)!, 'evacuated');
           p.loaded = []; p.load = 0; p.asg = null; dirty = true;
-        } else if (t >= p.waitUntil) startLeg(p, z.position, null);
+        } else if (t >= p.waitUntil) startLeg(p, unloadZone(p.pos).position, null);
       } else { p.asg = null; dirty = true; }
     }
     if (p.leg && advanceLeg(p)) {
@@ -302,8 +310,10 @@ export function createSim(config: ScenarioConfig, scenarioId: string, opts: SimO
       if (!p.asg) continue;
       const pts: LatLng[] = [p.pos]; if (p.leg) pts.push(...p.leg.verts.slice(p.leg.idx + 1));
       for (const id of p.targets) if (id !== p.leg?.forTarget) pts.push(byId.get(id)!.h.position);
-      pts.push(nearestZone(pts[pts.length - 1]!).position);
-      assignments.push({ ...p.asg, route: pts });
+      pts.push(!p.targets.length && p.leg && !p.leg.forTarget ? p.leg.dest : nearestZone(pts[pts.length - 1]!).position);
+      const householdIds = [...p.loaded, ...p.targets]; // live ids only: a target handed to another helper or picked up by family must not stay listed (#114)
+      if (!householdIds.length) continue;
+      assignments.push({ ...p.asg, householdIds, route: pts });
     }
     return {
       scenarioId, policy: config.policy, t,
