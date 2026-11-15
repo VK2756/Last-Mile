@@ -57,3 +57,13 @@ it('retries token minting on v1beta when v1alpha is unavailable', async () => {
   expect(await createLiveToken('server-test-only')).toMatchObject({ apiVersion: 'v1beta' });
   expect(calls.versions).toEqual(['default', 'v1alpha', 'v1beta']);
 });
+
+it('ranks native-audio and -latest models first, deterministically', () => {
+  const models = [
+    { name: 'models/zeta-live', supportedActions: ['bidiGenerateContent'] },
+    { name: 'models/x-native-audio-preview', supportedActions: ['bidiGenerateContent'] },
+    { name: 'models/x-native-audio-latest', supportedActions: ['bidiGenerateContent'] },
+  ];
+  expect(chooseLiveModel(models)).toBe('models/x-native-audio-latest');
+  expect(chooseLiveModel([...models].reverse())).toBe('models/x-native-audio-latest');
+});

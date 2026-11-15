@@ -37,6 +37,7 @@ export function LiveCall() {
   const pendingOutput = useRef('');
   const lastSpeech = useRef(0);
   const ending = useRef(false);
+  const readyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -44,7 +45,7 @@ export function LiveCall() {
     setScenarioId(params.get('scenario') ?? '');
     setHouseholdId(params.get('household') ?? 'h1');
     setLanguage(params.get('language') === 'es' ? 'es' : 'en');
-    return () => { ending.current = true; session.current?.close(); void mic.current?.stop(); void playback.current?.close(); };
+    return () => { if (readyTimer.current) clearTimeout(readyTimer.current); ending.current = true; session.current?.close(); void mic.current?.stop(); void playback.current?.close(); };
   }, []);
 
   const stop = useCallback(async () => {
@@ -59,6 +60,7 @@ export function LiveCall() {
   }, []);
 
   const fallback = useCallback((why: string) => {
+    if (readyTimer.current) { clearTimeout(readyTimer.current); readyTimer.current = null; }
     setMessage(`${why} Continue with browser speech or typed answers below.`);
     setMode('fallback');
     void stop();
@@ -87,6 +89,9 @@ export function LiveCall() {
     if (mode === 'connecting' || mode === 'live') return;
     ending.current = false;
     setMode('connecting');
+    if (readyTimer.current) clearTimeout(readyTimer.current);
+    // Never spin forever: if the session is not ready in 8 s, show the browser voice/text path.
+    readyTimer.current = setTimeout(() => { readyTimer.current = null; fallback("Live voice isn't available right now."); }, 8000);
     setMessage('');
     setTurns([]);
     history.current = [];
@@ -106,6 +111,7 @@ export function LiveCall() {
       setTokenState('issued');
       const next = new LiveSession(token, {
         opened: () => {
+          if (readyTimer.current) { clearTimeout(readyTimer.current); readyTimer.current = null; }
           setMode('live');
           const input = new MicrophoneCapture();
           mic.current = input;
