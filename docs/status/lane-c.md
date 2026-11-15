@@ -9,7 +9,7 @@
 - #136 added the nonfatal neighbour-ride caveat warning to the audit and marked stale Monte Carlo evidence as superseded; issue #129 closed. Lane E resolved its submission warning in #135.
 - #138 added `evidence --dry-run`; it reports only missing `MONGODB_URI` and `TIGER_DATABASE_URL` names and makes no connections or file writes. Four missing/present combinations passed with test-only variables.
 
-- Phone demo: `@lastmile/phone` with Twilio outbound allowlist, one active call, 3/hour/number, signed stream token, 5-minute cap, Gemini Live audio bridge, triage/engine update, optional Atlas transcript; Vercel route and `/call/live` form, Mac Funnel scripts, and `docs/PHONE.md`. Ten no-key tests and local `/health` passed.
+- Phone demo: `@lastmile/phone` with Twilio outbound allowlist, one active call, 3/hour/number, signed stream token, 5-minute cap, Gemini Live audio bridge, triage/engine update, optional Atlas transcript; Vercel route and `/call/live` form, Mac Funnel scripts, and `docs/PHONE.md`. Eleven no-key tests and local `/health` passed.
 
 ## Verification and remaining work
 

@@ -41,4 +41,18 @@ describe('Twilio ↔ Gemini bridge', () => {
       { role: 'resident', text: 'No car' }, { role: 'agent', text: 'Do you need a ride?' },
     ]));
   });
+  it('waits for Twilio playback mark before ending a stop request', async () => {
+    const twilio = new MockSocket(), gemini = new MockSocket();
+    const stop = vi.fn(async () => {});
+    bridgeCall(twilio as unknown as WebSocket, gemini as unknown as WebSocket, {
+      streamSid: 'MZstop', model: 'models/live-test', language: 'en',
+      onResidentTurn: async () => {}, onFinish: async () => {}, onStopRequested: stop,
+    });
+    gemini.emit('open'); gemini.receive({ setupComplete: {} });
+    gemini.receive({ serverContent: { inputTranscription: { text: 'Please stop' }, outputTranscription: { text: 'Goodbye.' }, turnComplete: true } });
+    expect(twilio.sent.at(-1)).toMatchObject({ event: 'mark', mark: { name: 'stop-goodbye' } });
+    expect(stop).not.toHaveBeenCalled();
+    twilio.receive({ event: 'mark', mark: { name: 'stop-goodbye' } });
+    await vi.waitFor(() => expect(stop).toHaveBeenCalledOnce());
+  });
 });

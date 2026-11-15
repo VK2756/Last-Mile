@@ -27,9 +27,18 @@ function send(socket: WebSocket, value: unknown): void {
 export function bridgeCall(twilio: WebSocket, gemini: WebSocket, options: BridgeOptions): () => void {
   const history: Turn[] = [];
   let input = '', output = '', pcmRemainder = Buffer.alloc(0), ready = false, finished = false;
+  let goodbyeTimer: NodeJS.Timeout | undefined;
+  let stopPending = false;
+  const requestStop = () => {
+    if (!stopPending || finished) return;
+    stopPending = false;
+    if (goodbyeTimer) clearTimeout(goodbyeTimer);
+    void options.onStopRequested().finally(finish);
+  };
   const finish = () => {
     if (finished) return;
     finished = true;
+    if (goodbyeTimer) clearTimeout(goodbyeTimer);
     if (input.trim()) history.push({ role: 'resident', text: input.trim() });
     if (output.trim()) history.push({ role: 'agent', text: output.trim() });
     void options.onFinish([...history]).catch(() => {});
@@ -77,8 +86,11 @@ export function bridgeCall(twilio: WebSocket, gemini: WebSocket, options: Bridge
       if (answer) history.push({ role: 'agent', text: answer });
       if (utterance) {
         void options.onResidentTurn(utterance, prior).catch(() => {});
-        if (/\b(stop|hang up|end (the )?call|do not call|no me llame|termina (la )?llamada|cuelga)\b/i.test(utterance)) {
-          setTimeout(() => { void options.onStopRequested().finally(finish); }, 1200).unref();
+        if (!stopPending && /\b(stop|hang up|end (the )?call|do not call|no me llame|termina (la )?llamada|cuelga)\b/i.test(utterance)) {
+          stopPending = true;
+          send(twilio, { event: 'mark', streamSid: options.streamSid, mark: { name: 'stop-goodbye' } });
+          goodbyeTimer = setTimeout(requestStop, 5000);
+          goodbyeTimer.unref();
         }
       }
     }
@@ -87,6 +99,9 @@ export function bridgeCall(twilio: WebSocket, gemini: WebSocket, options: Bridge
     const event = parseMessage(raw);
     if (!event) return;
     if (event.event === 'stop') { finish(); return; }
+    if (event.event === 'mark' && object(event.mark).name === 'stop-goodbye') {
+      requestStop(); return;
+    }
     if (event.event !== 'media' || !ready) return;
     const payload = object(event.media).payload;
     if (typeof payload !== 'string') return;
