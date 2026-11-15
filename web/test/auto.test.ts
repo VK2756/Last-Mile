@@ -17,3 +17,11 @@ describe('auto mode', () => {
     expect(autoAction('reconnecting')).toBeNull();
   });
 });
+
+import { engineRetryDelay } from '../lib/fallback';
+describe('engine-unreachable retry', () => {
+  it('backs off 5, 10, 15 s then every 30 s', () => {
+    expect([0, 1, 2, 3, 4, 50].map(engineRetryDelay)).toEqual([5000, 10000, 15000, 30000, 30000, 30000]);
+    expect(engineRetryDelay(-1)).toBe(5000);
+  });
+});

@@ -4,7 +4,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { BookOpen, Keyboard, Pause, Play, RotateCcw } from 'lucide-react';
 import type { LatLng, Policy } from '@lastmile/contracts';
 import { AppShell, Banner, Button, Kbd, Panel, Segmented, SimBadge } from '@/components/ui';
-import { engineUrl } from '@/lib/engine';
+import { engineHealthy, engineUrl } from '@/lib/engine';
+import { engineRetryDelay } from '@/lib/fallback';
 import { formatSimClock } from '@/lib/format';
 import { keyAction } from '@/lib/keys';
 import { FALLBACK_PRESETS, fetchPresets, presetBase, randomBase, sameBase, type Preset } from '@/lib/presets';
@@ -33,7 +34,10 @@ export function LiveView() {
   const router = useRouter();
   const forcedMock = params.get('mock') === '1';
   const noEngine = !engineUrl();
-  const mock = forcedMock || noEngine;
+  /** engine configured but unreachable (down, CORS, blocked): run the mock and keep re-checking */
+  const [engineDown, setEngineDown] = useState(false);
+  const [retry, setRetry] = useState<{ at: number | null; attempt: number }>({ at: null, attempt: 0 });
+  const mock = forcedMock || noEngine || engineDown;
   const tiles = params.get('tiles') !== '0';
   const pitch = params.get('pitch') === '1';
   /** ?view=maps: screenshot-friendly, just the two maps + scoreboards (no sidebar, no map controls) */
@@ -101,6 +105,43 @@ export function LiveView() {
       .catch((e) => console.warn('[presets] using built-in presets:', e instanceof Error ? e.message : e));
     return () => { alive = false; };
   }, [mock]);
+
+  // engine configured: if a stream fails and /health doesn't answer either, fall back to the mock
+  const streamFailed = !forcedMock && !noEngine && !engineDown && (left.status === 'error' || right.status === 'error');
+  useEffect(() => {
+    if (forcedMock || noEngine || engineDown) return;
+    let alive = true;
+    // also probe once on load, so a dead engine falls back within ~3 s instead of waiting on the stream
+    engineHealthy().then((ok) => { if (alive && !ok) setEngineDown(true); });
+    return () => { alive = false; };
+  }, [forcedMock, noEngine, engineDown, streamFailed]);
+  // while down: re-check /health with backoff; when it answers, go back to the real engine
+  useEffect(() => {
+    if (!engineDown) return;
+    let alive = true;
+    let attempt = 0;
+    let timer: ReturnType<typeof setTimeout>;
+    const schedule = () => {
+      const wait = engineRetryDelay(attempt);
+      setRetry({ at: Date.now() + wait, attempt });
+      timer = setTimeout(async () => {
+        if (!alive) return;
+        setRetry({ at: null, attempt });
+        const ok = await engineHealthy();
+        if (!alive) return;
+        if (ok) { setEngineDown(false); setRunKey((k) => k + 1); }
+        else { attempt++; schedule(); }
+      }, wait);
+    };
+    schedule();
+    return () => { alive = false; clearTimeout(timer); };
+  }, [engineDown]);
+  const [retryNow, setRetryNow] = useState(0);
+  useEffect(() => {
+    if (retry.at === null) return;
+    const i = setInterval(() => setRetryNow(Date.now()), 500);
+    return () => clearInterval(i);
+  }, [retry.at]);
 
   const dirty = !sameBase(draft, base);
   /** Run = apply the draft (if edited) and restart both sides from t=0. */
@@ -227,6 +268,14 @@ export function LiveView() {
               <Banner tone="danger" title="Live engine offline." className="pointer-events-auto bg-surface/95" action={<div className="flex gap-2"><Button size="sm" onClick={restart}>Retry</Button><Button size="sm" variant="primary" onClick={switchToMock}>Switch to mock mode</Button></div>}>
                 {engineError}
               </Banner>
+            )}
+            {engineDown && !forcedMock && (
+              <div data-testid="engine-unreachable-banner" role="status">
+                <Banner tone="warn" title="Engine unreachable, showing the mock. Retrying..." className="pointer-events-auto bg-surface/95">
+                  The live engine at {engineUrl().replace(/^https?:\/\//, '')} did not answer (down, or blocked by CORS or the network).{' '}
+                  {retry.at === null ? 'Checking now…' : `Next check in ${Math.max(1, Math.ceil((retry.at - (retryNow || Date.now())) / 1000))} s.`} Numbers here are mock data.
+                </Banner>
+              </div>
             )}
             {noEngine && !forcedMock && (
               <Banner tone="warn" title="Engine not configured." className="pointer-events-auto bg-surface/95">
