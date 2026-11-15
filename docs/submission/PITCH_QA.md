@@ -10,20 +10,36 @@ assumptions next to it. It is a prototype of decision support, not a deployed em
 
 **2. Why not just send better alerts?**
 Alerts solve "didn't know"; they don't solve "can't go". A household without a car or with a wheelchair needs a vehicle
-that can carry them before the fire arrives. In our model alerts alone evacuate 45.1% of vulnerable households;
-the gap is transport, not information.
+that can carry them before the fire arrives. In our default model alerts alone evacuate 45.1% of vulnerable households;
+the gap is transport, not information. Where neighbours already give rides that gap is smaller (Q3).
 
-**3. How do you know the baseline isn't a strawman?**
-The baseline is a strict subset of Last Mile: same people, same fire, same self-evacuation for everyone with a car, same
-25% family pickups for those without. Last Mile can only add dispatched help. With zero helpers the two policies give
-identical results (lift exactly 0.0), which is our sanity check. Code: `engine/src/policy/alertsOnly.ts` is used by both policies.
+**3. Isn't your baseline a strawman?**
+Partly, and we measured how much. The baseline is a strict subset of Last Mile (same people, same fire, same
+self-evacuation for everyone with a car, same 25% family pickups), and with zero helpers both policies give identical
+results (lift exactly 0.0). But by default neighbours never give each other rides, and that turns out to be most of the
+gap. Lane D reran 33 baseline configs, 100 paired seeds each ([`BASELINE_REVIEW.md`](BASELINE_REVIEW.md)):
+
+| alerts-only baseline | alerts only | Last Mile | lift |
+|---|---|---|---|
+| default: no neighbour rides, 25% family pickup | 45.0% | 74.3% | +29.3 pts [28.1, 30.5] |
+| family pickup 50% | 50.7% | 74.3% | +23.6 pts [22.4, 24.8] |
+| 30% of neighbours with a car give a ride | 65.0% | 77.3% | +12.3 pts [11.5, 13.2] |
+| 60% of neighbours give a ride | 70.3% | 77.8% | +7.5 pts [6.8, 8.3] |
+| every neighbour with a free seat gives a ride | 72.8% | 78.2% | +5.4 pts [4.8, 6.0] |
+| rides 60%, family 50%, urgent pickup, faster prep, alert at ignition | 84.5% | 88.6% | +4.1 pts [3.5, 4.8] |
+
+Last Mile wins in all 33, so our claim is a range: about 4 to 29 points, about 12 if a third of neighbours help. We
+don't know the real neighbour-ride rate in Amherst and didn't pick one. **Not measured yet:** how much of the remaining
+lift is wheelchair users and homes with no car nearby (which modelled neighbour rides can't serve), helpers who don't
+show up, wrong or false requests, people refusing to leave, and traffic beyond a flat congestion factor. Each of those
+would lower Last Mile's numbers.
 
 **4. Did you tune the numbers?**
-No. The evaluator runs the same engine as `/live`, headless, deterministic by seed. The headline, +29.4 pts [28.6, 30.2], uses seeds 1–200; a fresh
+No. The evaluator runs the same engine as `/live`, headless, deterministic by seed. The default-baseline figure, +29.4 pts [28.6, 30.2], uses seeds 1–200; a fresh
 block (1001–1200) gives +29.6 pts [28.8, 30.4], within the same range. The "Run full comparison" button on `/results` reruns it live.
 
 **5. Which assumption is doing the work?**
-Helper count matters most: 6 helpers instead of 24 cuts the lift to +20.1 pts [19.4, 20.8]. A faster fire plus 6 helpers gives
+The baseline matters most: neighbour rides alone take the lift from +29 to +12 points (Q3). After that, helper count: 6 helpers instead of 24 cuts the lift to +20.1 pts [19.4, 20.8]. A faster fire plus 6 helpers gives
 +15.0 pts [14.5, 15.6]. Help-request delay matters less (+26.6 pts [25.5, 27.7] at 5–10 min instead of 1–3) because the fire takes about an
 hour to reach most homes in this town. Full table: [`SENSITIVITY.md`](SENSITIVITY.md).
 
@@ -71,4 +87,5 @@ the people they serve. We have not talked to buyers or validated pricing.
 
 **15. What's the biggest weakness?**
 We assume helpers are available, willing and reliable, and that people accept the ride. We haven't modelled breakdowns,
-refusals or false requests. Those are next, and they could shrink the lift.
+refusals or false requests, and we don't know how much informal help (neighbour rides) a real town has, which moves the
+lift from about +29 to about +4 points. Those are next.

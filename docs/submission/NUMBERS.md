@@ -31,10 +31,27 @@ Single headline run by hand: `curl -s https://<engine-host>/montecarlo/preset | 
 | all at-risk households evacuated | 69.7% | 76.7% |
 | **paired lift, vulnerable** | | **+29.4 pts [28.6, 30.2]** |
 
+**The headline depends on the baseline.** These 200 runs assume neighbours never give each other rides. Lane D's
+baseline review ([`BASELINE_REVIEW.md`](BASELINE_REVIEW.md), 33 configs, 100 paired seeds each) turns the
+baseline up:
+
+| baseline (alerts only) | alerts only: vulnerable | Last Mile: vulnerable | lift |
+|---|---|---|---|
+| no neighbour rides, 25% family pickup (headline default) | 45.0% | 74.3% | +29.3 pts [28.1, 30.5] |
+| family pickup 50% instead of 25% | 50.7% | 74.3% | +23.6 pts [22.4, 24.8] |
+| 30% of neighbours with a car give a ride | 65.0% | 77.3% | +12.3 pts [11.5, 13.2] |
+| 60% of neighbours give a ride | 70.3% | 77.8% | +7.5 pts [6.8, 8.3] |
+| every neighbour with a free seat gives a ride | 72.8% | 78.2% | +5.4 pts [4.8, 6.0] |
+| strong baseline: rides 60%, family 50%, faster prep, alert at ignition | 84.5% | 88.6% | +4.1 pts [3.5, 4.8] |
+
+Last Mile wins in all 33 configs, but the honest headline is a range: **about +4 to +29 points,
+about +12 if a third of neighbours with a car give rides.**
+
 **Say it like this:** "In our simulation of Amherst's real roads, coordinated dispatch raised the share of vulnerable
-households that got out before the fire from 45.1% to 74.5%: +29.4 pts, 95% CI [28.6, 30.2], over 200
-paired runs. With a faster fire and a quarter of the helpers it is +15.0 pts. It is a simulation with
-synthetic people, and our baseline doesn't yet model neighbours giving rides, so treat it as an upper-end estimate."
+households that got out before the fire by about 4 to 29 points, depending on how much informal help the town already has.
+With no neighbour rides it goes from 45.1% to 74.5% (+29.4 pts, 95% CI [28.6, 30.2], 200 paired runs); if a third of
+neighbours with a car pick someone up, the gain is +12 points; with neighbours, families and early alerts all
+working well, it is about +4. It matters most where informal help is thin. It is a simulation with synthetic people."
 
 ## All configurations
 
@@ -70,3 +87,9 @@ Harsher assumptions that are not public engine knobs (help-request delay, helper
 | `[LIFT_SLOW]` | +26.6 pts [25.5, 27.7] |
 | `[LIFT_FAR]` | +28.5 pts [27.4, 29.6] |
 | `[REPO_URL]` | https://github.com/VK2756/Last-Mile |
+| `[LIFT_RIDES30]` | +12.3 pts [11.5, 13.2] |
+| `[LIFT_RIDES30_SHORT]` | +12 |
+| `[LIFT_STRONG]` | +4.1 pts [3.5, 4.8] |
+| `[LIFT_LOW]` | +4 |
+| `[LIFT_HIGH]` | +29 |
+| `[LIFT_RANGE]` | 4 to 29 points |

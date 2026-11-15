@@ -12,7 +12,7 @@ Open these tabs, in this order, on the demo laptop (production domain, not local
 2. `/live?pitch=1` (split screen, paused on frame 0; big type)
 3. `/call?scenario=<id>&household=<hid>&language=es` (fill after step 2: click a red triangle on the right map, copy the
    scenario and household IDs from its card)
-4. `/results` (wait until the lift card shows **+29.4 pts**; it is the cached preset, instant once the engine is warm)
+4. `/results` (wait until the lift card shows the engine's number; it is the cached preset, instant once the engine is warm)
 5. `/how-it-works` (backup for "how does dispatch work?")
 
 Check: SIMULATION badge visible in every tab; laptop on power; notifications off; volume up for the `/call` voice.
@@ -38,9 +38,12 @@ auto." (this phrasing also parses in both no-Gemini fallbacks) Point at the "Wha
 landlines work. Gemini turns the answer into needs." Switch to tab 2: the household is now "needs help" and gets a helper.
 
 **2:10 The proof (30 s), tab 4.** "One run proves nothing, so we ran 200 paired simulations: same seed, both policies.
-Vulnerable households evacuated: **45.1%** with alerts only, **74.5%** with Last Mile. A lift of **+29.4 points**, 95% CI
-**28.6 to 30.2**." Scroll to "Under harsher assumptions": "With a faster fire and a quarter of the helpers it drops to
-**+15.0**, never to zero. This is a simulation with synthetic people, and every assumption is on this page."
+If neighbours don't give each other rides, vulnerable households evacuated go from **45.1%** with alerts only to
+**74.5%** with Last Mile: **+29.4 points**, 95% CI **28.6 to 30.2**." Scroll to "How much does the baseline matter?":
+"That baseline is pessimistic. If a third of neighbours with a car give a ride, the gain is **+12**; with neighbours,
+families and early alerts all working well, about **+4**. Last Mile wins in all 33 setups we tried, by **4 to 29
+points**. It matters most where informal help is thin. This is a simulation with synthetic people, and every assumption
+is on this page."
 
 **2:40 Stack + close (20 s).** "Gemini for the calls, MongoDB Atlas for geospatial matching, Tiger Data for the time
 series, Vultr running the engine, Vercel for the web. Next we'd validate the assumptions with emergency managers and

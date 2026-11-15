@@ -45,9 +45,11 @@ on top. A built-in sanity check: with zero helpers the two policies must be iden
 
 ## What we found (in simulation)
 
-Vulnerable households evacuated before the fire arrived: **45.1% with alerts only vs 74.5% with Last Mile**,
-a paired lift of **+29.4 pts** (95% CI [28.6, 30.2]) over 200 seeds. A fresh block of seeds that the preset never used
-gives +29.6 pts [28.8, 30.4], so the number isn't an artifact of which seeds we picked.
+With our default baseline, vulnerable households evacuated before the fire arrived went from **45.1% with alerts only
+to 74.5% with Last Mile**, a paired lift of **+29.4 pts** (95% CI [28.6, 30.2]) over 200 seeds. A fresh block of seeds
+that the preset never used gives +29.6 pts [28.8, 30.4], so the number isn't an artifact of which seeds we picked.
+
+That default has a catch, and a teammate found it: neighbours in our baseline never give each other rides.
 
 ## Then we tried to break it
 
@@ -61,9 +63,26 @@ A single number hides its assumptions, so we moved them, one at a time and toget
 | a faster fire (35 mph wind) | +23.3 pts [22.6, 23.9] |
 | faster fire **and** 6 helpers | +15.0 pts [14.5, 15.6] |
 
-The lift roughly halves in the worst case but never reaches zero. The number of helpers matters most; how fast help
-requests arrive matters surprisingly little, because in this town the fire needs about an hour to reach most homes. That
-last point is a property of our fire model and town, exactly the kind of thing a real deployment would need to check.
+The lift roughly halves in the worst case but never reaches zero. Of these, the number of helpers matters most; how fast
+help requests arrive matters surprisingly little, because in this town the fire needs about an hour to reach most homes.
+That is a property of our fire model and town, exactly the kind of thing a real deployment would need to check.
+
+## The baseline was too pessimistic
+
+Then we made the baseline stronger. Rishabh added knobs for neighbours giving rides, more family pickups, faster
+departures and earlier alerts, and reran 33 configurations with 100 paired seeds each:
+
+| alerts-only baseline | alerts only | Last Mile | lift |
+|---|---|---|---|
+| no neighbour rides (our default) | 45.0% | 74.3% | +29.3 pts [28.1, 30.5] |
+| 30% of neighbours with a car give a ride | 65.0% | 77.3% | +12.3 pts [11.5, 13.2] |
+| every neighbour with a free seat gives a ride | 72.8% | 78.2% | +5.4 pts [4.8, 6.0] |
+| neighbours, families and early alerts all working well | 84.5% | 88.6% | +4.1 pts [3.5, 4.8] |
+
+Last Mile won in all 33, but neighbour rides close most of the gap. So the honest headline isn't "+29 points". It's
+**about 4 to 29 points, depending on how much informal help a town already has, and about 12 if a third of neighbours
+pitch in.** Coordinated dispatch matters most where informal help is thin, and for wheelchair users, whom our modelled
+neighbour rides can't carry. We haven't yet measured how much of the remaining gain is those households.
 
 ## How it's built
 
@@ -80,8 +99,8 @@ last point is a property of our fire model and town, exactly the kind of thing a
 
 ## What a simulation can't tell you
 
-It can't tell you whether helpers show up, whether people answer an unknown number, or whether a county can maintain a
-registry of who needs help without violating their privacy. It can tell you which assumptions matter most, and that is
+It can't tell you how many neighbours in a real town would give a ride, whether helpers show up, whether people answer
+an unknown number, or whether a county can maintain a registry of who needs help without violating their privacy. It can tell you which assumptions matter most, and that is
 where we would start with emergency managers, home-care agencies and disability advocates.
 
 *Last Mile is a HackUMass XIV prototype, not an emergency service. In immediate danger, call 911.*
