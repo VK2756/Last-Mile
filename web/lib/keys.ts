@@ -4,7 +4,7 @@ export type KeyAction = { type: 'space' } | { type: 'reset' } | { type: 'seek'; 
 export const SHORTCUTS: { keys: string[]; label: string }[] = [
   { keys: ['Space'], label: 'Start, or pause / resume' },
   { keys: ['R'], label: 'Reset and run again' },
-  { keys: ['1', '2', '3'], label: 'Run preset 1 / 2 / 3' },
+  { keys: ['1', '…', '6'], label: 'Run preset 1 to 6' },
   { keys: ['←', '→'], label: 'Rewind / forward 30 s (replay)' },
   { keys: ['L'], label: 'Back to live' },
   { keys: ['?'], label: 'Show / hide shortcuts' },
@@ -25,7 +25,7 @@ export function keyAction(e: KeyLike): KeyAction | null {
   switch (e.key) {
     case ' ': return { type: 'space' };
     case 'r': case 'R': return { type: 'reset' };
-    case '1': case '2': case '3': return { type: 'preset', index: Number(e.key) - 1 };
+    case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9': return { type: 'preset', index: Number(e.key) - 1 };
     case '?': case '/': return { type: 'help' };
     case 'ArrowLeft': return { type: 'seek', delta: -30 };
     case 'ArrowRight': return { type: 'seek', delta: 30 };

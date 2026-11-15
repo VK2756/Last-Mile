@@ -144,16 +144,36 @@ export function LiveView() {
   }, [retry.at]);
 
   const dirty = !sameBase(draft, base);
+  // the engine restarted and forgot this run (404): start the same scenario again on both sides
+  const runLost = !mock && (left.runLost || right.runLost);
+  const [restartedNotice, setRestartedNotice] = useState(false);
+  const runRef = useRef<(next?: BaseConfig) => void>(() => {});
+  useEffect(() => {
+    if (!runLost) return;
+    setRestartedNotice(true);
+    runRef.current(base);
+    const t = setTimeout(() => setRestartedNotice(false), 6000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runLost]);
+  // ---- fast-forward to the first dispatch: nothing moves until the official alert (~T+5 min), so each
+  // run plays at 60x until a helper is assigned on either side, then drops back to the chosen speed ----
+  const [ff, setFf] = useState<{ restore: number } | null>(null);
+  const ffDoneFor = useRef(-1);
+  /** the speed the user picked (not the temporary fast-forward one) */
+  const userSpeed = ff ? ff.restore : right.speed;
+  const anyDispatch = (left.frame?.assignments.length ?? 0) + (right.frame?.assignments.length ?? 0) > 0;
   /** Run = apply the draft (if edited) and restart both sides from t=0. */
   const run = useCallback((next?: BaseConfig) => {
     const cfg = next ?? draft;
     setSelected(null); setView(null); setPicking(false); setHoldAtStart(false); setReplayT(null); setVerdictDismissed(false);
     setDraft(cfg);
-    setBase({ ...cfg, speedMultiplier: right.speed });
+    setBase({ ...cfg, speedMultiplier: userSpeed });
     setRunKey((k) => k + 1);
-  }, [draft, right.speed]);
+  }, [draft, userSpeed]);
+  runRef.current = run;
   const restart = useCallback(() => run(), [run]);
-  const choosePreset = useCallback((p: Preset) => { setActivePresetId(p.id); run(presetBase(p, right.speed)); }, [run, right.speed]);
+  const choosePreset = useCallback((p: Preset) => { setActivePresetId(p.id); run(presetBase(p, userSpeed)); }, [run, userSpeed]);
 
   // ---- ?auto=1: next preset 5 s after both runs end; retry after an engine error ----
   const autoRef = useRef({ presets, activePresetId, choosePreset, restart });
@@ -189,6 +209,20 @@ export function LiveView() {
   }, []);
   const pendingIgnition = dirty || picking ? draft.ignition : null;
   const control = useCallback((a: 'pause' | 'resume' | 'speed', v?: number) => { left.control(a, v); right.control(a, v); }, [left, right]);
+  useEffect(() => {
+    if (ff) {
+      if (anyDispatch || status === 'ended' || status === 'error') { control('speed', ff.restore); setFf(null); }
+      return;
+    }
+    if (ffDoneFor.current === runKey || status !== 'live' || !left.init || !right.init || holdAtStart || paused || replayT !== null) return;
+    ffDoneFor.current = runKey;
+    if (anyDispatch || right.speed >= 60) return;
+    setFf({ restore: right.speed });
+    control('speed', 60);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ff, anyDispatch, status, runKey, holdAtStart, paused, replayT, left.init, right.init]);
+  // a run that restarts mid fast-forward starts fresh (the new streams begin at the base speed)
+  useEffect(() => { setFf(null); }, [runKey]);
   // pitch mode: freeze both runs on their first frame until Space
   const holdSent = useRef<string | null>(null);
   useEffect(() => {
@@ -300,6 +334,14 @@ export function LiveView() {
                 </Banner>
               </div>
             )}
+            {ff && (
+              <div role="status" className="glass-map mx-auto flex items-center gap-2 rounded-full px-4 py-1.5 font-mono text-xs font-semibold text-fg-muted" data-testid="fast-forward">
+                <span className="text-info">60×</span> Fast-forwarding to the first dispatch, then back to {ff.restore}×
+              </div>
+            )}
+            {restartedNotice && (
+              <div role="status" className="glass-map mx-auto rounded-full px-4 py-1.5 text-xs font-semibold text-warn" data-testid="engine-restarted-toast">The engine restarted and lost the run. Started it again from the beginning.</div>
+            )}
             {justReconnected && status === 'live' && (
               <div role="status" className="glass-map mx-auto rounded-full px-4 py-1.5 text-xs font-semibold text-ok" data-testid="reconnected-toast">Reconnected. The run resumed.</div>
             )}
@@ -320,8 +362,8 @@ export function LiveView() {
               </Button>
               <Segmented
                 label="Playback speed"
-                value={String(SPEEDS.includes(right.speed as (typeof SPEEDS)[number]) ? right.speed : 12)}
-                onChange={(v) => control('speed', Number(v))}
+                value={String(SPEEDS.includes(userSpeed as (typeof SPEEDS)[number]) ? userSpeed : 12)}
+                onChange={(v) => { setFf(null); control('speed', Number(v)); }}
                 options={SPEEDS.map((x) => ({ value: String(x), label: `${x}×` }))}
               />
             </div>
