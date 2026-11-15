@@ -31,6 +31,13 @@ export function liveSocketUrl(token: LiveTokenResponse): string {
   return `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.${method}?access_token=${encodeURIComponent(token.token)}`;
 }
 
+export async function liveFrameText(data: unknown): Promise<string> {
+  if (typeof data === 'string') return data;
+  if (typeof Blob !== 'undefined' && data instanceof Blob) return data.text();
+  if (data instanceof ArrayBuffer) return new TextDecoder().decode(data);
+  return String(data);
+}
+
 export class LiveSession {
   private socket: SocketLike;
   constructor(token: LiveTokenResponse, callbacks: LiveCallbacks, connect: (url: string) => SocketLike = (url) => new WebSocket(url)) {
@@ -44,24 +51,31 @@ export class LiveSession {
       } }));
     };
     this.socket.onmessage = (message) => {
-      let event: LiveEvent;
-      try { event = JSON.parse(String(message.data)) as LiveEvent; }
-      catch { return; }
-      callbacks.raw(event);
-      if (event.setupComplete) callbacks.opened();
-      const content = event.serverContent;
-      if (!content) return;
-      if (content.interrupted) callbacks.interrupted();
-      if (content.interimInputTranscription?.text) callbacks.input(content.interimInputTranscription.text, true);
-      if (content.inputTranscription?.text) callbacks.input(content.inputTranscription.text, false);
-      if (content.outputTranscription?.text) callbacks.output(content.outputTranscription.text);
-      for (const part of content.modelTurn?.parts ?? []) {
-        if (part.inlineData?.data) callbacks.audio(part.inlineData.data);
-      }
-      if (content.turnComplete) callbacks.turnComplete();
+      // Browsers deliver Gemini Live frames as Blob (Node as string), so decode before parsing.
+      void liveFrameText(message.data).then((text) => {
+        let event: LiveEvent;
+        try { event = JSON.parse(text) as LiveEvent; }
+        catch { return; }
+        this.handle(event, callbacks);
+      });
     };
     this.socket.onerror = () => callbacks.error();
     this.socket.onclose = () => callbacks.closed();
+  }
+
+  private handle(event: LiveEvent, callbacks: LiveCallbacks): void {
+    callbacks.raw(event);
+    if (event.setupComplete) callbacks.opened();
+    const content = event.serverContent;
+    if (!content) return;
+    if (content.interrupted) callbacks.interrupted();
+    if (content.interimInputTranscription?.text) callbacks.input(content.interimInputTranscription.text, true);
+    if (content.inputTranscription?.text) callbacks.input(content.inputTranscription.text, false);
+    if (content.outputTranscription?.text) callbacks.output(content.outputTranscription.text);
+    for (const part of content.modelTurn?.parts ?? []) {
+      if (part.inlineData?.data) callbacks.audio(part.inlineData.data);
+    }
+    if (content.turnComplete) callbacks.turnComplete();
   }
 
   sendAudio(base64: string): void {

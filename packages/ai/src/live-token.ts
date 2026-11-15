@@ -13,7 +13,10 @@ export function isLiveAudioModel(model: Model): boolean {
 export function chooseLiveModel(models: Model[], preferred?: string): string | null {
   const available = models.filter(isLiveAudioModel);
   const choice = preferred ? available.find((model) => model.name === preferred || model.name === `models/${preferred}`) : undefined;
-  return (choice ?? available[0])?.name ?? null;
+  if (choice) return choice.name ?? null;
+  // Deterministic ranking: native-audio models first, a "-latest" alias next; ties keep the API's order.
+  const score = (m: Model) => (/native-audio/i.test(m.name ?? '') ? 2 : 0) + (/-latest$/i.test(m.name ?? '') ? 1 : 0);
+  return [...available].sort((a, b) => score(b) - score(a))[0]?.name ?? null;
 }
 
 export async function createLiveToken(apiKey = process.env.GEMINI_API_KEY): Promise<LiveToken | null> {
