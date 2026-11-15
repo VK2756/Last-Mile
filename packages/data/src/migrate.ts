@@ -1,3 +1,4 @@
+import { pathToFileURL } from 'node:url';
 import pg from 'pg';
 
 export const migrationStatements = [
@@ -44,6 +45,6 @@ export async function migrate(connectionString = process.env.TIGER_DATABASE_URL)
   } finally { await pool.end(); }
 }
 
-if (process.argv[1] && import.meta.url === new URL(`file:///${process.argv[1].replaceAll('\\', '/')}`).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   migrate().then(() => console.log('Tiger migration complete')).catch((error) => { console.error(error); process.exitCode = 1; });
 }
