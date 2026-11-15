@@ -88,15 +88,16 @@ export class Scenario {
 export class Registry {
   private readonly map = new Map<string, Scenario>();
   private sweeper: NodeJS.Timeout;
-  constructor(private readonly factory: RunnerFactory, private readonly ttlMs = 30 * 60_000) {
+  constructor(private readonly factory: RunnerFactory, private readonly ttlMs = Number(process.env.ENGINE_SCENARIO_TTL_MS ?? 15 * 60_000)) {
     this.sweeper = setInterval(() => this.sweep(), 60_000);
     this.sweeper.unref();
   }
   /** thrown by create() when the registry is full */
   static readonly FULL = 'registry full';
-  maxScenarios = Number(process.env.ENGINE_MAX_SCENARIOS ?? 300);
+  maxScenarios = Number(process.env.ENGINE_MAX_SCENARIOS ?? 50);
   create(config: ScenarioConfig): Scenario {
-    if (this.map.size >= this.maxScenarios) { this.sweep(Date.now() + this.ttlMs + 1); if (this.map.size >= this.maxScenarios) throw new Error(Registry.FULL); }
+    // when full, evict only scenarios nobody is watching that have sat for over a minute (never one a page is about to open)
+    if (this.map.size >= this.maxScenarios) { this.sweep(Date.now() + this.ttlMs - 60_000); if (this.map.size >= this.maxScenarios) throw new Error(Registry.FULL); }
     const id = `sc-${randomUUID().slice(0, 8)}`;
     const s = new Scenario(id, config, this.factory(id, config));
     this.map.set(id, s);

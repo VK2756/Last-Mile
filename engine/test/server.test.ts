@@ -79,10 +79,10 @@ describe('hardening', () => {
     expect(allowedOrigin('https://a.app', 'https://evil.app')).toBeNull();
     expect(allowedOrigin('https://a.app', undefined)).toBeNull();
   });
-  it('GET /presets returns 3 valid configs', async () => {
+  it('GET /presets returns valid configs (3 originals first, then the 3 real-road stories)', async () => {
     const app = await buildServer({ factory: fake }); const r = await app.inject({ method: 'GET', url: '/presets' });
-    const body = r.json(); expect(body).toHaveLength(3); body.forEach((p: { config: unknown }) => SC.parse(p.config)); await app.close();
-    expect(PRESETS).toHaveLength(3);
+    const body = r.json(); expect(body).toHaveLength(6); expect(body.slice(0, 3).map((p: { id: string }) => p.id)).toEqual(['wind-driven-run', 'crosswind-flank', 'slow-burn-few-helpers']); body.forEach((p: { config: unknown }) => SC.parse(p.config)); await app.close();
+    expect(PRESETS).toHaveLength(6);
   });
   it('rate limits POST /scenarios and rejects odd ids', async () => {
     const app = await buildServer({ factory: fake, ratePerMin: 3 });
@@ -119,5 +119,50 @@ describe('production readiness', () => {
     (sink as { onTriage: unknown }).onTriage = async () => { throw new Error('atlas down'); };
     const r = await app.inject({ method: 'POST', url: `/scenarios/${scenarioId}/households/h2/needs`, payload: { ...body, householdId: 'h2' } });
     expect([200, 409]).toContain(r.statusCode); await app.close();
+  });
+});
+
+import { defaultMcWorkers, MC_MAX_RUNS } from '../src/server';
+import { Registry } from '../src/sim/registry';
+describe('public-server safety', () => {
+  const origin = 'https://last-mile-seven.vercel.app';
+  it('ENGINE_CORS_ORIGIN is used exactly; the default is permissive', async () => {
+    const strict = await buildServer({ factory: fake, corsOrigin: `${origin}/, https://example.org` });
+    const ok = await strict.inject({ method: 'GET', url: '/health', headers: { origin } });
+    expect(ok.headers['access-control-allow-origin']).toBe(origin);
+    const bad = await strict.inject({ method: 'GET', url: '/health', headers: { origin: 'https://evil.app' } });
+    expect(bad.headers['access-control-allow-origin']).toBeUndefined();
+    await strict.close();
+    const open = await buildServer({ factory: fake });
+    const any = await open.inject({ method: 'GET', url: '/health', headers: { origin: 'https://anything.app' } });
+    expect(any.headers['access-control-allow-origin']).toBeTruthy();
+    await open.close();
+  });
+  it('rejects oversized bodies and Monte Carlo requests above the cap', async () => {
+    const app = await buildServer({ factory: fake });
+    expect((await app.inject({ method: 'POST', url: '/scenarios', headers: { 'content-type': 'application/json' }, payload: JSON.stringify({ pad: 'x'.repeat(70_000) }) })).statusCode).toBe(413);
+    const tooMany = await app.inject({ method: 'POST', url: '/montecarlo', payload: { runs: MC_MAX_RUNS + 1 } });
+    expect(tooMany.statusCode).toBe(400);
+    const tooManySeeds = await app.inject({ method: 'POST', url: '/montecarlo', payload: { seeds: Array.from({ length: MC_MAX_RUNS + 1 }, (_, i) => i) } });
+    expect(tooManySeeds.statusCode).toBe(400);
+    await app.close();
+  });
+  it('caps live scenarios and only evicts scenarios that have sat idle', () => {
+    const reg = new Registry((id, config) => fake(id, config), 15 * 60_000);
+    reg.maxScenarios = 3;
+    for (let i = 0; i < 3; i++) reg.create(cfg as ScenarioConfig);
+    expect(() => reg.create(cfg as ScenarioConfig)).toThrow(Registry.FULL); // all fresh: nothing evicted
+    reg.close();
+  });
+  it('removes idle scenarios after the TTL', () => {
+    const reg = new Registry((id, config) => fake(id, config), 15 * 60_000);
+    const s = reg.create(cfg as ScenarioConfig);
+    reg.sweep(Date.now() + 14 * 60_000); expect(reg.get(s.id)).toBeDefined();
+    reg.sweep(Date.now() + 16 * 60_000); expect(reg.get(s.id)).toBeUndefined();
+    reg.close();
+  });
+  it('Monte Carlo workers default to min(4, cores-1) and honour ENGINE_MC_WORKERS', () => {
+    expect(defaultMcWorkers({}, 12)).toBe(4); expect(defaultMcWorkers({}, 2)).toBe(1); expect(defaultMcWorkers({}, 1)).toBe(1);
+    expect(defaultMcWorkers({ ENGINE_MC_WORKERS: '2' } as NodeJS.ProcessEnv, 12)).toBe(2);
   });
 });

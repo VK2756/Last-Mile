@@ -54,6 +54,13 @@ Stress (40 paired seeds, preset base, vulnerable evacuated): default fleet lift 
 ## Knob #69 (neighbours give rides) merged: the strongest baseline lever
 30 paired seeds, vulnerable evacuated, lift [95% CI]: neighborRideProb 0.1 -> alerts 52.8%, LM 77.0%, lift +24.2 [21.8, 26.6]; 0.3 -> 64.9% / 77.8%, +12.9 [10.8, 15.0]; 0.5 -> 69.5% / 78.7%, +9.1 [7.6, 10.7]. Say this in the pitch: if half of all drivers voluntarily took a vehicle-less neighbour, most of the gap closes; Last Mile still helps but the margin is single digits.
 
+## Public-server safety, load and timing (merged with a/public-safety)
+- `POST /montecarlo`: one uncached batch at a time (429 + Retry-After while busy, Lane D's route), runs/seeds capped at 200 (400 above), cached preset answers in ~1 ms. Body limit 64 KB (413). Live scenarios capped at 50 (503 when full; only scenarios idle over 1 min are evicted) and deleted after 15 min idle (`ENGINE_SCENARIO_TTL_MS`). CORS: `ENGINE_CORS_ORIGIN` list used exactly (default `*`). SIGTERM closes streams and exits.
+- Clean checkout (fresh `git clone`, `pnpm install --frozen-lockfile` 8 s, `NODE_ENV=production pnpm --filter @lastmile/engine start`): listening and `/health` ok after 4.1 s while the preset warm-up was still running (preset request timed out at 3 s mid warm-up, then answered from cache in ~1 ms).
+- Monte Carlo N=200, wall time incl. ~5 s tsx start, on a loaded 12-core Mac (load avg 10-20): 2 workers 55 s and 45 s, 4 workers 32 s and 35 s, 12 workers ~39 s. Default is now min(4, cores-1) (`ENGINE_MC_WORKERS` overrides); a 2 vCPU box gets 1 worker.
+- Load test `engine/scripts/load-sse.ts` (20 streams at 8x, 60 s, one 40-run Monte Carlo after 8 s, MC pinned to 1 worker to mimic 2 vCPU): 0 errors, first frame 1.4 s, frame gap p50 501 ms / p99 513 / max 549 (expected 500), 71 KB/s per stream, server CPU 15% avg with 20 streams, ~170% avg (peak 250%) while the batch runs, RSS 191 -> 305 MB, the batch took 17 s. No frame downsampling needed. Caveat: measured on a 12-core Mac, not a real 2 vCPU; on Vultr run `pnpm exec tsx scripts/load-sse.ts --url http://127.0.0.1:8080 --pid <pid>`.
+- Presets (#81): 3 real-road stories appended after the original three (the web slices `/presets` to 3, so they need a lane:b change to show). Median-seed results: south-fire-cut-off vulnerable 8/21 -> 11/21, southeast-big-lift 9/18 -> 17/18, downtown-north-wheelchair 44/98 -> 76/98.
+
 ## Next
 Vercel deploy, sensitivity table, full-stack click-through, Vultr readiness.
 

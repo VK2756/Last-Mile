@@ -1,5 +1,6 @@
 // OWNER: Lane A. HTTP + SSE surface (see ENGINE_ROUTES in @lastmile/contracts).
 import { execSync } from 'node:child_process';
+import os from 'node:os';
 import type { ServerResponse } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
@@ -14,13 +15,20 @@ import { PRESETS } from './sim/presets';
 import { registerMonteCarlo } from './montecarlo';
 
 const Control = z.object({ action: z.enum(['pause', 'resume', 'speed']), value: z.number().optional() });
+export const MC_MAX_RUNS = 200;
+/** Monte Carlo worker threads: ENGINE_MC_WORKERS, else min(4, cores - 1) (measured: 4 workers ran N=200 in ~33 s vs ~50 s at 2; never starve the SSE thread). */
+export function defaultMcWorkers(env: NodeJS.ProcessEnv = process.env, cores = os.availableParallelism?.() ?? os.cpus().length): number {
+  const v = env.ENGINE_MC_WORKERS;
+  if (v !== undefined && v !== '' && Number.isFinite(Number(v))) return Math.max(0, Math.floor(Number(v)));
+  return Math.max(1, Math.min(4, cores - 1));
+}
 const Id = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/);
 
 export interface ServerOpts { factory?: RunnerFactory; corsOrigin?: string; ttlMs?: number; sink?: EngineSink; ratePerMin?: number }
 
 /** `*` or a comma-separated allow-list. Returns the value for Access-Control-Allow-Origin for a request origin, or null. */
 export function allowedOrigin(config: string, reqOrigin: string | undefined): string | null {
-  const list = config.split(',').map((s) => s.trim()).filter(Boolean);
+  const list = config.split(',').map((s) => s.trim().replace(/\/+$/, '')).filter(Boolean); // tolerate a pasted trailing slash
   if (list.includes('*')) return '*';
   return reqOrigin && list.includes(reqOrigin) ? reqOrigin : null;
 }
@@ -33,7 +41,7 @@ export function gitCommit(): string {
 const COMMIT = gitCommit();
 
 /** Names (never values) of the env flags that are set; safe to log. */
-export const ENV_FLAGS = ['NODE_ENV', 'PORT', 'ENGINE_PORT', 'ENGINE_CORS_ORIGIN', 'ENGINE_RATE_LIMIT_PER_MIN', 'ENGINE_MAX_SCENARIOS', 'ENGINE_MC_WORKERS', 'DATA_SINK', 'LOG_LEVEL', 'GIT_COMMIT', 'MONGODB_URI', 'TIGER_DATABASE_URL', 'GEMINI_API_KEY'];
+export const ENV_FLAGS = ['NODE_ENV', 'PORT', 'ENGINE_PORT', 'ENGINE_CORS_ORIGIN', 'ENGINE_RATE_LIMIT_PER_MIN', 'ENGINE_MAX_SCENARIOS', 'ENGINE_MC_WORKERS', 'ENGINE_SCENARIO_TTL_MS', 'DATA_SINK', 'LOG_LEVEL', 'GIT_COMMIT', 'MONGODB_URI', 'TIGER_DATABASE_URL', 'GEMINI_API_KEY'];
 export const envFlagsInUse = (env: NodeJS.ProcessEnv = process.env) => ENV_FLAGS.filter((k) => env[k] !== undefined && env[k] !== '');
 
 export async function buildServer(opts: ServerOpts = {}): Promise<FastifyInstance & { registry: Registry }> {
@@ -122,8 +130,15 @@ export async function buildServer(opts: ServerOpts = {}): Promise<FastifyInstanc
     return out;
   });
 
-  const mcWorkers = process.env.ENGINE_MC_WORKERS ? Number(process.env.ENGINE_MC_WORKERS) : undefined;
-  registerMonteCarlo(app, { warmPreset: process.env.NODE_ENV !== 'test', ...(mcWorkers !== undefined ? { workers: mcWorkers } : {}) });
+  // the public Monte Carlo route is capped: at most MC_MAX_RUNS paired seeds per request (one batch at a time is enforced by the route)
+  app.addHook('preHandler', async (req, reply) => {
+    if (req.method !== 'POST' || req.url.split('?')[0] !== '/montecarlo') return;
+    const b = (req.body ?? {}) as { runs?: unknown; seeds?: unknown };
+    const n = Array.isArray(b.seeds) ? b.seeds.length : typeof b.runs === 'number' ? b.runs : 0;
+    if (n > MC_MAX_RUNS) return reply.code(400).send({ error: `runs is capped at ${MC_MAX_RUNS} per request` });
+  });
+  const mcWorkers = defaultMcWorkers();
+  registerMonteCarlo(app, { warmPreset: process.env.NODE_ENV !== 'test', workers: mcWorkers });
 
   return app as unknown as FastifyInstance & { registry: Registry };
 }
