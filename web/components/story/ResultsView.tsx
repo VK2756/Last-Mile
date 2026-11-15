@@ -8,6 +8,7 @@ import { AppShell, AssumptionsList, Banner, Button, SimBadge, eyebrowClass } fro
 import { engineUrl } from '@/lib/engine';
 import { formatPct, formatPts } from '@/lib/format';
 import { cn } from '@/lib/cn';
+import { BaselinePanel } from './BaselinePanel';
 import { CiChart, POLICY_COLOR } from './CiChart';
 import { SampleRibbon } from './SampleRibbon';
 import { computeSampleComparison, type MonteCarloBase } from './sampleMonteCarlo';
@@ -325,6 +326,14 @@ function Ready({ shown, sensitivity }: { shown: Shown; sensitivity: ReactNode | 
               : 'The interval excludes zero in the wrong direction: in these runs Last Mile did worse than alerts alone. We report it as is.'
             : 'The interval includes zero: these runs do not show a clear difference. We report it as is.'}
         </p>
+        {!muted && (
+          <p className="mt-2 max-w-2xl text-sm text-fg-muted">
+            This figure assumes neighbours never give each other rides. With a stronger alerts-only baseline the lift is smaller:{' '}
+            <a href="#baseline" className="font-semibold text-accent hover:underline">
+              how much does the baseline matter?
+            </a>
+          </p>
+        )}
       </section>
 
       <div className="grid gap-6 lg:grid-cols-[1.35fr_1fr]">
@@ -385,6 +394,8 @@ function Ready({ shown, sensitivity }: { shown: Shown; sensitivity: ReactNode | 
           </section>
         </aside>
       </div>
+
+      {!muted && <BaselinePanel base={data.base} />}
 
       <section data-testid="results-sensitivity" className="rounded-lg border border-warn/40 bg-warn/5 p-4 sm:p-6">
         <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold">
