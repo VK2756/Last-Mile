@@ -50,6 +50,8 @@ ENGINE_CORS_ORIGIN=*
 
 The engine selects `@lastmile/data` only with `DATA_SINK=real`. Both database URLs are needed for its buffered real sink; if either is absent it uses the memory sink. The service reads `engine/.env` through systemd. Set `GEMINI_API_KEY` in the Vercel project environment for `/api/triage`, then redeploy the web app. The key is not needed by the engine.
 
+For a foreground engine run from the repository root, use `pnpm deploy:engine`. It invokes the same `pnpm --filter @lastmile/engine start` command as the systemd unit. The engine's `start` script uses `tsx` to transpile TypeScript as it starts; there is no separate emitted build artifact. The normal VM deployment below runs `pnpm verify` before restarting that unit.
+
 Check file permissions without showing its contents:
 
 ```bash

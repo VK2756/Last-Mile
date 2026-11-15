@@ -6,6 +6,7 @@
   "scripts": {
     "verify": "bash scripts/verify.sh",
     "postmerge": "bash scripts/postmerge.sh",
-    "watch": "bash scripts/watch.sh"
+    "watch": "bash scripts/watch.sh",
+    "deploy:engine": "pnpm --filter @lastmile/engine start"
   }
 }
