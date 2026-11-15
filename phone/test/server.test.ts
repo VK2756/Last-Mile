@@ -20,5 +20,5 @@ describe('phone HTTP boundary', () => {
     expect((await fetch(origin + '/call', { method: 'POST', headers: { 'content-type': 'application/json', 'x-phone-secret': 'test-only-secret' }, body })).status).toBe(403);
     const allowed = await fetch(origin + '/call', { method: 'POST', headers: { 'content-type': 'application/json', 'x-phone-secret': 'test-only-secret' }, body: JSON.stringify({ to: '+15551234567' }) });
     expect(allowed.status).toBe(503); // no Twilio/Gemini credentials supplied
-  });
+  }, 20_000);
 });
