@@ -1,0 +1,15 @@
+{
+  "url": "http://localhost:3300/how-it-works",
+  "fetchTime": "2026-11-15T00:58:26.737Z",
+  "lighthouseVersion": "12.8.2",
+  "formFactor": "desktop",
+  "scores": {
+    "performance": 100,
+    "accessibility": 100,
+    "best-practices": 100,
+    "seo": 100
+  },
+  "lcp": "0.5 s",
+  "cls": "0",
+  "tbt": "0 ms"
+}

@@ -16,7 +16,7 @@ const BOX_H = 92;
 function Node({ x, y, i }: { x: number; y: number; i: number }) {
   const s = PIPELINE[i]!;
   return (
-    <a href={`#${s.id}`} aria-label={`${s.title}: ${s.sub}`}>
+    <a href={`#${s.id}`}>
       <g transform={`translate(${x} ${y})`} className="pd-node">
         <rect width={BOX_W} height={BOX_H} rx="8" fill="#0c1016" stroke="#2d3a4a" strokeWidth="1.5" />
         <rect width="4" height={BOX_H} rx="2" fill={s.color} />
@@ -35,7 +35,7 @@ function Node({ x, y, i }: { x: number; y: number; i: number }) {
 }
 
 const Arrow = ({ d }: { d: string }) => (
-  <path d={d} fill="none" stroke="#5e6b79" strokeWidth="1.5" markerEnd="url(#pd-arrow)" className="pd-flow" />
+  <path d={d} fill="none" stroke="#5e6b79" strokeWidth="1.5" markerEnd="url(#pd-arrow)" className="pd-flow" aria-hidden />
 );
 
 const Defs = () => (
@@ -61,7 +61,7 @@ export function PipelineDiagram() {
   return (
     <figure className="m-0">
       {/* horizontal */}
-      <svg viewBox={`0 0 ${W} 210`} className="hidden w-full md:block" role="img" aria-labelledby="pd-title-h">
+      <svg viewBox={`0 0 ${W} 210`} className="hidden w-full md:block" role="group" aria-labelledby="pd-title-h">
         <title id="pd-title-h">
           Pipeline: fire model feeds the risk clock, which feeds dispatch; voice triage feeds needs into dispatch; the Monte Carlo evaluator runs the whole loop many times
         </title>
@@ -90,7 +90,7 @@ export function PipelineDiagram() {
         </text>
       </svg>
       {/* vertical */}
-      <svg viewBox="0 0 260 640" className="mx-auto block w-full max-w-xs md:hidden" role="img" aria-labelledby="pd-title-v">
+      <svg viewBox="0 0 260 640" className="mx-auto block w-full max-w-xs md:hidden" role="group" aria-labelledby="pd-title-v">
         <title id="pd-title-v">Pipeline from fire model to risk clock to dispatch, with voice triage feeding dispatch and Monte Carlo re-running the loop</title>
         <Defs />
         {PIPELINE.map((_, i) => (

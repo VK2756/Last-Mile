@@ -1,0 +1,15 @@
+{
+  "url": "http://localhost:3300/results",
+  "fetchTime": "2026-11-15T00:57:28.826Z",
+  "lighthouseVersion": "12.8.2",
+  "formFactor": "mobile",
+  "scores": {
+    "performance": 97,
+    "accessibility": 100,
+    "best-practices": 100,
+    "seo": 100
+  },
+  "lcp": "2.6 s",
+  "cls": "0.007",
+  "tbt": "60 ms"
+}

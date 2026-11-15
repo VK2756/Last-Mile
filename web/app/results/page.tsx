@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { Markdown } from '@/components/story/Markdown';
 import { ResultsView } from '@/components/story/ResultsView';
+import { engineUrl } from '@/lib/engine';
 
 export const metadata: Metadata = storyMeta(
   'Results · Last Mile',
@@ -33,5 +34,12 @@ async function sensitivityNote() {
 }
 
 export default async function ResultsPage() {
-  return <ResultsView sensitivity={await sensitivityNote()} />;
+  const engine = engineUrl();
+  return (
+    <>
+      {/* the first thing the page does is fetch the cached preset from the engine */}
+      {engine && <link rel="preconnect" href={engine} crossOrigin="anonymous" />}
+      <ResultsView sensitivity={await sensitivityNote()} />
+    </>
+  );
 }

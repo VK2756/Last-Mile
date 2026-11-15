@@ -4,7 +4,9 @@ import type { MonteCarloComparison } from '@lastmile/contracts';
 import { formatPct } from '@/lib/format';
 
 // Mirrors the Lane B theme tokens (SVG presentation attributes can't read CSS vars reliably).
-export const POLICY_COLOR = { alerts_only: '#c9a227', last_mile: '#2ee6c5' } as const;
+import { POLICY_COLOR } from './policyColor';
+
+export { POLICY_COLOR };
 const AXIS = '#5e6b79';
 const GRID = '#1f2935';
 

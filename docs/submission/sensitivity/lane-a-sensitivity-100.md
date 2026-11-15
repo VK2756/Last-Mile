@@ -1,3 +1,8 @@
+> **Simulation with synthetic people. Baseline caveat:** every row below uses the default alerts-only baseline, where
+> neighbours never give each other rides. With a stronger baseline the lift is much smaller: +12.3 pts [11.5, 13.2] if
+> 30% of neighbours with a car give a ride, +4.1 pts [3.5, 4.8] with neighbours, families and early alerts all working
+> well (Lane D's [`BASELINE_REVIEW.md`](../BASELINE_REVIEW.md), 100 paired seeds each). The raw output below is unchanged.
+
 Vulnerable households evacuated, 100 paired seeds per row, preset base (wind 20 mph @90), real Amherst roads
 
 | assumption set | alerts only | Last Mile | paired lift (pts) [95% CI] | all-homes trapped (alerts -> LM) |

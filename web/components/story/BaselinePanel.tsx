@@ -5,7 +5,7 @@ import type { BaselineKnobs, MonteCarloComparison } from '@lastmile/contracts';
 import { Button, Spinner } from '@/components/ui';
 import { formatPct, formatPts } from '@/lib/format';
 import { cn } from '@/lib/cn';
-import { POLICY_COLOR } from './CiChart';
+import { POLICY_COLOR } from './policyColor';
 import { EngineBusyError, runConfig } from './mcClient';
 import { excludesZero } from './stats';
 
