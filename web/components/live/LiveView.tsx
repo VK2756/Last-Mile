@@ -207,6 +207,7 @@ export function LiveView() {
         </>
       }
     >
+      <h1 className="sr-only">Live split-screen simulation: alerts only versus Last Mile (synthetic people)</h1>
       <a href="#operator-panel" className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-16 focus:z-50 focus:rounded-md focus:bg-surface focus:px-3 focus:py-2 focus:text-sm focus:font-semibold">Skip to the operator queue</a>
       <div className={mapsOnly ? 'grid h-full grid-cols-1' : 'grid h-full grid-cols-1 lg:grid-cols-[1fr_21.25rem]'} data-maps-only={mapsOnly ? '1' : undefined}>
         <div className="flex min-h-[70vh] flex-col lg:min-h-0">
