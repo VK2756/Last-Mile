@@ -47,11 +47,28 @@ export interface ScenarioStream {
   speed: number;
   /** completed automatic reconnects in this run (the UI shows a short "Reconnected" notice) */
   reconnects: number;
+  /** the engine answered 404 for this run (it restarted and forgot it): the caller should start a new run */
+  runLost: boolean;
   control: (action: ControlAction, value?: number) => void;
 }
 
 const MAX_RECONNECT_MS = 12_000;
 /** after the browser's own retries give up: health-check backoff before re-attaching to the same run */
+/** HTTP status of a GET (the body is never read; the request is aborted as soon as headers arrive). 0 = no answer. */
+async function streamStatus(url: string, timeoutMs = 4000): Promise<number> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal, cache: 'no-store' });
+    return res.status;
+  } catch {
+    return 0;
+  } finally {
+    clearTimeout(timer);
+    ctrl.abort();
+  }
+}
+
 export const RESUME_BACKOFF_MS = [2000, 4000, 8000, 15_000];
 /** consecutive re-attach failures while the engine itself is healthy = the run is gone (engine restarted) */
 const MAX_HEALTHY_FAILURES = 2;
@@ -67,6 +84,7 @@ export function useScenarioStream(config: ScenarioConfig | null, opts: StreamOpt
   const [paused, setPaused] = useState(false);
   const [speed, setSpeed] = useState(config?.speedMultiplier ?? 8);
   const [reconnects, setReconnects] = useState(0);
+  const [runLost, setRunLost] = useState(false);
   const controlRef = useRef<(a: ControlAction, v?: number) => void>(() => {});
   const configKey = config ? JSON.stringify(config) : '';
 
@@ -76,7 +94,7 @@ export function useScenarioStream(config: ScenarioConfig | null, opts: StreamOpt
       return;
     }
     let cancelled = false;
-    setInit(null); setFrame(null); setFinal(null); setError(null); setPaused(false); setSpeed(config.speedMultiplier); setReconnects(0);
+    setInit(null); setFrame(null); setFinal(null); setError(null); setPaused(false); setSpeed(config.speedMultiplier); setReconnects(0); setRunLost(false);
     setStatus('connecting');
 
     const handle = (ev: StreamEvent) => {
@@ -136,6 +154,15 @@ export function useScenarioStream(config: ScenarioConfig | null, opts: StreamOpt
       resumeTimer = setTimeout(async () => {
         if (cancelled) return;
         if (!(await engineHealthy())) { scheduleResume(); return; }
+        // The engine is up. Does it still know this run? EventSource can't see the status code, so ask once:
+        // 404 = the engine restarted and forgot it (scenarios live in memory). Then don't loop: report it.
+        if (id && (await streamStatus(`${base}/scenarios/${encodeURIComponent(id)}/stream`)) === 404) {
+          if (cancelled) return;
+          ended = true; es?.close();
+          setRunLost(true);
+          return;
+        }
+        if (cancelled) return;
         if (healthyFailures >= MAX_HEALTHY_FAILURES) { fail('The engine restarted and this run is gone. Press Retry to start a new one.'); return; }
         healthyFailures++;
         open();
@@ -194,5 +221,5 @@ export function useScenarioStream(config: ScenarioConfig | null, opts: StreamOpt
   }, [configKey, mock, enabled, runKey, mockFrameMs]);
 
   const control = useCallback((a: ControlAction, v?: number) => controlRef.current(a, v), []);
-  return { init, frame, final, status, error, scenarioId, paused, speed, reconnects, control };
+  return { init, frame, final, status, error, scenarioId, paused, speed, reconnects, runLost, control };
 }
