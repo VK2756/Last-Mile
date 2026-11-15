@@ -1,3 +1,4 @@
+import { pathToFileURL } from 'node:url';
 import { MongoClient } from 'mongodb';
 import { sampleInit } from '../../contracts/src/fixtures';
 import { ensureAtlasCollections, helperDocument, householdDocument } from './index';
@@ -22,6 +23,6 @@ export async function seed(uri = process.env.MONGODB_URI): Promise<void> {
   } finally { await client.close(); }
 }
 
-if (process.argv[1] && import.meta.url === new URL(`file:///${process.argv[1].replaceAll('\\', '/')}`).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   seed().then(() => console.log('Atlas seed complete')).catch((error) => { console.error(error); process.exitCode = 1; });
 }

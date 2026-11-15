@@ -6,7 +6,8 @@ cd "$(dirname "$0")/.."
 export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"
 
 # optional env files (never printed)
-for f in .env engine/.env; do [ -f "$f" ] && { set -a; . "./$f"; set +a; }; done
+. "$(dirname "$0")/load-env.sh"
+lm_load_env .env engine/.env
 
 export NODE_ENV=production PORT=8080
 export ENGINE_CORS_ORIGIN="${ENGINE_CORS_ORIGIN:-https://last-mile-iamvk.vercel.app,https://last-mile-seven.vercel.app,http://localhost:3000}"
