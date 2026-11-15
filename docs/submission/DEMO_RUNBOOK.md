@@ -68,7 +68,7 @@ Values used are saved in `docs/submission/links.json`; commit it with the filled
 
 ## Do not
 
-- Quote any number that isn't in NUMBERS.md, or call SAMPLE/mock numbers results.
+- Quote any number that isn't in NUMBERS.md, or call SAMPLE/mock numbers results. `node docs/submission/tools/check-numbers.mjs` fails on any figure in the docs or web copy with no source.
 - Quote +29 on its own. It is the top of a range (about 4 to 29 points) and only holds if neighbours don't give rides.
 - Promise rescue or say "lives saved". Say "in our simulation".
 - Use the excluded claims listed at the bottom of [`SOURCES.md`](SOURCES.md).
