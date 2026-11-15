@@ -41,7 +41,11 @@ export async function placeTwilioCall(to: string, twiml: string, fetcher: typeof
   const response = await fetcher('https://api.twilio.com/2010-04-01/Accounts/' + encodeURIComponent(config.account) + '/Calls.json', {
     method: 'POST', headers: { Authorization: 'Basic ' + Buffer.from(config.account + ':' + config.auth).toString('base64'), 'Content-Type': 'application/x-www-form-urlencoded' }, body: form,
   });
-  if (!response.ok) throw new Error('Twilio rejected the call (HTTP ' + response.status + ')');
+  if (!response.ok) {
+    let detail = '';
+    try { const err = await response.json() as { code?: unknown; message?: unknown }; detail = ' code ' + String(err.code ?? '?') + ': ' + String(err.message ?? '').slice(0, 160); } catch { /* no JSON body */ }
+    throw new Error('Twilio rejected the call (HTTP ' + response.status + detail + ')');
+  }
   const data = await response.json() as { sid?: unknown; status?: unknown };
   if (typeof data.sid !== 'string' || !/^CA[0-9a-f]{32}$/i.test(data.sid)) throw new Error('Twilio returned no call SID');
   return { sid: data.sid, status: typeof data.status === 'string' ? data.status : 'queued' };
@@ -128,8 +132,11 @@ export function createPhoneServer() {
         console.log('[phone] call queued ' + maskPhone(to));
         return respond(res, 202, { sid, status });
       } catch (error) { calls.delete(token); throw error; }
-    } catch {
-      guard.failed(to); return respond(res, 502, { error: 'Could not start demo call' });
+    } catch (error) {
+      // Safe reason for operators: no keys are ever in these messages; phone numbers are masked.
+      const reason = (error instanceof Error ? error.message : 'unknown error').replace(/\+?\d{7,}/g, (n) => maskPhone(n.startsWith('+') ? n : '+' + n)).slice(0, 240);
+      console.error('[phone] could not start call: ' + reason);
+      guard.failed(to); return respond(res, 502, { error: 'Could not start demo call', reason });
     }
   });
   const wss = new WebSocketServer({ noServer: true });
