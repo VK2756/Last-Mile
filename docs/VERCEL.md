@@ -16,11 +16,21 @@ The web app (`web/`, package `@lastmile/web`) is a Next.js app inside a pnpm mon
    | Name | Value | Environments |
    |---|---|---|
    | `NEXT_PUBLIC_ENGINE_URL` | `https://<engine-domain>` (the Vultr engine behind Caddy; no trailing slash) | Production, Preview |
+   | `NEXT_PUBLIC_SITE_URL` | `https://<your-domain>` (the public site, no trailing slash; optional) | Production |
    | `GEMINI_API_KEY` | (Lane C's key, only needed for `/api/triage`; without it `/call` uses the deterministic fallback) | Production, Preview |
 
 5. Click **Deploy**. The first build takes about 1-2 minutes.
 6. After the first deploy: **Project → Settings → General → Root Directory** and check that **"Include files outside of the Root Directory in the Build Step"** is **Enabled** (it is on by default for monorepos; the build fails with `Cannot find module '@lastmile/contracts'` if it is off).
 7. **Settings → Git**: Production Branch = `main`. Every PR then gets a Preview URL automatically.
+
+## `NEXT_PUBLIC_SITE_URL` (custom domain)
+
+Set it to the domain judges will type (for example the GoDaddy Registry domain). When set, these all use it instead of the `*.vercel.app` host:
+- the **Copy demo link** button and the pitch-mode **QR code** on `/live`
+- Open Graph / canonical URLs (root layout `metadataBase`, and Lane E's story pages via `components/story/meta.ts`)
+- `/sitemap.xml` and `/robots.txt`
+
+When unset, the link and QR use the page's own `window.location.origin`, and server metadata falls back to Vercel's production URL. Like every `NEXT_PUBLIC_*` variable it is baked in at build time: redeploy after changing it.
 
 ## `NEXT_PUBLIC_ENGINE_URL` is baked in at build time
 
