@@ -134,9 +134,9 @@ typescript, node.js, fastify, next.js, react, maplibre-gl, recharts, zod, gemini
 
 ## Links
 
-- Live demo: [DEMO_URL] (offline fallback: [DEMO_URL]/live?mock=1)
-- Results with every assumption: [DEMO_URL]/results
-- Engine health: [API_URL]/health
+- Live demo: https://last-mile-iamvk.vercel.app (offline fallback: https://last-mile-iamvk.vercel.app/live?mock=1)
+- Results with every assumption: https://last-mile-iamvk.vercel.app/results
+- Engine health: https://vks-macbook-pro.tailb85bea.ts.net/health
 - Video: [VIDEO_URL]
 - DEV post: [DEV_URL]
 - Code: https://github.com/VK2756/Last-Mile
@@ -185,11 +185,11 @@ policy keep `/dashboard` fast. Code: `packages/data/src/migrate.ts`, `packages/d
 **MLH: Best Use of Vultr.** The whole engine (simulation, dispatcher, Monte Carlo evaluator) runs as one Node service on
 a Vultr VM behind Caddy for HTTPS, streaming live frames over Server-Sent Events and running 400-simulation comparisons
 on a worker pool; the 200-seed preset is warmed at boot so `/results` paints instantly. Code: `deploy/vultr/`,
-`docs/RUNBOOK_VULTR.md`. Evidence: public [API_URL]/health and `/montecarlo/preset` timing in [`evidence/`](evidence/).
+`docs/RUNBOOK_VULTR.md`. Evidence: public https://vks-macbook-pro.tailb85bea.ts.net/health and `/montecarlo/preset` timing in [`evidence/`](evidence/).
 Status: pending live run.
 
-**MLH: Best Domain Name from GoDaddy Registry.** The web app is served on our GoDaddy Registry domain, [DOMAIN], via
-Vercel, with `api.[DOMAIN]` pointing at the Vultr engine. Evidence: DNS records and an HTTPS capture in
+**MLH: Best Domain Name from GoDaddy Registry.** The web app is served on our GoDaddy Registry domain, last-mile-iamvk.vercel.app, via
+Vercel, with `api.last-mile-iamvk.vercel.app` pointing at the Vultr engine. Evidence: DNS records and an HTTPS capture in
 [`evidence/`](evidence/). Status: pending live run (domain not registered yet).
 
 **DEV Writing Challenge.** Our post, "We built an evacuation dispatcher, then tried hard to prove it doesn't work"

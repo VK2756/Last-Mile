@@ -3,7 +3,7 @@ title: "We built an evacuation dispatcher, then tried hard to prove it doesn't w
 published: false
 description: "A HackUMass simulation of live evacuation dispatch, and how a stronger baseline shrank our headline from +29 to a range of 4 to 29 points."
 tags: hackathon, simulation, gemini, mongodb
-cover_image: [DEMO_URL]/opengraph-image
+cover_image: https://last-mile-iamvk.vercel.app/opengraph-image
 ---
 
 <!--
@@ -111,6 +111,6 @@ where we would start with emergency managers, home-care agencies and disability 
 
 *Last Mile is a HackUMass XIV prototype, not an emergency service. In immediate danger, call 911.*
 
-**Try it:** the side-by-side run at [DEMO_URL]/live, and the results page at [DEMO_URL]/results, where the "How much does
+**Try it:** the side-by-side run at https://last-mile-iamvk.vercel.app/live, and the results page at https://last-mile-iamvk.vercel.app/results, where the "How much does
 the baseline matter?" buttons rerun the engine with neighbour rides switched on so you can check the range yourself.
 Video: [VIDEO_URL] · Code: https://github.com/VK2756/Last-Mile
