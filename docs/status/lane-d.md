@@ -22,7 +22,7 @@ Seeds 7,000,001-7,000,200, which no earlier run used: lift +30.1 [29.3, 30.9], a
 300 configs, each drawing helperMix, helperCapacityScale and every baseline knob about half the time. New checks: one helper per home (per plan and per frame), helper loads equal riders, all times finite, metrics add up, the same fire for both policies frame by frame, and termination by the engine's 4 h cap. **229 pass; the other 71 fail only on #114** (a frame lists a home under two helpers; display only, since ownership and loads are correct). Seed 227 also showed **#118**: a loaded helper waits forever for a safe zone the fire has cut off instead of trying a reachable one. That happens in 11 of 200 headline runs, with 43 people stuck in total. Both are filed for Lane A. CI runs seeds 1-3, which pass.
 
 ## Map: distance to the nearest road node (`scripts/check-node-distance.ts`)
-All 3 presets plus the Monte Carlo preset: homes are a median 24 m and at most 49 m from a routable node, and every helper starts exactly on a node (0 m). **No point is over 50 m, so there is no Lane A issue.**
+All 6 presets (including the three story presets from #81) plus the Monte Carlo preset: homes are a median 24-25 m and at most 49 m from a routable node, and every helper starts exactly on a node (0 m). **No point is over 50 m, so there is no Lane A issue.**
 
 ## #77 / #78
 #77: the timing test passed 30 times out of 30 with all 14 cores busy (median 4.9-7.3 ms, one run 30.9 ms, bound 60 ms); commented on the issue. #78: already merged in #92 as an addition to the existing `assumptions` field (no contract change); commented so Lane E can switch /results over.
