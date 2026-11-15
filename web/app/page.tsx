@@ -10,6 +10,7 @@ import {
   Database,
   Flame,
   Languages,
+  Mic,
   Phone,
   Route,
   Server,
@@ -17,7 +18,7 @@ import {
   Timer,
   Wind,
 } from 'lucide-react';
-import { AppShell, SimBadge, buttonClass, eyebrowClass } from '@/components/ui';
+import { AppShell, SimBadge, VOICE_AGENT_HREF, buttonClass, eyebrowClass } from '@/components/ui';
 import { LivePreview } from '@/components/story/LivePreview';
 import { Reveal } from '@/components/story/Reveal';
 
@@ -135,6 +136,9 @@ export default function Home() {
                 className={buttonClass({ variant: 'secondary', size: 'xl' })}
               >
                 See the evidence
+              </Link>
+              <Link href={VOICE_AGENT_HREF} prefetch={false} className={buttonClass({ variant: 'secondary', size: 'xl' })}>
+                <Mic aria-hidden className="size-5" /> Talk to the voice agent
               </Link>
             </div>
             <p className="mt-5 font-mono text-xs text-fg-muted">
