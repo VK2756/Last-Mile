@@ -6,12 +6,12 @@
 
 | # | URL | ready when |
 |---|---|---|
-| 1 | `[DEMO_URL]/` | live preview playing in the hero |
-| 2 | `[DEMO_URL]/live?pitch=1` | paused on frame 0, both maps drawn |
-| 3 | `[DEMO_URL]/call?scenario=<id>&household=<hid>&language=es` | IDs copied from a red-triangle household in tab 2 |
-| 4 | `[DEMO_URL]/results` | lift card shows the engine's number (default baseline, 200 seeds), pill says "Monte Carlo engine · cached preset" |
-| 5 | `[DEMO_URL]/how-it-works` | only if asked "how does it decide?" |
-| — | `[API_URL]/health` | `{"ok":true,...}` (check once, then close) |
+| 1 | `https://last-mile-iamvk.vercel.app/` | live preview playing in the hero |
+| 2 | `https://last-mile-iamvk.vercel.app/live?pitch=1` | paused on frame 0, both maps drawn |
+| 3 | `https://last-mile-iamvk.vercel.app/call?scenario=<id>&household=<hid>&language=es` | IDs copied from a red-triangle household in tab 2 |
+| 4 | `https://last-mile-iamvk.vercel.app/results` | lift card shows the engine's number (default baseline, 200 seeds), pill says "Monte Carlo engine · cached preset" |
+| 5 | `https://last-mile-iamvk.vercel.app/how-it-works` | only if asked "how does it decide?" |
+| — | `https://vks-macbook-pro.tailb85bea.ts.net/health` | `{"ok":true,...}` (check once, then close) |
 
 ## Fill the links (once, when the deploy is up)
 

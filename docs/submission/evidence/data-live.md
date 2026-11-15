@@ -1,12 +1,18 @@
 # Live data evidence
 
-Captured: 2026-11-14T19:42:36.985Z
+Captured: 2026-11-15T07:05:46.999Z
 
 Counts include the synthetic seed fixture and any real engine runs. A count alone does not prove a real run.
 
 ## Atlas
 
-Atlas: not configured
+Atlas: PASS
+
+- households: 603 documents
+- helpers: 26 documents
+- scenarios: 2 documents
+- triage_calls: 0 documents
+- $geoNear fixture query: PASS (2 matches)
 
 ### Matching query
 
@@ -25,8 +31,40 @@ The wheelchair filter is included only when requested. Source: `packages/data/sr
 
 ## Tiger Data
 
-Tiger Data: not configured
-Compression ratio: not configured
+Tiger Data: PASS
+
+- risk_samples: 17540 rows
+- dispatch_events: 112 rows
+- outcomes: 0 rows
+
+- risk_1m: 9 rows
+
+### risk_1m SQL
+
+```sql
+SELECT bucket,
+    scenario_id,
+    policy,
+    status,
+    households,
+    min_tti_seconds
+   FROM _timescaledb_internal._materialized_hypertable_4;
+```
+
+- dispatch_1m: 1 rows
+
+### dispatch_1m SQL
+
+```sql
+SELECT bucket,
+    scenario_id,
+    policy,
+    assignments,
+    mean_eta_seconds
+   FROM _timescaledb_internal._materialized_hypertable_5;
+```
+
+Compression ratio: no compressed chunks yet
 
 ### Continuous-aggregate migration SQL
 
