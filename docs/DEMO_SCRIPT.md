@@ -55,7 +55,7 @@ disability advocates. Thank you."
 |---|---|---|
 | Engine down / venue Wi-Fi slow | tab 2 → `/live?mock=1&pitch=1` (runs entirely in the browser, labelled "mock data") | "This is the browser mock of the same scenario; the numbers I'll quote come from the evaluator." |
 | No network at all | open a `next start` build on localhost with `?mock=1`, or play the recorded video | same as above |
-| `/results` shows the SAMPLE DATA ribbon | don't quote the sample; read the headline from `docs/submission/NUMBERS.md` on your phone | "These are from our evaluator run at 47c452c; the live engine isn't reachable from here." |
+| `/results` says "Run the engine to see results" | press **Retry** once; if still down, read the range from `docs/submission/NUMBERS.md` on your phone | "These are from our evaluator run at 47c452c; the live engine isn't reachable from here." |
 | `/call` mic blocked | type the answer into "Your answer" and press Send | — |
 | `/call` says "local mock" | fine to continue; it's labelled | "Gemini isn't reachable, so a keyword fallback is answering." |
 | Unattended station | `/live?auto=1&pitch=1` loops through the presets | — |

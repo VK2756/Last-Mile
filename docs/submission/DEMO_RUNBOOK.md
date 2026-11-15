@@ -9,7 +9,7 @@
 | 1 | `https://<domain>/` | live preview playing in the hero |
 | 2 | `https://<domain>/live?pitch=1` | paused on frame 0, both maps drawn |
 | 3 | `https://<domain>/call?scenario=<id>&household=<hid>&language=es` | IDs copied from a red-triangle household in tab 2 |
-| 4 | `https://<domain>/results` | lift card shows the engine's number (default baseline, 200 seeds), pill says "Engine · cached preset" |
+| 4 | `https://<domain>/results` | lift card shows the engine's number (default baseline, 200 seeds), pill says "Monte Carlo engine · cached preset" |
 | 5 | `https://<domain>/how-it-works` | only if asked "how does it decide?" |
 | — | `https://<engine-host>/health` | `{"ok":true,...}` (check once, then close) |
 
@@ -36,7 +36,7 @@
 |---|---|---|
 | `/live` shows "Live engine offline." | 1) click **Switch to mock mode**, or open `/live?mock=1&pitch=1` | "Browser mock of the same scenario; numbers come from the evaluator." |
 | Venue Wi-Fi dead | 1) phone hotspot; 2) laptop offline build: `cd web && pnpm demo` (port 3102), then `localhost:3102/live?mock=1&pitch=1`; 3) play the recorded video | "Recorded run of the same simulation." |
-| `/results` shows SAMPLE DATA ribbon | don't quote it; read the headline from NUMBERS.md (phone) | "From our evaluator run; the engine isn't reachable from here." |
+| `/results` says "Run the engine to see results" | press **Retry** once; if still down, read the range from NUMBERS.md (phone) | "From our evaluator run; the engine isn't reachable from here." |
 | "Run full 200-seed comparison" says busy | wait 30 s or skip; the cached preset is the same evaluator | — |
 | `/call` mic denied | type into "Your answer", press **Send** | — |
 | `/call` shows "local mock" | continue; it's labelled | "Gemini isn't reachable; a keyword fallback is answering." |

@@ -1,7 +1,7 @@
 // Monte Carlo HTTP client for /results (Lane E). Routes are mounted by Lane A from Lane D's
 // engine/src/montecarlo (GET /montecarlo/preset, POST /montecarlo).
-import { MonteCarloComparison, ScenarioConfig, StreamEvent } from '@lastmile/contracts';
-import { createScenario, engineUrl, sendControl } from '@/lib/engine';
+import { MonteCarloComparison } from '@lastmile/contracts';
+import { engineUrl } from '@/lib/engine';
 
 export class EngineBusyError extends Error {
   constructor() {
@@ -17,10 +17,11 @@ export interface McResponse {
   ms: number | null;
 }
 
-/** A response is a placeholder if it carries a `warning` field or a placeholder/stub assumption. */
+/** A response is a placeholder if it carries a `warning` field, a WARNING line, or a placeholder/stub assumption. */
 function isPlaceholder(raw: unknown, data: MonteCarloComparison): boolean {
   const warning = typeof raw === 'object' && raw !== null && 'warning' in raw && Boolean((raw as { warning?: unknown }).warning);
-  return warning || data.assumptions.some((a) => /\b(placeholder|stub|fake|not real)\b/i.test(a));
+  // the engine's own marker is a "WARNING: ... placeholder" line; model lines like "not real people" must not match
+  return warning || data.assumptions.some((a) => /^WARNING\b/.test(a) || /\b(placeholder|stub)\b/i.test(a));
 }
 
 async function call(path: string, init: RequestInit, timeoutMs: number, signal?: AbortSignal): Promise<McResponse> {
@@ -52,52 +53,11 @@ export const runSeeds = (seeds: number[], signal?: AbortSignal) =>
   call('/montecarlo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ seeds }) }, 240_000, signal);
 
 /**
- * The model assumptions (population, fire, routing, baseline behaviour, Last Mile help requests) live in SimInit, not in the
- * Monte Carlo response yet. Read them once from a scenario's `init` event for the same base config; cached per session.
- * Returns [] on any failure: the page then shows only what the Monte Carlo response says.
+ * A paired run with an explicit base config (e.g. a baseline knob override). The engine caches by base + seeds, so a
+ * repeated click is instant. Since #92 the response's assumptions include the simulator's own model assumptions.
  */
-export async function fetchModelAssumptions(base: MonteCarloComparison['base'], timeoutMs = 8000): Promise<string[]> {
-  const url = engineUrl();
-  if (!url || typeof EventSource === 'undefined') return [];
-  const key = `lm-model-assumptions:${JSON.stringify(base)}`;
-  try {
-    const hit = sessionStorage.getItem(key);
-    if (hit) return JSON.parse(hit) as string[];
-  } catch {
-    /* storage unavailable */
-  }
-  try {
-    const id = await createScenario(ScenarioConfig.parse({ ...base, seed: 1, policy: 'last_mile' }));
-    const list = await new Promise<string[]>((resolve) => {
-      const es = new EventSource(`${url}/scenarios/${encodeURIComponent(id)}/stream`);
-      const done = (v: string[]) => {
-        es.close();
-        clearTimeout(timer);
-        resolve(v);
-      };
-      const timer = setTimeout(() => done([]), timeoutMs);
-      es.onmessage = (ev) => {
-        try {
-          const parsed = StreamEvent.safeParse(JSON.parse(ev.data as string));
-          if (parsed.success && parsed.data.type === 'init') done(parsed.data.init.assumptions);
-        } catch {
-          /* ignore malformed lines */
-        }
-      };
-      es.onerror = () => done([]);
-    });
-    // stop the throwaway scenario; ignore failures
-    void sendControl(id, 'pause').catch(() => undefined);
-    try {
-      if (list.length) sessionStorage.setItem(key, JSON.stringify(list));
-    } catch {
-      /* storage unavailable */
-    }
-    return list;
-  } catch {
-    return [];
-  }
-}
+export const runConfig = (base: MonteCarloComparison['base'], seeds: number[], signal?: AbortSignal) =>
+  call('/montecarlo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ base, seeds }) }, 240_000, signal);
 
 /** Fresh seeds that the preset never used, so a full run is an independent replication. */
 export const FRESH_SEEDS = Array.from({ length: 200 }, (_, i) => 1001 + i);
