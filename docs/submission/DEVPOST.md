@@ -117,6 +117,6 @@ TypeScript, Node.js, Fastify, Next.js, React, MapLibre GL, Recharts, zod, Gemini
 
 ## Links
 
-- Live demo: [DEMO_URL] · Engine health: [ENGINE_URL]/health
+- Live demo: [DEMO_URL] · Engine health: [API_URL]/health
 - Video: [VIDEO_URL] · DEV post: [DEV_URL]
 - Evidence: [`docs/submission/evidence/`](evidence/)
