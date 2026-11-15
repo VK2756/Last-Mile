@@ -15,6 +15,7 @@ pnpm --filter @lastmile/engine test
 | `PORT` / `ENGINE_PORT` | `8080` | listen port |
 | `ENGINE_CORS_ORIGIN` | `*` | `*` or a comma-separated list of allowed origins |
 | `ENGINE_RATE_LIMIT_PER_MIN` | `60` | `POST /scenarios` per client IP |
+| `ENGINE_MC_WORKERS` | `min(4, cores-1)` | Monte Carlo worker threads (0 = in-process) |
 | `ENGINE_MAX_SCENARIOS` | `50` | live scenarios held in memory (503 when full) |
 | `ENGINE_SCENARIO_TTL_MS` | `900000` | a scenario nobody is watching is deleted after this long (15 min) |
 | `DATA_SINK` | `memory` | `real` loads `@lastmile/data` (Atlas + Tiger); falls back to memory on failure |

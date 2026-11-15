@@ -137,7 +137,7 @@ export function generatePopulation(config: ScenarioConfig, graph: RoadGraph, fir
     ...(config.helperMix ? [`SENSITIVITY: helper fleet mix is set explicitly (weights ${KIND_ORDER.map((k) => `${k} ${config.helperMix?.[k] ?? 0}`).join(', ')}) instead of the built-in mix.`] : []),
     ...(config.helperCapacityScale !== undefined && config.helperCapacityScale !== 1 ? [`SENSITIVITY: helper seat capacities are scaled by ${config.helperCapacityScale} (default capacities: neighbor 3, volunteer 4, accessible van 6, shuttle bus 12; minimum 1).`] : []),
     `Last Mile only learns of a household that cannot drive ${minutes(helpDelay[0])} to ${minutes(helpDelay[1])} min after that household is warned${variant.helpDelayS ? ' (SENSITIVITY: non-default)' : ''}.`,
-    `Safe zones are the 3 road nodes the fire reaches last (at least 1.4 km apart). Only the ${HOUSEHOLD_COUNT} synthetic households within the modeled road area exist; the road network is a synthetic grid unless a baked town is loaded.`,
+    `Safe zones are the 3 road nodes the fire reaches last (at least 1.4 km apart). Only the ${HOUSEHOLD_COUNT} synthetic households within the modeled road area exist; ${config.town === 'amherst' ? 'the road network is the real Amherst, MA street network (OpenStreetMap, baked into the repo), while every household on it is synthetic.' : 'the road network is a synthetic grid (no real map is baked for this town).'}`,
   ];
   return { households, helpers, safeZones, behavior, bounds, assumptions };
 }
