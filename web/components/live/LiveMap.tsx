@@ -128,6 +128,8 @@ export function LiveMap({ init, frame, selectedId = null, onSelect, tiles = true
       });
       map.addControl(new maplibre.NavigationControl({ showCompass: false }), 'bottom-right');
       mapRef.current = map;
+      // two maps on one page: give each canvas its own accessible name (axe landmark-unique)
+      map.getCanvas().setAttribute('aria-label', `${label ?? 'Simulation map'} (interactive map)`);
       // keep the canvas sized to its box (layout settles after mount; split screen resizes)
       ro = new ResizeObserver(() => {
         map.resize();

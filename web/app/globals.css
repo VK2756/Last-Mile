@@ -14,7 +14,7 @@
   --color-line-strong: #2d3a4a;
   --color-fg: #e8edf3;
   --color-fg-muted: #93a1b0;
-  --color-fg-dim: #5e6b79;
+  --color-fg-dim: #8290a0; /* >= 4.5:1 (WCAG AA) on bg, every surface and line */
 
   --color-fire: #ff5a1f;
   --color-ember: #ffb020;

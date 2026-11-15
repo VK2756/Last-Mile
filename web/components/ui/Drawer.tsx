@@ -25,7 +25,7 @@ export function Drawer({ open, onClose, title, eyebrow, children, side = 'right'
   }, [open, onClose]);
 
   return (
-    <div className={cn('fixed inset-0 z-50', open ? 'pointer-events-auto' : 'pointer-events-none')} aria-hidden={!open}>
+    <div className={cn('fixed inset-0 z-50', open ? 'pointer-events-auto' : 'pointer-events-none')} aria-hidden={!open} inert={!open}>
       <div className={cn('absolute inset-0 bg-black/55 transition-opacity', open ? 'opacity-100' : 'opacity-0')} onClick={onClose} />
       <div
         ref={ref}
