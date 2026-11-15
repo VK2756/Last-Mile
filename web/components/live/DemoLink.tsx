@@ -3,10 +3,9 @@ import { useEffect, useState } from 'react';
 import { Check, Link2 } from 'lucide-react';
 import { Button } from '@/components/ui';
 
-/** The shareable demo URL: this deployment's /live with no presenter flags. */
-export function demoUrl(origin: string): string {
-  return `${origin.replace(/\/+$/, '')}/live`;
-}
+import { demoUrl, siteOrigin } from '@/lib/site';
+
+export { demoUrl };
 
 async function copyText(text: string): Promise<boolean> {
   try {
@@ -27,7 +26,7 @@ async function copyText(text: string): Promise<boolean> {
 export function CopyDemoLink() {
   const [copied, setCopied] = useState(false);
   const onClick = async () => {
-    const ok = await copyText(demoUrl(window.location.origin));
+    const ok = await copyText(demoUrl(siteOrigin(window.location.origin)));
     setCopied(ok);
     if (ok) setTimeout(() => setCopied(false), 1800);
   };
@@ -44,7 +43,7 @@ export function DemoQr() {
   const [svg, setSvg] = useState<string | null>(null);
   const [url, setUrl] = useState('');
   useEffect(() => {
-    const u = demoUrl(window.location.origin);
+    const u = demoUrl(siteOrigin(window.location.origin));
     setUrl(u);
     let alive = true;
     import('qrcode')
