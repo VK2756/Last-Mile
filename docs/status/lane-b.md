@@ -1,57 +1,21 @@
-# Lane B status (WEB) — Shrish / Claude Code
-_Updated: Sat 14 Nov, M2 + pitch mode + stretch merged._
+# Lane B status (WEB): Shrish / Claude Code
+_Updated: Sat 14 Nov, evening. Main green (postmerge ✅ after every merge)._
 
-## For Lane E (Prince): shared pieces in `@/components/ui`
-- `<SimBadge mock? note? />`: the honesty badge; `note` replaces the suffix, e.g. `note="live preview, mock data"`.
-- `<AssumptionsList assumptions={init.assumptions} dense? empty? />`: numbered list (also takes `MonteCarloComparison.assumptions`).
-- `<Stat label value sub tone size icon format? />`: headline number that counts up (instant under reduced motion). Values must come from the engine/Monte Carlo, never hard-coded.
-- `<SectionHeading eyebrow title lede as="h1|h2|h3" tone="fire|accent|dim" align />` and `eyebrowClass(tone)` for a bare kicker.
-- `buttonClass({ variant, size, className })` to style a `<Link>` exactly like `<Button>`.
-- `.glass` (blurred panel) and `.glass-map` (no blur, for overlays above a map); type is rem-based, so it scales on projectors and 4K.
+## Merged today
+- #115 a11y: `--color-fg-dim` #5e6b79 -> #8290a0 (>= 4.52:1 on bg, every surface and line; closes #106). Closed drawer is `inert`, map canvases uniquely labelled, sr-only h1 on /live. **Lighthouse accessibility 100** on /, /live, /results, /call, /dashboard, /how-it-works. axe: 0 violations everywhere except Lane E's pipeline diagram on /how-it-works (#111).
+- #121 map: style starts tile-free (MapLibre `load` needs no network); OpenFreeMap tiles stream in underneath afterwards; until MapLibre itself is up, `StaticMap` draws the live frame as SVG. "Loading map" is gone: Slow 3G 9.0 s -> 0 s; tiles blocked: map ready 0.4 s.
+- #125 `NEXT_PUBLIC_SITE_URL` (lib/site.ts): Copy demo link, pitch QR, root metadataBase/og:url, new /sitemap.xml + /robots.txt; falls back to window.location.origin. Documented in docs/VERCEL.md. Closes #108: postmerge.sh 3x in a row, all green.
+- #134 mock realism: no home within 10 fire-minutes of the ignition; Last Mile dispatches from ~T+10-20 s; 0 trapped in the first 10 sim-min on presets 1-3; still labelled mock. Operator rows say "No helper" only for needs_help homes.
+- #137 engine unreachable: engine URL set but /health fails (down/CORS/blocked) -> mock + banner "Engine unreachable, showing the mock. Retrying..." with 5/10/15/30 s re-checks, auto-switch back to the engine. Tested: closed port (banner at 1.5 s, no Application error), CORS-blocked engine (stays on mock), engine back (LIVE · ENGINE at next check).
+- #140 "Talk to the voice agent" header link -> /call/live (exists on main). Landing hero button is Lane E's file: #139.
+- Devpost gallery: `docs/submission/media/01-07*.png`, 1920x1080, real local engine, QR shows the Vercel URL, each < 1 MB.
 
-## Done (M2)
-- Split-screen `/live` merged (#25): LEFT Alerts only / RIGHT Last Mile, same config except policy, one Run, shared clock (frames buffered per side, shown at the slower side's t), pause/speed to both scenarios, mirrored cameras. testids `map-left/right`, `scoreboard-left/right`, `frame-counter`, plus e2e aliases `map-alerts`, `map-last-mile`, `score-alerts`, `score-last-mile`.
-- Operator panel: at-risk households sorted by ttiSeconds, countdown chips, Vulnerable/All filter, click flies + shows Assignment.reason (`operator-panel`, `operator-row`, `operator-reason`).
-- Scenario picker: 3 presets from engine `GET /presets` (built-in copy when mock/offline), wind speed/direction, helpers, seed, click-map ignition, Randomize; edits apply on Run. testids `scenario-picker`, `preset-1..3`, `randomize`, `pick-ignition`.
-- Pitch mode `?pitch=1`: nav, legend and picker sliders hidden, bigger type, opens paused on the first frame ("Press Space to start"). Keys on /live: Space start/pause, R reset, 1/2/3 presets, ? (or /) shortcuts overlay, Esc close. `web/package.json` has `e2e` (#13).
-- Failure UX: engine-offline banner has Retry + Switch to mock (verified: engine killed -> banner; engine back -> Retry -> LIVE). Perf: 0 long tasks (>50ms) over 5s with 2x545 households streaming (prod build).
-- docs/VERCEL.md: click-by-click Vercel setup; NEXT_PUBLIC_ENGINE_URL is baked in at build (redeploy after changing).
-- Stretch: replay scrubber under the maps (both sides rewind together from a 5s-downsampled history while the runs continue; ←/→ ±30s, L = live; `replay-scrubber`, `replay-badge`, `replay-live`). Screenshot layout `?view=maps` (two maps + scoreboards only, no zoom buttons; add `&pitch=1` to hide nav).
-- Basemap: CARTO raster tiles now need an API key (they render an "API KEY REQUIRED" watermark), so /live uses OpenFreeMap vector tiles (free, no key) styled dark here: roads, water, parks, buildings, no labels. Offline grid stays underneath; `?tiles=0` still forces offline.
-- Polish (#59 + this): Inter/JetBrains Mono, rem type scale with root 16/17/20/28px at laptop/1080p/1440p/4K, glass panels, count-up numbers, skeletons, run verdict + winner highlight from real final metrics, maps refit on resize, icons follow UI scale, fire halo + pulsing front + decorative embers, helpers glide between frames (instant under reduced motion). Header fits 375px (#57, closes #54).
-- `?auto=1` (judging stations): starts preset 1 (never held, even with `pitch=1`), shows the verdict, then 5 s later runs the next preset, wrapping 3 -> 1; on an engine error it retries after 10 s. Verified in mock (1->2->3->1) and against the real engine incl. killing and restarting it mid-run.
-- Perf (measured in real headed Chrome, rAF frame times over 8-10 s, real engine, 600 households per map, busy phase ~T+16 min): before -> after
-  - 3840x2160: 45.5 -> 76 fps (p50 9.2 ms, p99 26 ms, 0 long tasks)
-  - 1920x1080 @2x: 116.5 fps with a 167 ms hitch -> 120 fps (p99 9.3 ms, 0 frames > 20 ms)
-  - 1280x720 @2x: 120 fps (p99 9.3 ms); 1920x1080 @1x: 120 fps (p99 9.2 ms)
-  - Cause: route/glow paint animation repainting both WebGL maps ~16x/s plus backdrop blur over them. Fix: animate at ~8 Hz only when routes/fire are on screen, helper easing capped at ~30 Hz, no backdrop blur on overlays above the maps (`.glass-map`).
-- A11y + failure UX: one accent focus ring everywhere (incl. map controls), skip link to the operator queue, arrow keys pan a focused map instead of seeking, scoreboards are labelled regions with a plain-English summary. SSE drop mid-run: banner "Lost at T+x", the browser retries, then health-checked re-attach to the SAME run (resumes where the engine is), "Reconnected" toast; only if the run is gone (engine restarted) does it fail with Retry. Verified with a TCP proxy that severed the connection for 20 s: resumed 6 s after the network came back, same scenario, clock jumped T+2:18 -> T+2:54.
-- Demo link: "Copy demo link" in Controls (copies `<origin>/live`), and in pitch mode a scannable QR card under the controls (dark-on-white, `qrcode` loaded only in pitch mode).
-- Production checks (https://last-mile-seven.vercel.app, real Chrome): /live?mock=1, /live, pitch, 375px, /, /results all 200, 0 console errors, 0 failed requests, no mixed content, SIM badge visible everywhere, 120 fps on /live?mock=1. /live correctly shows "Engine not configured" (NEXT_PUBLIC_ENGINE_URL unset): real-engine/CORS checks wait for the Vultr engine.
+## For Lane E (Prince)
+- Shared UI: `SimBadge`, `AssumptionsList`, `Stat`, `SectionHeading`/`eyebrowClass`, `buttonClass`, `VOICE_AGENT_HREF` from `@/components/ui`. Open for you: #111 (diagram a11y), #139 (landing voice button).
 
-## Done (M1, merged #19)
-- **UI kit published: `web/components/ui/**`** (import from `@/components/ui`): AppShell (top bar + nav), Button, Badge, Banner, Panel, StatTile, SimBadge (`data-testid="sim-badge"`), CountdownChip, StatusIcon/ShapeGlyph, Drawer, Segmented, Spinner, EmptyState, Kbd, Logo. Tokens in `web/app/globals.css` (Tailwind v4 `@theme`: bg-surface, text-fg-muted, border-line, text-accent…). Lane C: wrap /call in `<AppShell right={<SimBadge />}>`.
-- `web/lib/stream.ts` `useScenarioStream(config, {mock})` -> `{init, frame, final, status, error, control}`; real SSE + mock backend; every event goes through `StreamEvent.parse`.
-- `web/lib/mock.ts` deterministic in-browser mock (fixtures + 140 seeded synthetic homes, both policies). Labelled "mock data"; NOT results.
-- `/live`: MapLibre (GeoJSON layers, canvas icons, works with no tiles/glyphs), fire, households (shape = status, colour = time left), helpers, animated routes, clock, scoreboard, SIMULATION badge, Assumptions drawer, household card with "Why this helper?", engine-down banner -> one-click mock.
-- URL flags: `?mock=1`, `?tiles=0` (offline basemap), `?speed=30`, `?pitch=1`, `?view=maps`.
-- testids: `map-left`, `scoreboard-left`, `run-button`, `sim-badge`, `household-card`, `why-helper`, `assumptions-button`.
+## Needs the human
+- Vercel: set `NEXT_PUBLIC_ENGINE_URL=https://<engine>` and (optional) `NEXT_PUBLIC_SITE_URL=https://<domain>`, then redeploy. Then send me the https engine URL for the production check (CORS, LIVE · ENGINE, 3-min SSE).
+- Demo laptop: Low Power Mode caps Chrome at 30 fps; plug in / turn it off before pitching.
 
 ## Run it locally
-- `pnpm --filter @lastmile/engine start` (engine on :8080), then `pnpm --filter @lastmile/web demo` (prod build in `web/.next-demo`, served on http://localhost:3102, engine URL defaults to http://localhost:8080). The demo build dir is separate, so `pnpm verify` / `postmerge.sh` can't break a running demo.
-- No `pnpm` on PATH? `corepack enable pnpm` (or prefix commands with `corepack pnpm`).
-
-## Evidence
-- `pnpm verify` ✅ (web: 13 unit tests incl. parser rejects malformed events, mock frames all parse).
-- `next start` + Playwright: `/live?mock=1` renders, 0 console errors (besides blocked tile requests in sandbox).
-- Against local engine (`tsx src/server.ts`, NEXT_PUBLIC_ENGINE_URL=http://localhost:8080): SSE streams, 0 console errors. Engine killed -> "Live engine offline" banner + Switch to mock.
-
-## Other lanes
-- Engine deploy (A/C): set `ENGINE_CORS_ORIGIN` to include the Vercel URL(s) (or `*` for the weekend), else the browser blocks POST /scenarios.
-
-## Next
-Scenario picker + presets, pitch mode, failure UX, docs/VERCEL.md. (/, /results, /dashboard, /call UI moved to Lane E.)
-
-## Blockers
-- None. Pushing works now. Vercel not connected yet (Vidhaan).
-- #21 (Windows build): path-casing on Anant's checkout, explained on the issue.
+- Engine: `pnpm --filter @lastmile/engine start` (:8080). Web: `pnpm --filter @lastmile/web demo` (http://localhost:3102, separate `.next-demo`, so verify can't break it).
