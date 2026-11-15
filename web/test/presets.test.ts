@@ -5,7 +5,7 @@ import { mulberry32 } from '../lib/mock';
 
 describe('presets', () => {
   it('built-in presets are valid configs', () => {
-    expect(FALLBACK_PRESETS).toHaveLength(3);
+    expect(FALLBACK_PRESETS).toHaveLength(6); // mirrors engine PRESETS: 3 originals + 3 real-road stories
     for (const p of FALLBACK_PRESETS) expect(() => ScenarioConfig.parse(p.config)).not.toThrow();
   });
   it('parsePreset rejects off-contract presets', () => {
