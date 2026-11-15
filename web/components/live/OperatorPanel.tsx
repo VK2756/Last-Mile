@@ -71,8 +71,8 @@ const Row = memo(function Row({ row, selected, onSelect }: { row: AtRiskRow; sel
           <CountdownChip status={state.status} tti={state.ttiSeconds} className="w-[5.375rem] shrink-0" />
           <span className="min-w-0 flex-1 truncate text-sm font-medium">{h.name ?? <span className="font-mono text-fg-muted">{h.id}</span>}<span className="ml-1.5 text-xs text-fg-dim">{h.residents}p</span></span>
           {vulnerable && <Accessibility aria-label="Vulnerable" className="size-3.5 shrink-0 text-warn" />}
-          <span className={cn('shrink-0 font-mono text-[0.625rem] uppercase tracking-[0.12em]', assignment ? 'text-accent' : 'text-fg-dim')}>
-            {assignment ? STATUS_META[state.status].short : 'No helper'}
+          <span className={cn('shrink-0 font-mono text-[0.625rem] uppercase tracking-[0.12em]', assignment ? 'text-accent' : state.status === 'needs_help' ? 'text-warn' : 'text-fg-dim')}>
+            {assignment || state.status !== 'needs_help' ? STATUS_META[state.status].short : 'No helper'}
           </span>
         </div>
         {selected && assignment && (

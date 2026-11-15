@@ -30,6 +30,9 @@ const HELPER_SPEED_MPS = 11; // ~25 mph on local roads
 const DETOUR = 1.35; // straight line -> road distance
 const LOAD_S = 150; // time to get a wheelchair user / oxygen into a vehicle
 const THREAT_HORIZON_S = 45 * 60;
+/** Nobody lives within this many seconds of fire travel from the ignition, so early minutes look like a real
+ * start (warnings and dispatches), not instant losses. Homes closer than this are moved outward along their bearing. */
+const MIN_ARRIVAL_S = 10 * 60;
 
 // ---------- seeded RNG ----------
 export function mulberry32(seed: number) {
@@ -190,12 +193,22 @@ function buildWorld(config: ScenarioConfig) {
 
   const fire = fireShape(config, rnd);
   const hh: HhSim[] = households.map((h) => {
-    const xy = proj.toXY(h.position);
-    const arrival = fire.arrival(xy[0], xy[1]);
+    let xy = proj.toXY(h.position);
+    if (Math.hypot(xy[0], xy[1]) < 1) xy = [1, 0];
+    let arrival = fire.arrival(xy[0], xy[1]);
+    if (arrival < MIN_ARRIVAL_S) {
+      // arrival is degree-1 homogeneous in xy, so scaling the offset scales the arrival time
+      const k = (MIN_ARRIVAL_S * (1 + rnd() * 0.5)) / arrival;
+      xy = [xy[0] * k, xy[1] * k];
+      arrival = fire.arrival(xy[0], xy[1]);
+      h.position = proj.toLatLng(xy[0], xy[1]);
+    }
     const vulnerable = isVulnerable(h);
     const getsAlert = !h.landlineOnly ? rnd() > 0.12 : rnd() > 0.55; // landline-only homes often miss app/cell alerts
     const noticeAt = getsAlert ? ALERT_AT_S + rnd() * 240 : Math.max(ALERT_AT_S, arrival - 200 - rnd() * 200); // late: they see smoke
-    const callAt = ALERT_AT_S + 30 + rnd() * 300; // Last Mile phones everyone flagged at-risk, landlines included
+    // Last Mile flags at-risk homes from the fire forecast at once and phones the soonest-threatened first
+    // (landlines included): seconds after ignition for the closest, a few minutes for the far side.
+    const callAt = 1 + rnd() * 4 + Math.min(arrival * 0.01, 180);
     const leaveDelay = h.needs.includes('young_children') || h.needs.includes('pets') ? 420 + rnd() * 600 : 180 + rnd() * 540;
     const selfLeaveAt = !vulnerable && h.hasVehicle ? noticeAt + leaveDelay : Infinity;
     const familyRescueAt = vulnerable && rnd() < 0.3 ? noticeAt + 600 + rnd() * 900 : Infinity;
@@ -222,6 +235,7 @@ export function createMockRunner(scenarioId: string, config: ScenarioConfig, dur
       'SYNTHETIC residents and helpers; not real people.',
       ...sampleInit.assumptions.filter((a) => !a.startsWith('SYNTHETIC')),
       `Mock fire: wind-stretched ellipse from the ignition point; ${config.wind.speedMph} mph wind from ${config.wind.dirDeg}°.`,
+      'Mock: no home lies within 10 min of fire travel from the ignition. Last Mile starts calling flagged homes within seconds, soonest-threatened first.',
       'Mock alerts at T+1:30; ~12% of households (more for landline-only homes) never receive them and react only to smoke.',
       `Mock helpers drive ${HELPER_SPEED_MPS} m/s along straight lines × ${DETOUR} detour, one household per trip.`,
     ],
