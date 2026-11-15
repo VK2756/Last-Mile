@@ -8,6 +8,7 @@ _Updated: Sat 14 Nov, evening. Main green (postmerge ✅ after every merge)._
 - #134 mock realism: no home within 10 fire-minutes of the ignition; Last Mile dispatches from ~T+10-20 s; 0 trapped in the first 10 sim-min on presets 1-3; still labelled mock. Operator rows say "No helper" only for needs_help homes.
 - #137 engine unreachable: engine URL set but /health fails (down/CORS/blocked) -> mock + banner "Engine unreachable, showing the mock. Retrying..." with 5/10/15/30 s re-checks, auto-switch back to the engine. Tested: closed port (banner at 1.5 s, no Application error), CORS-blocked engine (stays on mock), engine back (LIVE · ENGINE at next check).
 - #140 "Talk to the voice agent" header link -> /call/live (exists on main). Landing hero button is Lane E's file: #139.
+- #146 (closes #126, #127): engine restart mid-run -> /live sees the 404, restarts the same scenario with a notice (tested: back 4 s after the engine). Picker shows all 6 engine presets (keys 1-9). Each run fast-forwards at 60x to the first dispatch, then returns to the chosen speed. #146 merged with a stale test (3 -> 6 presets) and turned main red for ~3 min; fixed forward in #147, main CI green.
 - Devpost gallery: `docs/submission/media/01-07*.png`, 1920x1080, real local engine, QR shows the Vercel URL, each < 1 MB.
 
 ## For Lane E (Prince)
