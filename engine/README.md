@@ -15,12 +15,13 @@ pnpm --filter @lastmile/engine test
 | `PORT` / `ENGINE_PORT` | `8080` | listen port |
 | `ENGINE_CORS_ORIGIN` | `*` | `*` or a comma-separated list of allowed origins |
 | `ENGINE_RATE_LIMIT_PER_MIN` | `60` | `POST /scenarios` per client IP |
-| `ENGINE_MAX_SCENARIOS` | `300` | live scenarios held in memory (idle ones expire after 30 min) |
+| `ENGINE_MAX_SCENARIOS` | `50` | live scenarios held in memory (503 when full) |
+| `ENGINE_SCENARIO_TTL_MS` | `900000` | a scenario nobody is watching is deleted after this long (15 min) |
 | `DATA_SINK` | `memory` | `real` loads `@lastmile/data` (Atlas + Tiger); falls back to memory on failure |
 | `LOG_LEVEL` | `info` | structured JSON logs (pino) |
 
 ## Routes (see `ENGINE_ROUTES` in `@lastmile/contracts`)
-- `GET /health`, `GET /presets` (3 curated scenarios)
+- `GET /health`, `GET /presets` (6 curated scenarios: 3 originals, then 3 real-road stories)
 - `POST /scenarios` body `ScenarioConfig` -> `{scenarioId}`; `GET /scenarios/:id/stream` SSE of `StreamEvent` (`init`, `frame` every 500 ms, `end`)
 - `POST /scenarios/:id/control` `{action: pause|resume|speed, value?}`
 - `POST /scenarios/:id/households/:hid/needs` body `TriageResult` (voice triage updates the live sim)
