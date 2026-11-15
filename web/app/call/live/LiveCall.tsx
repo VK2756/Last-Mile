@@ -8,6 +8,7 @@ import { CallView } from '@/components/story/CallView';
 import { engineUrl } from '@/lib/engine';
 import { LiveSession, type LiveEvent, type LiveTokenResponse } from './session';
 import { MicrophoneCapture, PcmPlayback } from './audio';
+import { PhoneDemoForm } from './PhoneDemoForm';
 
 type Turn = { role: 'agent' | 'resident'; text: string };
 type Mode = 'idle' | 'connecting' | 'live' | 'fallback';
@@ -171,6 +172,7 @@ export function LiveCall() {
           {mode === 'live' ? <Button onClick={() => { void stop(); setMode('idle'); }}>End call</Button> : <Button onClick={() => { void start(); }} disabled={mode === 'connecting'}>{mode === 'connecting' ? 'Connecting…' : 'Start live call'}</Button>}
           <Link href="/call" className="text-sm text-accent underline">Use browser voice or text</Link>
         </div>
+        <PhoneDemoForm scenarioId={scenarioId} householdId={householdId} language={language} />
         <section aria-label="Live transcript" className="min-h-40 rounded-lg border border-line bg-surface p-5">
           <h2 className="mb-3 font-semibold">Transcript</h2>
           {turns.length === 0 && <p className="text-sm text-fg-muted">The conversation will appear here.</p>}

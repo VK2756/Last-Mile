@@ -9,9 +9,11 @@
 - #136 added the nonfatal neighbour-ride caveat warning to the audit and marked stale Monte Carlo evidence as superseded; issue #129 closed. Lane E resolved its submission warning in #135.
 - #138 added `evidence --dry-run`; it reports only missing `MONGODB_URI` and `TIGER_DATABASE_URL` names and makes no connections or file writes. Four missing/present combinations passed with test-only variables.
 
+- Phone demo: `@lastmile/phone` with Twilio outbound allowlist, one active call, 3/hour/number, signed stream token, 5-minute cap, Gemini Live audio bridge, triage/engine update, optional Atlas transcript; Vercel route and `/call/live` form, Mac Funnel scripts, and `docs/PHONE.md`. Eleven no-key tests and local `/health` passed. Clean-clone `pnpm verify` passed at `36eada6`. The branch `c/phone-call` is pushed; PR creation is pending GitHub integration write access (403).
+
 ## Verification and remaining work
 
 - All six PRs passed their required checks before squash merge. The fresh clone passed `pnpm verify` on the latest Lane C code; main CI passed after #138. `node web/e2e/audit.mjs` passes all five source checks with no warnings on current main.
 - The freeze gate passes source audit and main CI. Its health item needs a reachable engine origin. Windows `curl.exe` received HTTP 200 from the local engine, but this checkout's `bash` is WSL and cannot reach that Windows loopback server. Public production `/health` is pending the Vultr address.
 - Required `bash scripts/postmerge.sh` was run after each Lane C merge. In the original `C:\HackUmass` checkout, Next prerender fails on a React `useRef` null/path-casing issue; the clean `C:\LastMileLFCheck` clone passes the same full verification. See prior issue #21.
-- Real Atlas, Tiger, Gemini key, headset, and production deployment checks remain for Vidhaan/Anant. No secrets were read or printed. The local engine used the memory sink. `docs/VOICE.md` has the headset checklist and `docs/RUNBOOK_VULTR.md` has SSH commands.
+- Real Atlas, Tiger, Gemini key, headset, phone dial, Mac Funnel, and production deployment checks remain for Vidhaan/Anant. No secrets were read or printed. The local engine used the memory sink. `docs/VOICE.md` has the headset checklist and `docs/RUNBOOK_VULTR.md` has SSH commands.

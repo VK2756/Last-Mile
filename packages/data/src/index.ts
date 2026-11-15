@@ -133,3 +133,15 @@ export async function recordTriageCall(scenarioId: string, result: TriageResult)
     await client.db(process.env.MONGODB_DB || 'lastmile').collection('triage_calls').insertOne({ scenarioId, ...result, recordedAt: new Date() });
   } finally { await client.close(); }
 }
+
+/** Optional Atlas audit record for a completed demo phone call. Never stores the full dialed number. */
+export async function recordPhoneCallTranscript(input: { scenarioId?: string; householdId?: string; callSid?: string; maskedPhone: string; transcript: { role: 'agent' | 'resident'; text: string }[] }): Promise<void> {
+  if (!process.env.MONGODB_URI) return;
+  const client = new MongoClient(process.env.MONGODB_URI);
+  try {
+    await client.connect();
+    await client.db(process.env.MONGODB_DB || 'lastmile').collection('triage_calls').insertOne({
+      kind: 'phone_demo', ...input, transcript: input.transcript.map((turn) => ({ ...turn, text: turn.text.replace(/\+\d{8,15}/g, '[phone redacted]') })), recordedAt: new Date(),
+    });
+  } finally { await client.close(); }
+}
