@@ -1,5 +1,8 @@
 import type { ReactNode } from 'react';
 
+/** Relative links in docs/submission/*.md resolve against the repository copy. */
+const DOCS_BASE = 'https://github.com/VK2756/Last-Mile/blob/main/docs/submission/';
+
 // Tiny, dependency-free Markdown renderer for our own docs (headings, paragraphs, lists, tables,
 // **bold**, `code`, [links](url)). Server-only use; input is a file from this repo, never user input.
 
@@ -16,10 +19,12 @@ function inline(text: string, key: string): ReactNode[] {
     if (t.startsWith('**')) out.push(<strong key={k} className="font-semibold text-fg">{t.slice(2, -2)}</strong>);
     else if (t.startsWith('`')) out.push(<code key={k} className="rounded bg-surface-3 px-1 font-mono text-[0.85em]">{t.slice(1, -1)}</code>);
     else {
-      const [, label, href] = /\[([^\]]+)\]\(([^)]+)\)/.exec(t)!;
-      const external = /^https?:/.test(href!);
+      const [, label, raw] = /\[([^\]]+)\]\(([^)]+)\)/.exec(t)!;
+      // links between submission docs ("BASELINE_REVIEW.md") would 404 on the site: send them to the file on GitHub
+      const href = /^(https?:|\/|#)/.test(raw!) ? raw! : new URL(raw!, DOCS_BASE).toString();
+      const external = /^https?:/.test(href);
       out.push(
-        <a key={k} href={href} className="text-accent underline-offset-2 hover:underline" {...(external ? { target: '_blank', rel: 'noreferrer' } : {})}>
+        <a key={k} href={href} className="text-accent underline underline-offset-2" {...(external ? { target: '_blank', rel: 'noreferrer' } : {})}>
           {label}
         </a>,
       );

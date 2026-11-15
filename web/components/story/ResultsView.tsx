@@ -8,9 +8,13 @@ import { AppShell, AssumptionsList, Banner, Button, SimBadge, eyebrowClass } fro
 import { engineUrl } from '@/lib/engine';
 import { formatPct, formatPts } from '@/lib/format';
 import { cn } from '@/lib/cn';
-import { BaselinePanel } from './BaselinePanel';
-import { CiChart, POLICY_COLOR } from './CiChart';
+import dynamic from 'next/dynamic';
+import { POLICY_COLOR } from './policyColor';
 import { SampleRibbon } from './SampleRibbon';
+
+// Recharts and the baseline panel load after first paint: they are below the lift card and not needed to read it
+const CiChart = dynamic(() => import('./CiChart').then((m) => m.CiChart), { ssr: false, loading: () => <div className="h-80 animate-pulse rounded-md bg-surface-3/40" /> });
+const BaselinePanel = dynamic(() => import('./BaselinePanel').then((m) => m.BaselinePanel), { ssr: false });
 import { computeSampleComparison, type MonteCarloBase } from './sampleMonteCarlo';
 import { EngineBusyError, FRESH_SEEDS, fetchPreset, runSeeds } from './mcClient';
 import { excludesZero } from './stats';
@@ -329,7 +333,7 @@ function Ready({ shown, sensitivity }: { shown: Shown; sensitivity: ReactNode | 
         {!muted && (
           <p className="mt-2 max-w-2xl text-sm text-fg-muted">
             This figure assumes neighbours never give each other rides. With a stronger alerts-only baseline the lift is smaller:{' '}
-            <a href="#baseline" className="font-semibold text-accent hover:underline">
+            <a href="#baseline" className="font-semibold text-accent underline underline-offset-2">
               how much does the baseline matter?
             </a>
           </p>
