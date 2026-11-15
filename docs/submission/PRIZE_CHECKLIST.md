@@ -21,7 +21,7 @@ Tick exactly these. Tick a sponsor prize only if its evidence row in [`SPONSORS.
 
 - [ ] Title: Last Mile · Tagline from [`DEVPOST.md`](DEVPOST.md)
 - [ ] Story sections pasted from `DEVPOST.md` (Inspiration ... What's next) with numbers from [`NUMBERS.md`](NUMBERS.md)
-- [ ] "Built with" tags: typescript, node.js, next.js, react, maplibre, recharts, gemini, mongodb, timescaledb, vultr, vercel
+- [ ] "Built with" tags: copy the list under "Built with" in `DEVPOST.md`
 - [ ] Try-it link: production `/` and `/live` (not localhost); `?mock=1` mentioned as offline fallback
 - [ ] GitHub repo link (public before submitting)
 - [ ] Video link (YouTube/Vimeo, under the length limit, public or unlisted), see [`VIDEO.md`](VIDEO.md)
@@ -31,7 +31,11 @@ Tick exactly these. Tick a sponsor prize only if its evidence row in [`SPONSORS.
 ## Honesty gate (all must be true)
 
 - [ ] Every page with results shows the SIMULATION badge; the pitch and video say "simulation" out loud
-- [ ] Every outcome number matches `NUMBERS.md` (refreshed from the deployed engine on submission day)
+- [ ] Every outcome number matches `NUMBERS.md` (refreshed from the deployed engine on submission day):
+      `node docs/submission/tools/check-numbers.mjs` passes
+- [ ] The headline is the range (about 4 to 29 points) with the neighbour-ride caveat, never 45% to 74% on its own
+- [ ] Every link filled: `node docs/submission/tools/fill-links.mjs --check` passes
+- [ ] Each prize paragraph in `DEVPOST.md` says "pending live run" until its evidence exists; no opt-in without evidence
 - [ ] Every real-world fact appears in `SOURCES.md` with a working URL
 - [ ] Voice agent copy never promises rescue; 911 line visible on `/call`
 - [ ] No `STUB:` markers on main; `pnpm verify` green; CI green
