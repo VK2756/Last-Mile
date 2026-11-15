@@ -1,5 +1,7 @@
 # Local Monte Carlo evidence
 
+**Superseded historical run.** These figures predate the current baseline and must not be used in the submission or demo. See [NUMBERS.md](../NUMBERS.md) for current seeds 1–200 and [BASELINE_REVIEW.md](../BASELINE_REVIEW.md) for the neighbour-ride caveat and the sensitivity range.
+
 Run on Nov 14, 2026, after Lane D's Monte Carlo merge (#29). This is a synthetic, local in-process run of the real headless engine. It is not production or a real-world effectiveness estimate.
 
 ```text

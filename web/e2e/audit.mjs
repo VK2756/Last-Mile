@@ -44,4 +44,13 @@ const literalCredential = /(?:mongodb(?:\+srv)?:\/\/[^\s<>]{5,}@|postgres(?:ql)?
 const trackedEnv = git(['ls-files', '--', '.env', 'engine/.env', 'web/.env', 'packages/data/.env']);
 report('secrets scan clean (tracked env files and credential patterns)', !trackedEnv.trim() && !literalCredential.test(history));
 
+const submissionFiles = git(['ls-files', '-z', '--', 'docs/submission']).split('\0').filter((path) =>
+  /\.(?:md|txt|html|json|svg|mjs)$/i.test(path) && !/(?:^|\/)\.env(?:\.|$)/i.test(path),
+);
+const quotedOutcome = /\blift\b[\s\S]{0,120}?\b[+-]?\d+(?:\.\d+)?\s*(?:pts?|points?|%)|\b\d+(?:\.\d+)?\s*%\s*(?:to|→|->)\s*\d+(?:\.\d+)?\s*%/i;
+for (const path of submissionFiles) {
+  const content = read(path);
+  if (quotedOutcome.test(content) && !/neighbo/i.test(content)) console.log(`WARN neighbour-ride caveat missing: ${path}`);
+}
+
 process.exitCode = failures ? 1 : 0;
